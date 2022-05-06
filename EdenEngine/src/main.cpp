@@ -1,6 +1,9 @@
 #include <windows.h>
 #include <stdio.h>
 
+#include <dxc/dxcapi.h>
+#include <imgui/imgui.h>
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 bool g_Running = true;
