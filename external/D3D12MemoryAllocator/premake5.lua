@@ -1,7 +1,6 @@
-project "Optick"
+project "D3D12MemoryAllocator"
 	kind "StaticLib"
 	language "C++"
-	cppdialect "C++17"
     staticruntime "off"
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
@@ -9,18 +8,13 @@ project "Optick"
 
 	files
 	{
-		"src/**.h",
-		"src/**.cpp"
-	}
-
-	VULKAN_SDK = os.getenv("VULKAN_SDK")
-	includedirs
-	{
-		"%{VULKAN_SDK}/Include"
+		"D3D12MemAlloc.cpp",
+        "D3D12MemAlloc.h"
 	}
 
 	filter "system:windows"
 		systemversion "latest"
+		cppdialect "C++17"
 
 	filter "configurations:Debug"
 		runtime "Debug"
@@ -30,7 +24,7 @@ project "Optick"
 		runtime "Release"
 		optimize "on"
 
-	filter "configurations:Dist"
+    filter "configurations:Dist"
 		runtime "Release"
 		optimize "on"
         symbols "off"

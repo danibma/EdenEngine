@@ -23,6 +23,7 @@ outputdir = "%{cfg.buildcfg}"
 group "ThirdParty"
 include "external/imgui"
 include "external/optick"
+include "external/D3D12MemoryAllocator"
 group ""
 
 project "EdenEngine"
@@ -41,8 +42,6 @@ project "EdenEngine"
 		"%{prj.name}/src/**.c", 
 		"%{prj.name}/src/**.hpp", 
 		"%{prj.name}/src/**.cpp",
-        "%{wks.location}/external/D3D12MemoryAllocator/**.h",
-        "%{wks.location}/external/D3D12MemoryAllocator/**.cpp",
         "%{prj.name}/shaders/**.hlsl",
 	}
 
@@ -59,6 +58,7 @@ project "EdenEngine"
 	{ 
 		"ImGui",
         "Optick",
+        "D3D12MemoryAllocator",
 
         "%{wks.location}/external/dxc/dxcompiler.lib",
 	}
