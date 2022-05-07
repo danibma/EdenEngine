@@ -1,6 +1,6 @@
 #include "Camera.h"
 
-//#include "Core/Input.h"
+#include "Core/Input.h"
 
 namespace Eden
 {
@@ -23,8 +23,7 @@ namespace Eden
 
 	void Camera::Update(float deltaTime)
 	{
-		// TODO(Daniel): INPUT!
-		/*if (Input::GetMouseButtonDown(MouseButton::Right))
+		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
 			Input::SetCursorMode(CursorMode::Hidden);
 
@@ -32,26 +31,26 @@ namespace Eden
 
 			float cameraSpeed = 10.0f * deltaTime;
 
-			if (Input::GetKeyDown(KeyCode::W))
+			if (Input::GetKey(KeyCode::W))
 				position -= cameraSpeed * front;
-			if (Input::GetKeyDown(KeyCode::S))
+			if (Input::GetKey(KeyCode::S))
 				position += cameraSpeed * front;
-			if (Input::GetKeyDown(KeyCode::D))
+			if (Input::GetKey(KeyCode::D))
 				position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
-			if (Input::GetKeyDown(KeyCode::A))
+			if (Input::GetKey(KeyCode::A))
 				position += glm::normalize(glm::cross(front, up)) * cameraSpeed;
-			if (Input::GetKeyDown(KeyCode::Space))
+			if (Input::GetKey(KeyCode::Space))
 				position.y += cameraSpeed;
-			if (Input::GetKeyDown(KeyCode::LeftShift))
+			if (Input::GetKey(KeyCode::LeftShift))
 				position.y -= cameraSpeed;
 		}
-		else if (Input::GetMouseButtonUp(MouseButton::Right))
+		else if (Input::GetMouseButtonUp(MouseButton::RightButton))
 		{
-			Input::SetCursorMode(CursorMode::Normal);
+			Input::SetCursorMode(CursorMode::Visible);
 
 			m_Locked = false;
 			m_FirstTimeMouse = true;
-		}*/
+		}
 	}
 
 	void Camera::UpdateLookAt(float xPos, float yPos)
