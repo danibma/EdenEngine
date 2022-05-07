@@ -6,8 +6,8 @@ namespace Eden
 {
 	bool Input::m_keyDown[VK_OEM_CLEAR] = {};
 	bool Input::m_previousKeyDown[VK_OEM_CLEAR] = {};
-	std::pair<uint32_t, uint32_t> Input::m_MousePos;
-	float Input::m_MouseScrollDelta;
+	std::pair<uint32_t, uint32_t> Input::m_mousePos;
+	float Input::m_mouseScrollDelta;
 
 	void Input::UpdateInput()
 	{
@@ -37,12 +37,12 @@ namespace Eden
 			m_keyDown[VK_RBUTTON] = true;
 			break;
 		case WM_MOUSEMOVE:
-			m_MousePos.first  = GET_X_LPARAM(lParam);
-			m_MousePos.second = GET_Y_LPARAM(lParam);
+			m_mousePos.first  = GET_X_LPARAM(lParam);
+			m_mousePos.second = GET_Y_LPARAM(lParam);
 			break;
 		case WM_MOUSEWHEEL:
 		case WM_MOUSEHWHEEL:
-			m_MouseScrollDelta = GET_WHEEL_DELTA_WPARAM(code);
+			m_mouseScrollDelta = GET_WHEEL_DELTA_WPARAM(code);
 			break;
 		}
 	}

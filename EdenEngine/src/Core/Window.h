@@ -8,10 +8,10 @@ namespace Eden
 {
 	class Window
 	{
-		HWND m_Handle = {};
-		bool m_CloseRequested = false;
-		bool m_IsMinimized = false;
-		uint32_t m_Width, m_Height;
+		HWND m_handle = {};
+		bool m_closeRequested = false;
+		bool m_isMinimized = false;
+		uint32_t m_width, m_height;
 
 	public:
 		Window(const char* title, uint32_t width, uint32_t height);
@@ -20,15 +20,15 @@ namespace Eden
 		void UpdateEvents();
 		void Resize(uint32_t width, uint32_t height);
 
-		inline void CloseWasRequested()			{ m_CloseRequested = true; }
-		inline void SetMinimized(bool value)	{ m_IsMinimized = value; }
+		inline void CloseWasRequested()			{ m_closeRequested = true; }
+		inline void SetMinimized(bool value)	{ m_isMinimized = value; }
 
-		inline bool IsCloseRequested()			{ return m_CloseRequested; }
-		inline bool IsMinimized()				{ return m_IsMinimized; }
+		inline bool IsCloseRequested()			{ return m_closeRequested; }
+		inline bool IsMinimized()				{ return m_isMinimized; }
 
-		inline HWND GetHandle() { return m_Handle; }
-		inline uint32_t GetWidth() { return m_Width; }
-		inline uint32_t GetHeight() { return m_Height; }
+		inline HWND GetHandle() { return m_handle; }
+		inline uint32_t GetWidth() { return m_width; }
+		inline uint32_t GetHeight() { return m_height; }
 	};
 }
 

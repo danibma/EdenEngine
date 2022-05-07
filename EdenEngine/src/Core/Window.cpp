@@ -50,7 +50,7 @@ static LRESULT CALLBACK WindowProc(HWND handle, UINT uMsg, WPARAM wParam, LPARAM
 namespace Eden
 {
 	Window::Window(const char* title, uint32_t width, uint32_t height)
-		: m_Width(width), m_Height(height)
+		: m_width(width), m_height(height)
 	{
 		WNDCLASSEX wc		= {};
 		wc.cbSize			= sizeof(wc);
@@ -61,22 +61,22 @@ namespace Eden
 		RegisterClassEx(&wc);
 
 		// Create the window.
-		m_Handle = CreateWindowEx(0,                             // Optional window styles.
+		m_handle = CreateWindowEx(0,                             // Optional window styles.
 								  title,						 // Window class
 								  title,						 // Window text
 								  WS_OVERLAPPEDWINDOW,           // Window style
    								  CW_USEDEFAULT, CW_USEDEFAULT,  // Position
-								  m_Width, m_Height,			 // Size
+								  m_width, m_height,			 // Size
 								  NULL,							 // Parent window    
 								  NULL,							 // Menu
 								  GetModuleHandle(nullptr),		 // Instance handle
 								  NULL);						 // Additional application data
 
-		ED_ASSERT(m_Handle);
+		ED_ASSERT(m_handle);
 
-		SetWindowLongPtrA(m_Handle, GWLP_USERDATA, (LONG_PTR)this);
+		SetWindowLongPtrA(m_handle, GWLP_USERDATA, (LONG_PTR)this);
 
-		ShowWindow(m_Handle, SW_SHOWMAXIMIZED);
+		ShowWindow(m_handle, SW_SHOWMAXIMIZED);
 	}
 
 	Window::~Window()
@@ -97,10 +97,10 @@ namespace Eden
 
 	void Window::Resize(uint32_t width, uint32_t height)
 	{
-		m_Width = width;
-		m_Height = height;
+		m_width = width;
+		m_height = height;
 
-		ED_LOG_TRACE("Window was resized: {}x{}", m_Width, m_Height);
+		ED_LOG_TRACE("Window was resized: {}x{}", m_width, m_height);
 	}
 
 }

@@ -140,8 +140,8 @@ namespace Eden
 	{
 		static bool m_keyDown[VK_OEM_CLEAR];
 		static bool m_previousKeyDown[VK_OEM_CLEAR];
-		static std::pair<uint32_t, uint32_t> m_MousePos;
-		static float m_MouseScrollDelta;
+		static std::pair<uint32_t, uint32_t> m_mousePos;
+		static float m_mouseScrollDelta;
 
 	public:
 		static void UpdateInput();
@@ -182,12 +182,12 @@ namespace Eden
 		/*
 		* Returns the current mouse position
 		*/
-		static std::pair<uint32_t, uint32_t> GetMousePos() { return m_MousePos; }
+		static std::pair<uint32_t, uint32_t> GetMousePos() { return m_mousePos; }
 
 		/*
 		* Returns the mouse scroll delta
 		*/
-		static float GetMouseScrollDelta() { return m_MouseScrollDelta; }
+		static float GetMouseScrollDelta() { return m_mouseScrollDelta; }
 
 		/*
 		* Returns wether the cursor is being shown or is hidden

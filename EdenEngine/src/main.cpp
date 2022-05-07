@@ -27,7 +27,7 @@ void Init()
 	window = enew Window("Eden Engine", 1600, 900);
 #endif
 
-	gfx = enew GraphicsDevice();
+	gfx = enew GraphicsDevice(window->GetHandle(), window->GetWidth(), window->GetHeight());
 }
 
 void Update()
@@ -42,6 +42,8 @@ void Update()
 
 	if (!window->IsMinimized())
 	{
+		gfx->Render();
+
 		if (Input::GetKeyDown(KeyCode::A))
 		{
 			ED_LOG_INFO("Key Pressed!");

@@ -8,7 +8,7 @@
 
 namespace Eden
 {
-	std::shared_ptr<spdlog::logger> Log::s_CoreLogger;
+	std::shared_ptr<spdlog::logger> Log::s_coreLogger;
 
 	void Log::Init()
 	{
@@ -29,13 +29,13 @@ namespace Eden
 		coreSinks[1]->set_pattern(corePattern);
 		coreSinks[2]->set_pattern(corePattern);
 
-		s_CoreLogger = std::make_shared<spdlog::logger>("EDEN", coreSinks.begin(), coreSinks.end());
-		s_CoreLogger->set_level(spdlog::level::trace);
+		s_coreLogger = std::make_shared<spdlog::logger>("EDEN", coreSinks.begin(), coreSinks.end());
+		s_coreLogger->set_level(spdlog::level::trace);
 	}
 
 	void Log::Shutdown()
 	{
-		s_CoreLogger.reset();
+		s_coreLogger.reset();
 		spdlog::drop_all();
 	}
 
