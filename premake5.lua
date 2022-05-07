@@ -60,6 +60,9 @@ project "EdenEngine"
         "Optick",
         "D3D12MemoryAllocator",
 
+        "d3d12.lib",
+        "dxgi.lib",
+
         "%{wks.location}/external/dxc/dxcompiler.lib",
 	}
 
@@ -86,6 +89,7 @@ project "EdenEngine"
 
     filter "configurations:Debug"
 		symbols "On"
+        kind "ConsoleApp"
 
 		includedirs
 		{
@@ -105,6 +109,7 @@ project "EdenEngine"
 
 	filter "configurations:Release"
 		optimize "On"
+        kind "WindowedApp"
 
 		includedirs
 		{

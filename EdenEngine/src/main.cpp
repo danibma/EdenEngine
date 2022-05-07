@@ -4,12 +4,14 @@
 #include "Core/Log.h"
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
+#include "Graphics/GraphicsDevice.h"
 
 #include <algorithm>
 
 using namespace Eden;
 
 Window* window;
+GraphicsDevice* gfx;
 
 // Timer stuff
 Timer timer;
@@ -19,7 +21,13 @@ void Init()
 {
 	Log::Init();
 
+#ifdef ED_DEBUG
+	window = enew Window("Eden Engine(DEBUG)", 1600, 900);
+#else
 	window = enew Window("Eden Engine", 1600, 900);
+#endif
+
+	gfx = enew GraphicsDevice();
 }
 
 void Update()
@@ -47,13 +55,15 @@ void Update()
 
 void Destroy()
 {
+	edelete gfx;
+
 	edelete window;
 
 	Log::Shutdown();
 }
 
 
-int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nShowCmd)
+int EdenMain()
 {
 	Init();
 
