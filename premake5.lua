@@ -74,6 +74,7 @@ project "EdenEngine"
     postbuildcommands 
     {
         '{COPY} "%{wks.location}/external/dxc/dxcompiler.dll" "%{cfg.targetdir}"',
+        '{COPY} "%{wks.location}/external/dxc/dxil.dll" "%{cfg.targetdir}"',
     }
 
     filter { "files:**.hlsl" }

@@ -95,12 +95,17 @@ namespace Eden
 		}
 	}
 
+	void Window::SetResizeCallback(std::function<void(uint32_t, uint32_t)> resizeCallback)
+	{
+		m_resizeCallback = resizeCallback;
+	}
+
 	void Window::Resize(uint32_t width, uint32_t height)
 	{
 		m_width = width;
 		m_height = height;
 
-		ED_LOG_TRACE("Window was resized: {}x{}", m_width, m_height);
+		m_resizeCallback(width, height);
 	}
 
 }

@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+#include <glm/glm.hpp>
+
 using namespace Eden;
 
 Window* window;
@@ -16,6 +18,15 @@ GraphicsDevice* gfx;
 // Timer stuff
 Timer timer;
 float deltaTime;
+
+// scene data
+struct Vertex
+{
+	glm::vec3 position;
+	glm::vec4 color;
+};
+
+std::vector<Vertex> triangleVertices;
 
 void Init()
 {
@@ -28,6 +39,17 @@ void Init()
 #endif
 
 	gfx = enew GraphicsDevice(window->GetHandle(), window->GetWidth(), window->GetHeight());
+
+	gfx->CreateGraphicsPipeline("basic");
+
+	triangleVertices =
+	{
+		{ { 0.0f, 0.25f * window->GetAspectRatio(), 0.0f}, { 1.0f, 0.0f, 0.0f, 1.0f }},
+		{ { 0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+	};
+
+	gfx->CreateVertexBuffer(triangleVertices.data(), triangleVertices.size() * sizeof(Vertex), sizeof(Vertex));
 }
 
 void Update()
