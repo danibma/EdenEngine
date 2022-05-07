@@ -49,7 +49,7 @@ void Init()
 		{ { -0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
 	};
 
-	gfx->CreateVertexBuffer(triangleVertices.data(), triangleVertices.size() * sizeof(Vertex), sizeof(Vertex));
+	gfx->CreateVertexBuffer(triangleVertices.data(), (uint32_t)triangleVertices.size() * sizeof(Vertex), sizeof(Vertex));
 }
 
 void Update()

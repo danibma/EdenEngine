@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Core/Memory.h"
+#include "Utilities/Utils.h"
 
 namespace Eden
 {
@@ -38,8 +39,8 @@ namespace Eden
 
 		DXGI_ADAPTER_DESC1 adapterDesc;
 		m_adapter->GetDesc1(&adapterDesc);
-		std::wstring wname = adapterDesc.Description;
-		std::string name = std::string(wname.begin(), wname.end());
+		std::string name;
+		Utils::StringConvert(adapterDesc.Description, name);
 		ED_LOG_INFO("Initialized D3D12 device on {}", name);
 
 		// Create allocator
