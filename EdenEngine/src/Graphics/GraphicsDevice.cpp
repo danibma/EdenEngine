@@ -3,8 +3,12 @@
 #include <cstdint>
 #include <vector>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+
 #include "Core/Memory.h"
 #include "Utilities/Utils.h"
+#include "Profiling/Profiler.h"
 
 namespace Eden
 {
@@ -14,6 +18,8 @@ namespace Eden
 		: m_viewport(0.0f, 0.0f, (float)width, (float)height)
 		, m_scissor(0, 0, width, height)
 	{
+		ED_PROFILE_FUNCTION("D3D12Device Init");
+
 		uint32_t dxgiFactoryFlags = 0;
 
 	#ifdef ED_DEBUG
@@ -90,6 +96,15 @@ namespace Eden
 				ED_ASSERT_MB(false, "Failed to create Render Target View descriptor heap!");
 
 			m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+			// Describe and create a shader resource view (SRV) heap for the texture.
+			D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+			srvHeapDesc.NumDescriptors = 1;
+			srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+			if (FAILED(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap))))
+				ED_ASSERT_MB(false, "Failed to create Render Target View descriptor heap!");
 		}
 
 		// Create frame resources
@@ -136,6 +151,7 @@ namespace Eden
 		WaitForPreviousFrame();
 
 		m_vertexBufferAllocation->Release();
+		m_textureAllocation->Release();
 
 		CloseHandle(m_fenceEvent);
 	}
@@ -191,15 +207,46 @@ namespace Eden
 
 	void GraphicsDevice::CreateGraphicsPipeline(std::string shaderName)
 	{
-		// Create an empty root signature
+		// Create the root signature
 		{
-			CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-			rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+			D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+			if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+			{
+				ED_LOG_WARN("Root signature version 1.1 not available, switching to 1.0");
+				featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+			}
+
+			CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+			CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+			rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+
+			D3D12_STATIC_SAMPLER_DESC sampler = {};
+			sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+			sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			sampler.MipLODBias = 0;
+			sampler.MaxAnisotropy = 0;
+			sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+			sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+			sampler.MinLOD = 0.0f;
+			sampler.MaxLOD = D3D12_FLOAT32_MAX;
+			sampler.ShaderRegister = 0;
+			sampler.RegisterSpace = 0;
+			sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+			rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 			ComPtr<ID3DBlob> signature;
 			ComPtr<ID3DBlob> error;
 
-			if (FAILED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error)))
+			if (FAILED(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error)))
 				ED_ASSERT_MB(false, "Failed to serialize root signature");
 
 			if (FAILED(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature))))
@@ -226,8 +273,8 @@ namespace Eden
 			// Define the vertex input layout
 			D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
 			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 			};
 
 			// Describe and create pipeline state object(PSO)
@@ -270,13 +317,12 @@ namespace Eden
 		D3D12MA::ALLOCATION_DESC allocationDesc = {};
 		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
 
-		HRESULT hr = m_allocator->CreateResource(
-			&allocationDesc,
-			&CD3DX12_RESOURCE_DESC::Buffer(size),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			&m_vertexBufferAllocation,
-			IID_PPV_ARGS(&m_vertexBuffer));
+		m_allocator->CreateResource(&allocationDesc,
+									&CD3DX12_RESOURCE_DESC::Buffer(size),
+									D3D12_RESOURCE_STATE_GENERIC_READ,
+									nullptr,
+									&m_vertexBufferAllocation,
+									IID_PPV_ARGS(&m_vertexBuffer));
 
 		// Copy the buffer data to the vertex buffer.
 		UINT8* vertexDataBegin;
@@ -289,6 +335,84 @@ namespace Eden
 		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 		m_vertexBufferView.StrideInBytes = stride;
 		m_vertexBufferView.SizeInBytes = size;
+	}
+
+	void GraphicsDevice::CreateTexture2D(std::string filePath)
+	{
+		m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get());
+
+		ComPtr<ID3D12Resource> textureUploadHeap;
+		D3D12MA::Allocation* uploadAllocation;
+
+		// Create the texture
+		{
+			// Load texture from file
+			int width, height, nchannels;
+			unsigned char* texture = stbi_load(filePath.c_str(), &width, &height, &nchannels, 4);
+
+			// Describe and create a texture2D
+			D3D12_RESOURCE_DESC textureDesc = {};
+			textureDesc.MipLevels = 1;
+			textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			textureDesc.Width = width;
+			textureDesc.Height = height;
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			textureDesc.DepthOrArraySize = 1;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+			D3D12MA::ALLOCATION_DESC allocationDesc = {};
+			allocationDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+			m_allocator->CreateResource(&allocationDesc,
+										&textureDesc,
+										D3D12_RESOURCE_STATE_COPY_DEST,
+										nullptr,
+										&m_textureAllocation,
+										IID_PPV_ARGS(&m_texture));
+
+			const uint64_t uploadBufferSize = GetRequiredIntermediateSize(m_texture.Get(), 0, 1);
+
+			// Create the GPU upload buffer
+			D3D12MA::ALLOCATION_DESC uploadAllocationDesc = {};
+			uploadAllocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+			auto hr = m_allocator->CreateResource(&uploadAllocationDesc,
+												  &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+												  D3D12_RESOURCE_STATE_GENERIC_READ,
+												  nullptr,
+												  &uploadAllocation,
+												  IID_PPV_ARGS(&textureUploadHeap));
+
+			// Copy data to the intermediate upload heap and then schedule a copy 
+			// from the upload heap to the Texture2D.
+			D3D12_SUBRESOURCE_DATA textureData = {};
+			textureData.pData = &texture[0];
+			textureData.RowPitch = width * 4;
+			textureData.SlicePitch = height * textureData.RowPitch;
+
+			UpdateSubresources(m_commandList.Get(), m_texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+			// Describe and craete a Shader resource view(SRV) for the texture
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = textureDesc.Format;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = 1;
+			m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+
+			edelete texture;
+		}
+
+		m_commandList->Close();
+		ID3D12CommandList* commandLists[] = { m_commandList.Get() };
+		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+		WaitForPreviousFrame();
+
+		uploadAllocation->Release();
 	}
 
 	void GraphicsDevice::GetHardwareAdapter()
@@ -330,6 +454,8 @@ namespace Eden
 
 	void GraphicsDevice::Render()
 	{
+		ED_PROFILE_FUNCTION();
+
 		// Record all the commands we need to render the scene into the command list
 		PopulateCommandList();
 
@@ -346,6 +472,8 @@ namespace Eden
 
 	void GraphicsDevice::PopulateCommandList()
 	{
+		ED_PROFILE_FUNCTION();
+
 		// Command list allocators can only be reseted when the associated
 		// command lists have finished the execution on the GPU
 		if (FAILED(m_commandAllocator->Reset()))
@@ -358,6 +486,12 @@ namespace Eden
 			ED_ASSERT_MB(false, "Failed to reset command list");
 
 		m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
+		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+		m_commandList->SetGraphicsRootDescriptorTable(0, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
 

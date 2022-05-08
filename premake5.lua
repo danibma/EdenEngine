@@ -62,6 +62,7 @@ project "EdenEngine"
 
         "d3d12.lib",
         "dxgi.lib",
+        "dxguid.lib",
 
         "%{wks.location}/external/dxc/dxcompiler.lib",
 	}

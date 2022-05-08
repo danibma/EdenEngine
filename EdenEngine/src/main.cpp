@@ -23,7 +23,7 @@ float deltaTime;
 struct Vertex
 {
 	glm::vec3 position;
-	glm::vec4 color;
+	glm::vec2 uv;
 };
 
 std::vector<Vertex> triangleVertices;
@@ -44,12 +44,13 @@ void Init()
 
 	triangleVertices =
 	{
-		{ { 0.0f, 0.25f * window->GetAspectRatio(), 0.0f}, { 1.0f, 0.0f, 0.0f, 1.0f }},
-		{ { 0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-		{ { -0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+		{ { 0.0f, 0.25f * window->GetAspectRatio(), 0.0f }, { 0.5f, 0.0f } },
+		{ { 0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 1.0f, 1.0f } },
+		{ { -0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 1.0f } }
 	};
 
 	gfx->CreateVertexBuffer(triangleVertices.data(), (uint32_t)triangleVertices.size() * sizeof(Vertex), sizeof(Vertex));
+	gfx->CreateTexture2D("assets/container2.png");
 }
 
 void Update()

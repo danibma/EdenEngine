@@ -47,6 +47,7 @@ namespace Eden
 		ComPtr<ID3D12CommandQueue> m_commandQueue;
 		ComPtr<IDXGISwapChain3> m_swapchain;
 		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+		ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 		ComPtr<ID3D12Resource> m_renderTargets[s_frameCount];
 		ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 		ComPtr<ID3D12GraphicsCommandList> m_commandList;
@@ -61,6 +62,9 @@ namespace Eden
 		ComPtr<ID3D12Resource> m_vertexBuffer;
 		D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 		D3D12MA::Allocation* m_vertexBufferAllocation;
+
+		ComPtr<ID3D12Resource> m_texture;
+		D3D12MA::Allocation* m_textureAllocation;
 		
 
 		ComPtr<IDxcUtils> m_utils;
@@ -79,6 +83,7 @@ namespace Eden
 
 		void CreateGraphicsPipeline(std::string shaderName);
 		void CreateVertexBuffer(void* data, uint32_t size, uint32_t stride);
+		void CreateTexture2D(std::string filePath);
 
 		void Render();
 
