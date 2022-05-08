@@ -1,6 +1,7 @@
 #include "Input.h"
 
 #include <windowsx.h>
+#include "Log.h"
 
 namespace Eden
 {
@@ -34,7 +35,7 @@ namespace Eden
 			m_keyDown[VK_RBUTTON] = true;
 			break;
 		case WM_RBUTTONUP:
-			m_keyDown[VK_RBUTTON] = true;
+			m_keyDown[VK_RBUTTON] = false;
 			break;
 		case WM_MOUSEMOVE:
 			m_mousePos.first  = GET_X_LPARAM(lParam);
@@ -91,6 +92,7 @@ namespace Eden
 
 	void Input::SetCursorMode(CursorMode mode)
 	{
-		ShowCursor((uint32_t)mode);
+		if(mode != GetCursorMode())
+			ShowCursor((uint32_t)mode);
 	}
 }

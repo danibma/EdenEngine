@@ -1,15 +1,15 @@
 #include "Camera.h"
 
 #include "Core/Input.h"
+#include "Log.h"
 
 namespace Eden
 {
 
 	Camera::Camera(uint32_t screenWidth, uint32_t screenHeight)
 	{
-		position = { 0, 5, -10 };
+		position = { 0, 0, -2 };
 		front = { 0, 0, 1 };
-		target = { 0, 0, 0 };
 		up = { 0, 1, 0 };
 		m_LastX = (float)screenWidth / 2;
 		m_LastY = (float)screenHeight / 2;
@@ -29,7 +29,22 @@ namespace Eden
 
 			m_Locked = true;
 
-			
+			float cameraSpeed = 10.0f * deltaTime;
+
+			if (Input::GetKey(KeyCode::W))
+				position += cameraSpeed * front;
+			if (Input::GetKey(KeyCode::S))
+				position -= cameraSpeed * front;
+			if (Input::GetKey(KeyCode::D))
+				position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
+			if (Input::GetKey(KeyCode::A))
+				position += glm::normalize(glm::cross(front, up)) * cameraSpeed;
+			if (Input::GetKey(KeyCode::Space))
+				position.y += cameraSpeed;
+			if (Input::GetKey(KeyCode::LeftShift))
+				position.y -= cameraSpeed;
+
+			UpdateLookAt();
 		}
 		else if (Input::GetMouseButtonUp(MouseButton::RightButton))
 		{
@@ -38,21 +53,6 @@ namespace Eden
 			m_Locked = false;
 			m_FirstTimeMouse = true;
 		}
-
-		float cameraSpeed = 10.0f * deltaTime;
-
-		if (Input::GetKey(KeyCode::W))
-			position -= cameraSpeed * front;
-		if (Input::GetKey(KeyCode::S))
-			position += cameraSpeed * front;
-		if (Input::GetKey(KeyCode::D))
-			position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
-		if (Input::GetKey(KeyCode::A))
-			position += glm::normalize(glm::cross(front, up)) * cameraSpeed;
-		if (Input::GetKey(KeyCode::Space))
-			position.y += cameraSpeed;
-		if (Input::GetKey(KeyCode::LeftShift))
-			position.y -= cameraSpeed;
 	}
 
 	void Camera::UpdateLookAt()

@@ -59,10 +59,10 @@ void Init()
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
-	view = glm::lookAtRH(camera.position, camera.position + camera.target, camera.up);
-	projection = glm::perspectiveFovRH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+	view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
+	projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
 	model = glm::mat4(1.0f);
-	sceneData.MVPMatrix = glm::mat4(1.0f);
+	sceneData.MVPMatrix = projection * view * model;
 
 	gfx->CreateVertexBuffer(triangleVertices.data(), (uint32_t)triangleVertices.size() * sizeof(Vertex), sizeof(Vertex));
 	gfx->CreateTexture2D("assets/container2.png");
@@ -82,12 +82,11 @@ void Update()
 	if (!window->IsMinimized())
 	{
 		camera.Update(deltaTime);
-		camera.UpdateLookAt();
 
-		view = glm::lookAtRH(camera.position, camera.position + camera.target, camera.up);
-		projection = glm::perspectiveFovRH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+		view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
+		projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
 		model = glm::mat4(1.0f);
-		sceneData.MVPMatrix = glm::mat4(1.0f);
+		sceneData.MVPMatrix = projection * view * model;
 
 		gfx->UpdateConstantBuffer(sceneData);
 		gfx->Render();

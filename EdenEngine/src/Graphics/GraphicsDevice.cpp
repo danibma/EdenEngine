@@ -287,6 +287,7 @@ namespace Eden
 			psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 			psoDesc.SampleMask = UINT_MAX;
 			psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+			psoDesc.RasterizerState.FrontCounterClockwise = true;
 			psoDesc.DepthStencilState.DepthEnable = false;
 			psoDesc.DepthStencilState.StencilEnable = false;
 			psoDesc.InputLayout.NumElements = ARRAYSIZE(inputElementDesc);
