@@ -4,6 +4,11 @@ struct PSInput
     float2 uv : TEXCOORD;
 };
 
+cbuffer SceneData : register(b0)
+{
+    float4x4 mvpMatrix;
+};
+
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
@@ -11,7 +16,7 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
 {
     PSInput result;
 
-    result.position = position;
+    result.position = mul(position, mvpMatrix);
     result.uv = uv;
 
     return result;

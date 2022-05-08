@@ -5,10 +5,12 @@
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
 #include "Graphics/GraphicsDevice.h"
+#include "Core/Camera.h"
 
 #include <algorithm>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 using namespace Eden;
 
@@ -25,6 +27,12 @@ struct Vertex
 	glm::vec3 position;
 	glm::vec2 uv;
 };
+
+glm::mat4 model;
+glm::mat4 view;
+glm::mat4 projection;
+SceneData sceneData;
+Camera camera;
 
 std::vector<Vertex> triangleVertices;
 
@@ -49,8 +57,16 @@ void Init()
 		{ { -0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 1.0f } }
 	};
 
+	camera = Camera(window->GetWidth(), window->GetHeight());
+
+	view = glm::lookAtRH(camera.position, camera.position + camera.target, camera.up);
+	projection = glm::perspectiveFovRH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+	model = glm::mat4(1.0f);
+	sceneData.MVPMatrix = glm::mat4(1.0f);
+
 	gfx->CreateVertexBuffer(triangleVertices.data(), (uint32_t)triangleVertices.size() * sizeof(Vertex), sizeof(Vertex));
 	gfx->CreateTexture2D("assets/container2.png");
+	gfx->CreateConstantBuffer(sceneData);
 }
 
 void Update()
@@ -65,16 +81,17 @@ void Update()
 
 	if (!window->IsMinimized())
 	{
-		gfx->Render();
+		camera.Update(deltaTime);
+		camera.UpdateLookAt();
 
-		if (Input::GetKeyDown(KeyCode::A))
-		{
-			ED_LOG_INFO("Key Pressed!");
-		}
-		else if (Input::GetKeyUp(KeyCode::A))
-		{
-			ED_LOG_INFO("Key Up!");
-		}
+		view = glm::lookAtRH(camera.position, camera.position + camera.target, camera.up);
+		projection = glm::perspectiveFovRH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+		model = glm::mat4(1.0f);
+		sceneData.MVPMatrix = glm::mat4(1.0f);
+
+		gfx->UpdateConstantBuffer(sceneData);
+		gfx->Render();
+		
 	}
 }
 

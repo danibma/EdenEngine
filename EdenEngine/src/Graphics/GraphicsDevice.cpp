@@ -104,7 +104,7 @@ namespace Eden
 			srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 			if (FAILED(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap))))
-				ED_ASSERT_MB(false, "Failed to create Render Target View descriptor heap!");
+				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
 		}
 
 		// Create frame resources
@@ -151,6 +151,7 @@ namespace Eden
 		WaitForPreviousFrame();
 
 		m_vertexBufferAllocation->Release();
+		m_cbAllocation->Release();
 		m_textureAllocation->Release();
 
 		CloseHandle(m_fenceEvent);
@@ -222,8 +223,9 @@ namespace Eden
 			CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
 			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-			CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+			CD3DX12_ROOT_PARAMETER1 rootParameters[2];
 			rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+			rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
 
 			D3D12_STATIC_SAMPLER_DESC sampler = {};
 			sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -238,7 +240,7 @@ namespace Eden
 			sampler.MaxLOD = D3D12_FLOAT32_MAX;
 			sampler.ShaderRegister = 0;
 			sampler.RegisterSpace = 0;
-			sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 			rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -337,6 +339,25 @@ namespace Eden
 		m_vertexBufferView.SizeInBytes = size;
 	}
 
+	void GraphicsDevice::CreateConstantBuffer(SceneData data)
+	{
+		D3D12MA::ALLOCATION_DESC allocationDesc = {};
+		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+		m_allocator->CreateResource(&allocationDesc,
+									&CD3DX12_RESOURCE_DESC::Buffer(sizeof(SceneData)),
+									D3D12_RESOURCE_STATE_GENERIC_READ,
+									nullptr,
+									&m_cbAllocation,
+									IID_PPV_ARGS(&m_constantBuffer));
+
+		// Map and initialize the constant buffer
+		void* bufferData;
+		m_constantBuffer->Map(0, nullptr, &bufferData);
+		memcpy(bufferData, &data, sizeof(data));
+		m_constantBuffer->Unmap(0, nullptr);
+	}
+
 	void GraphicsDevice::CreateTexture2D(std::string filePath)
 	{
 		m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get());
@@ -415,6 +436,15 @@ namespace Eden
 		uploadAllocation->Release();
 	}
 
+	void GraphicsDevice::UpdateConstantBuffer(SceneData data)
+	{
+		// Map and initialize the constant buffer
+		void* bufferData;
+		m_constantBuffer->Map(0, nullptr, &bufferData);
+		memcpy(bufferData, &data, sizeof(data));
+		m_constantBuffer->Unmap(0, nullptr);
+	}
+
 	void GraphicsDevice::GetHardwareAdapter()
 	{
 		m_adapter = nullptr;
@@ -491,6 +521,7 @@ namespace Eden
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
 		m_commandList->SetGraphicsRootDescriptorTable(0, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+		m_commandList->SetGraphicsRootConstantBufferView(1, m_constantBuffer->GetGPUVirtualAddress());
 
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);

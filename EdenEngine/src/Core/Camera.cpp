@@ -29,20 +29,7 @@ namespace Eden
 
 			m_Locked = true;
 
-			float cameraSpeed = 10.0f * deltaTime;
-
-			if (Input::GetKey(KeyCode::W))
-				position -= cameraSpeed * front;
-			if (Input::GetKey(KeyCode::S))
-				position += cameraSpeed * front;
-			if (Input::GetKey(KeyCode::D))
-				position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
-			if (Input::GetKey(KeyCode::A))
-				position += glm::normalize(glm::cross(front, up)) * cameraSpeed;
-			if (Input::GetKey(KeyCode::Space))
-				position.y += cameraSpeed;
-			if (Input::GetKey(KeyCode::LeftShift))
-				position.y -= cameraSpeed;
+			
 		}
 		else if (Input::GetMouseButtonUp(MouseButton::RightButton))
 		{
@@ -51,10 +38,27 @@ namespace Eden
 			m_Locked = false;
 			m_FirstTimeMouse = true;
 		}
+
+		float cameraSpeed = 10.0f * deltaTime;
+
+		if (Input::GetKey(KeyCode::W))
+			position -= cameraSpeed * front;
+		if (Input::GetKey(KeyCode::S))
+			position += cameraSpeed * front;
+		if (Input::GetKey(KeyCode::D))
+			position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
+		if (Input::GetKey(KeyCode::A))
+			position += glm::normalize(glm::cross(front, up)) * cameraSpeed;
+		if (Input::GetKey(KeyCode::Space))
+			position.y += cameraSpeed;
+		if (Input::GetKey(KeyCode::LeftShift))
+			position.y -= cameraSpeed;
 	}
 
-	void Camera::UpdateLookAt(float xPos, float yPos)
+	void Camera::UpdateLookAt()
 	{
+		auto[xPos, yPos] = Input::GetMousePos();
+
 		if (m_Locked)
 		{
 			if (m_FirstTimeMouse)

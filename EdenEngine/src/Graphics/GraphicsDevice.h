@@ -9,6 +9,9 @@
 #include <dxc/dxcapi.h>
 #include <D3D12MemoryAllocator/D3D12MemAlloc.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "Core/Base.h"
 
 using namespace Microsoft::WRL;
@@ -21,6 +24,12 @@ namespace Eden
 	{
 		Vertex,
 		Pixel
+	};
+
+	// NOTE(Daniel): TEMP!!!!
+	struct SceneData
+	{
+		glm::mat4 MVPMatrix;
 	};
 
 	namespace Utils
@@ -65,6 +74,10 @@ namespace Eden
 
 		ComPtr<ID3D12Resource> m_texture;
 		D3D12MA::Allocation* m_textureAllocation;
+
+		ComPtr<ID3D12Resource> m_constantBuffer;
+		D3D12MA::Allocation* m_cbAllocation;
+		void* m_constantBufferData;
 		
 
 		ComPtr<IDxcUtils> m_utils;
@@ -83,7 +96,10 @@ namespace Eden
 
 		void CreateGraphicsPipeline(std::string shaderName);
 		void CreateVertexBuffer(void* data, uint32_t size, uint32_t stride);
+		void CreateConstantBuffer(SceneData data);
 		void CreateTexture2D(std::string filePath);
+
+		void UpdateConstantBuffer(SceneData data);
 
 		void Render();
 
