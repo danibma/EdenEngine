@@ -86,8 +86,8 @@ namespace Eden
 
 		HANDLE m_fenceEvent;
 
-		uint32_t m_frameIndex;
-		uint32_t m_fenceValues[s_frameCount];
+		uint64_t m_frameIndex;
+		uint64_t m_fenceValues[s_frameCount];
 		uint32_t m_rtvDescriptorSize;
 
 	public:

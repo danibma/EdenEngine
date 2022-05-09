@@ -150,6 +150,10 @@ namespace Eden
 			// complete before continuing.
 			WaitForGPU();
 		}
+
+		ID3D12Device* pDevice = m_device.Get();
+		ID3D12CommandQueue* pCommandQueue = m_commandQueue.Get();
+		ED_PROFILE_GPU_INIT(pDevice, &pCommandQueue, 1);
 	}
 
 	GraphicsDevice::~GraphicsDevice()
@@ -165,6 +169,8 @@ namespace Eden
 
 	ComPtr<IDxcBlob> GraphicsDevice::CompileShader(std::filesystem::path filePath, ShaderTarget target)
 	{
+		ED_PROFILE_FUNCTION();
+
 		std::wstring entryPoint = L"";
 		std::wstring targetStr = L"";
 
@@ -214,6 +220,8 @@ namespace Eden
 
 	void GraphicsDevice::CreateGraphicsPipeline(std::string shaderName)
 	{
+		ED_PROFILE_FUNCTION();
+
 		// Create the root signature
 		{
 			D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -367,10 +375,15 @@ namespace Eden
 
 	void GraphicsDevice::CreateTexture2D(std::string filePath)
 	{
+		ED_PROFILE_FUNCTION();
+
 		m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get());
 
 		ComPtr<ID3D12Resource> textureUploadHeap;
 		D3D12MA::Allocation* uploadAllocation;
+
+		ED_PROFILE_GPU_CONTEXT(m_commandList.Get());
+		ED_PROFILE_GPU_FUNCTION("CreateTexture2D");
 
 		// Create the texture
 		{
@@ -503,6 +516,7 @@ namespace Eden
 		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
 		// Present the frame
+		ED_PROFILE_GPU_FLIP(m_swapchain.Get());
 		if (FAILED(m_swapchain->Present(1, 0)))
 			ED_ASSERT_MB(false, "Failed to swapchain present!");
 
@@ -523,6 +537,9 @@ namespace Eden
 		// re-recording.
 		if (FAILED(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get())))
 			ED_ASSERT_MB(false, "Failed to reset command list");
+
+		ED_PROFILE_GPU_CONTEXT(m_commandList.Get());
+		ED_PROFILE_GPU_FUNCTION("PopulateCommandList");
 
 		m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
@@ -575,7 +592,7 @@ namespace Eden
 	void GraphicsDevice::MoveToNextFrame()
 	{
 		// Schedule a Signal command in the queue
-		const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
+		const uint64_t currentFenceValue = m_fenceValues[m_frameIndex];
 		m_commandQueue->Signal(m_fence.Get(), currentFenceValue);
 
 		// Update the frame index
