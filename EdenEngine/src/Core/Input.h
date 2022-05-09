@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <functional>
+#include "Window.h"
 
 namespace Eden
 {
@@ -140,7 +141,8 @@ namespace Eden
 	{
 		static bool m_keyDown[VK_OEM_CLEAR];
 		static bool m_previousKeyDown[VK_OEM_CLEAR];
-		static std::pair<uint32_t, uint32_t> m_mousePos;
+		static std::pair<int64_t, int64_t> m_mousePos;
+		static std::pair<int64_t, int64_t> m_relativeMousePos;
 		static float m_mouseScrollDelta;
 
 	public:
@@ -148,6 +150,7 @@ namespace Eden
 		static void HandleInput(uint32_t message, uint32_t code, uint32_t lParam);
 
 		static void SetCursorMode(CursorMode mode);
+		static void SetMousePos(int64_t x, int64_t y);
 
 		/*
 		* Returns whether the given key is held down.
@@ -182,7 +185,7 @@ namespace Eden
 		/*
 		* Returns the current mouse position
 		*/
-		static std::pair<uint32_t, uint32_t> GetMousePos() { return m_mousePos; }
+		static std::pair<int64_t, int64_t> GetMousePos(Window* window);
 
 		/*
 		* Returns the mouse scroll delta

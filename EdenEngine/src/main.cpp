@@ -83,7 +83,7 @@ void Update()
 
 	if (!window->IsMinimized())
 	{
-		camera.Update(deltaTime);
+		camera.Update(window, deltaTime);
 
 		view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);

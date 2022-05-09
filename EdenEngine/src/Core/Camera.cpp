@@ -21,7 +21,7 @@ namespace Eden
 		m_FirstTimeMouse = true;
 	}
 
-	void Camera::Update(float deltaTime)
+	void Camera::Update(Window* window, float deltaTime)
 	{
 		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
@@ -44,7 +44,7 @@ namespace Eden
 			if (Input::GetKey(KeyCode::Shift))
 				position.y -= cameraSpeed;
 
-			UpdateLookAt();
+			UpdateLookAt(window);
 		}
 		else if (Input::GetMouseButtonUp(MouseButton::RightButton))
 		{
@@ -55,23 +55,23 @@ namespace Eden
 		}
 	}
 
-	void Camera::UpdateLookAt()
-	{
-		auto[xPos, yPos] = Input::GetMousePos();
+	void Camera::UpdateLookAt(Window* window)
+{
+		auto[xPos, yPos] = Input::GetMousePos(window);
 
 		if (m_Locked)
 		{
 			if (m_FirstTimeMouse)
 			{
-				m_LastX = xPos;
-				m_LastY = yPos;
+				m_LastX = (float)xPos;
+				m_LastY = (float)yPos;
 				m_FirstTimeMouse = false;
 			}
 
 			float xoffset = xPos - m_LastX;
 			float yoffset = m_LastY - yPos;
-			m_LastX = xPos;
-			m_LastY = yPos;
+			m_LastX = (float)xPos;
+			m_LastY = (float)yPos;
 			xoffset *= m_Sensitivity;
 			yoffset *= m_Sensitivity;
 

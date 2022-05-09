@@ -2,6 +2,8 @@
 
 #include <glm/glm.hpp>
 
+#include "Window.h"
+
 namespace Eden
 {
 	class Camera
@@ -10,8 +12,8 @@ namespace Eden
 		Camera() = default;
 		Camera(uint32_t screenWidth, uint32_t screenHeight);
 
-		void Update(float deltaTime);
-		void UpdateLookAt();
+		void Update(Window* window, float deltaTime);
+		void UpdateLookAt(Window* window);
 
 		glm::vec3 position;
 		glm::vec3 front;

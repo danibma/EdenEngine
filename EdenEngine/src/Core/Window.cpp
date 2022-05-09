@@ -30,6 +30,7 @@ static LRESULT CALLBACK WindowProc(HWND handle, UINT uMsg, WPARAM wParam, LPARAM
 		case WM_SETCURSOR:
 		case WM_DEVICECHANGE:
 		case WM_MOUSEMOVE:
+		case WM_INPUT:
 		case WM_KEYUP: case WM_SYSKEYUP:
 		case WM_KEYDOWN: case WM_SYSKEYDOWN:
 		case WM_LBUTTONUP: case WM_RBUTTONUP:
@@ -77,6 +78,23 @@ namespace Eden
 		SetWindowLongPtrA(m_handle, GWLP_USERDATA, (LONG_PTR)this);
 
 		ShowWindow(m_handle, SW_SHOWMAXIMIZED);
+
+		RAWINPUTDEVICE Rid;
+		Rid.usUsagePage = 0x1 /* HID_USAGE_PAGE_GENERIC */;
+		Rid.usUsage = 0x2 /* HID_USAGE_GENERIC_MOUSE */;
+		Rid.dwFlags = RIDEV_INPUTSINK;
+		Rid.hwndTarget = m_handle;
+		if (!RegisterRawInputDevices(&Rid, 1, sizeof(RAWINPUTDEVICE)))
+			ED_ASSERT_MB(false, "Failed to register raw input device");
+
+		// find mouse movement
+		POINT currentPos;
+		GetCursorPos(&currentPos);
+
+		// force the mouse to the center, so there's room to move
+		SetCursorPos(m_width / 2, m_height / 2);
+
+		Input::SetMousePos(currentPos.x - (m_width / 2), currentPos.y - (m_height / 2));
 	}
 
 	Window::~Window()
