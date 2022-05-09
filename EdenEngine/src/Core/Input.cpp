@@ -49,7 +49,6 @@ namespace Eden
 				{
 					m_relativeMousePos.first += raw.data.mouse.lLastX;
 					m_relativeMousePos.second += raw.data.mouse.lLastY;
-					ED_LOG_TRACE("{}x{}", m_relativeMousePos.first, m_relativeMousePos.second);
 				}
 			}
 			break;
@@ -121,25 +120,17 @@ namespace Eden
 	void Input::SetCursorMode(CursorMode mode)
 	{
 		if (mode == CursorMode::Visible)
-		{
 			SetCursor(LoadCursor(GetModuleHandle(0), IDC_ARROW));
-		}
 		else
-		{
 			SetCursor(0);
-		}
 	}
 
 	void Input::SetMousePos(int64_t x, int64_t y)
 	{
 		if (GetCursorMode() == CursorMode::Hidden)
-		{
 			m_relativeMousePos = { x, y };
-		}
 		else
-		{
 			m_mousePos = { x, y };
-		}
 		
 	}
 

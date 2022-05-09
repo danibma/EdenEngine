@@ -87,7 +87,7 @@ namespace Eden
 		HANDLE m_fenceEvent;
 
 		uint32_t m_frameIndex;
-		uint32_t m_fenceValue;
+		uint32_t m_fenceValues[s_frameCount];
 		uint32_t m_rtvDescriptorSize;
 
 	public:
@@ -106,7 +106,10 @@ namespace Eden
 	private:
 		void GetHardwareAdapter();
 		void PopulateCommandList();
-		void WaitForPreviousFrame();
+		// Prepare to render the next frame
+		void MoveToNextFrame();
+		// Wait for pending GPU work to complete
+		void WaitForGPU();
 		ComPtr<IDxcBlob> CompileShader(std::filesystem::path filePath, ShaderTarget target);
 	};
 }

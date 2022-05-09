@@ -17,6 +17,7 @@ namespace Eden
 	GraphicsDevice::GraphicsDevice(HWND handle, uint32_t width, uint32_t height)
 		: m_viewport(0.0f, 0.0f, (float)width, (float)height)
 		, m_scissor(0, 0, width, height)
+		, m_fenceValues{}
 	{
 		ED_PROFILE_FUNCTION("D3D12Device Init");
 
@@ -138,17 +139,22 @@ namespace Eden
 		{
 			if (FAILED(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence))))
 				ED_ASSERT_MB(false, "Failed to create fence!");
-			m_fenceValue = 1;
+			m_fenceValues[m_frameIndex]++;
 
 			// Create an event handler to use for frame synchronization
 			m_fenceEvent = CreateEvent(nullptr, false, false, nullptr);
 			ED_ASSERT_MB(m_fenceEvent != nullptr, HRESULT_FROM_WIN32(GetLastError()));
+
+			// Wait for the command list to execute; we are reusing the same command 
+			// list in our main loop but for now, we just want to wait for setup to 
+			// complete before continuing.
+			WaitForGPU();
 		}
 	}
 
 	GraphicsDevice::~GraphicsDevice()
 	{
-		WaitForPreviousFrame();
+		WaitForGPU();
 
 		m_vertexBufferAllocation->Release();
 		m_cbAllocation->Release();
@@ -432,13 +438,15 @@ namespace Eden
 		ID3D12CommandList* commandLists[] = { m_commandList.Get() };
 		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-		WaitForPreviousFrame();
+		WaitForGPU();
 
 		uploadAllocation->Release();
 	}
 
 	void GraphicsDevice::UpdateConstantBuffer(SceneData data)
 	{
+		WaitForGPU();
+
 		// Map and initialize the constant buffer
 		void* bufferData;
 		m_constantBuffer->Map(0, nullptr, &bufferData);
@@ -498,7 +506,7 @@ namespace Eden
 		if (FAILED(m_swapchain->Present(1, 0)))
 			ED_ASSERT_MB(false, "Failed to swapchain present!");
 
-		WaitForPreviousFrame();
+		MoveToNextFrame();
 	}
 
 	void GraphicsDevice::PopulateCommandList()
@@ -551,26 +559,37 @@ namespace Eden
 			ED_ASSERT_MB(false, "Failed to close command list");
 	}
 
-	void GraphicsDevice::WaitForPreviousFrame()
+	void GraphicsDevice::WaitForGPU()
 	{
-		// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-		// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-		// sample illustrates how to use fences for efficient resource usage and to
-		// maximize GPU utilization.
+		// Schedule a signal command in the queue
+		m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]);
 
-		// Signal and increment the fence value.
-		const UINT64 fence = m_fenceValue;
-		m_commandQueue->Signal(m_fence.Get(), fence);
-		m_fenceValue++;
+		// Wait until the fence has been processed
+		m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent);
+		WaitForSingleObjectEx(m_fenceEvent, INFINITE, false);
 
-		// Wait until the previous frame is finished.
-		if (m_fence->GetCompletedValue() < fence)
+		// Increment the fence value for the current frame
+		m_fenceValues[m_frameIndex]++;
+	}
+
+	void GraphicsDevice::MoveToNextFrame()
+	{
+		// Schedule a Signal command in the queue
+		const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
+		m_commandQueue->Signal(m_fence.Get(), currentFenceValue);
+
+		// Update the frame index
+		m_frameIndex = m_swapchain->GetCurrentBackBufferIndex();
+
+		// If the next frame is not ready to be rendered yet, wait until it is ready
+		if (m_fence->GetCompletedValue() < m_fenceValues[m_frameIndex])
 		{
-			m_fence->SetEventOnCompletion(fence, m_fenceEvent);
-			WaitForSingleObject(m_fenceEvent, INFINITE);
+			m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent);
+			WaitForSingleObjectEx(m_fenceEvent, INFINITE, false);
 		}
 
-		m_frameIndex = m_swapchain->GetCurrentBackBufferIndex();
+		// Set the fence value for the next frame
+		m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 	}
 
 }
