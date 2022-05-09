@@ -52,9 +52,9 @@ void Init()
 
 	triangleVertices =
 	{
-		{ { 0.0f, 0.25f * window->GetAspectRatio(), 0.0f }, { 0.5f, 0.0f } },
-		{ { 0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 1.0f, 1.0f } },
-		{ { -0.25f, -0.25f * window->GetAspectRatio(), 0.0f }, { 0.0f, 1.0f } }
+		{ { 0.0f, 1.0f, 0.0f }, { 0.5f, 0.0f } },
+		{ { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }
 	};
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
@@ -68,6 +68,8 @@ void Init()
 	gfx->CreateTexture2D("assets/container2.png");
 	gfx->CreateConstantBuffer(sceneData);
 }
+
+uint32_t frameNumber;
 
 void Update()
 {
@@ -85,13 +87,14 @@ void Update()
 
 		view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-		model = glm::mat4(1.0f);
+		model = glm::rotate(glm::mat4(1.0f), glm::radians(frameNumber + 0.4f), glm::vec3(0, 1, 0));
 		sceneData.MVPMatrix = projection * view * model;
 
 		gfx->UpdateConstantBuffer(sceneData);
 		gfx->Render();
-		
 	}
+
+	frameNumber++;
 }
 
 void Destroy()

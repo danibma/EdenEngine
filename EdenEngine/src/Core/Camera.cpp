@@ -36,12 +36,12 @@ namespace Eden
 			if (Input::GetKey(KeyCode::S))
 				position -= cameraSpeed * front;
 			if (Input::GetKey(KeyCode::D))
-				position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
-			if (Input::GetKey(KeyCode::A))
 				position += glm::normalize(glm::cross(front, up)) * cameraSpeed;
+			if (Input::GetKey(KeyCode::A))
+				position -= glm::normalize(glm::cross(front, up)) * cameraSpeed;
 			if (Input::GetKey(KeyCode::Space))
 				position.y += cameraSpeed;
-			if (Input::GetKey(KeyCode::LeftShift))
+			if (Input::GetKey(KeyCode::Shift))
 				position.y -= cameraSpeed;
 
 			UpdateLookAt();
@@ -83,9 +83,9 @@ namespace Eden
 			if (m_Pitch < -89.f)
 				m_Pitch = -89.f;
 
-			front.x = -(sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch)));
-			front.y = -(sin(glm::radians(m_Pitch)));
-			front.z = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+			front.x = -(sin(glm::radians(m_Yaw)) * cos(glm::radians(-m_Pitch)));
+			front.y = -(sin(glm::radians(-m_Pitch)));
+			front.z = cos(glm::radians(m_Yaw)) * cos(glm::radians(-m_Pitch));
 			front = glm::normalize(front);
 		}
 	}
