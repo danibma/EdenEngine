@@ -12,6 +12,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_dx12.h>
+#include <imgui/backends/imgui_impl_win32.h>
+#include "Utilities/Utils.h"
+
 using namespace Eden;
 
 Window* window;
@@ -46,7 +51,7 @@ void Init()
 	window = enew Window("Eden Engine", 1600, 900);
 #endif
 
-	gfx = enew GraphicsDevice(window->GetHandle(), window->GetWidth(), window->GetHeight());
+	gfx = enew GraphicsDevice(window);
 
 	gfx->CreateGraphicsPipeline("basic");
 
@@ -70,6 +75,7 @@ void Init()
 }
 
 uint32_t frameNumber;
+bool openDebugWindow = true;
 
 void Update()
 {
@@ -81,8 +87,26 @@ void Update()
 	deltaTime = (float)timer.ElapsedSeconds();
 	timer.Record();
 
+
 	if (!window->IsMinimized())
 	{
+		// Debug ImGui Window stuff
+		if (Input::GetKeyDown(KeyCode::F3))
+			openDebugWindow = !openDebugWindow;
+
+		if (openDebugWindow)
+		{
+			ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse);
+			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Press F3 to close this window!").x) * 0.5f); // center text
+			ImGui::TextDisabled("Press F3 to close this window!");
+			if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("CPU time: %.3fms", deltaTime * 1000.0f);
+			}
+			ImGui::End();
+		}
+
+		// This is where the "real" loop begins
 		camera.Update(window, deltaTime);
 
 		view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
@@ -91,6 +115,8 @@ void Update()
 		sceneData.MVPMatrix = projection * view * model;
 
 		gfx->UpdateConstantBuffer(sceneData);
+
+		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
 	}
 
@@ -99,6 +125,11 @@ void Update()
 
 void Destroy()
 {
+	// Cleanup
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
 	edelete gfx;
 
 	edelete window;

@@ -12,17 +12,6 @@ namespace Eden::Memory
 	{
 		return s_AllocationData;
 	}
-
-	const void DumpAllocationStats()
-	{
-		auto& stats = GetAllocationStats();
-
-		ED_LOG_INFO("Memory Info:");
-		ED_LOG_INFO("    Total Allocated: {}", Utils::BytesToString(stats.TotalAllocated));
-		ED_LOG_INFO("    Total Freed: {}", Utils::BytesToString(stats.TotalFreed));
-		ED_LOG_INFO("    Current Usage: {}", Utils::BytesToString(stats.TotalAllocated - stats.TotalFreed));
-	}
-
 }
 
 _NODISCARD _Ret_notnull_ _Post_writable_byte_size_(size) _VCRT_ALLOCATOR

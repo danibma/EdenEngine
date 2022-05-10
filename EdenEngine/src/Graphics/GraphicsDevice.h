@@ -13,6 +13,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "Core/Base.h"
+#include "Core\Window.h"
 
 using namespace Microsoft::WRL;
 
@@ -50,6 +51,8 @@ namespace Eden
 
 	class GraphicsDevice
 	{
+		Window* m_window;
+
 		ComPtr<ID3D12Device> m_device;
 		ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<IDXGIAdapter1> m_adapter;
@@ -91,7 +94,7 @@ namespace Eden
 		uint32_t m_rtvDescriptorSize;
 
 	public:
-		GraphicsDevice(HWND handle, uint32_t width, uint32_t height);
+		GraphicsDevice(Window* window);
 		~GraphicsDevice();
 
 		void CreateGraphicsPipeline(std::string shaderName);

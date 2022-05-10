@@ -6,6 +6,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
+#include <imgui/backends/imgui_impl_dx12.h>
+#include <imgui/backends/imgui_impl_win32.h>
+
 #include "Core/Memory.h"
 #include "Utilities/Utils.h"
 #include "Profiling/Profiler.h"
@@ -14,10 +17,11 @@ namespace Eden
 {
 	constexpr D3D_FEATURE_LEVEL s_featureLevel = D3D_FEATURE_LEVEL_12_1;
 
-	GraphicsDevice::GraphicsDevice(HWND handle, uint32_t width, uint32_t height)
-		: m_viewport(0.0f, 0.0f, (float)width, (float)height)
-		, m_scissor(0, 0, width, height)
+	GraphicsDevice::GraphicsDevice(Window* window)
+		: m_viewport(0.0f, 0.0f, (float)window->GetWidth(), (float)window->GetHeight())
+		, m_scissor(0, 0, window->GetWidth(), window->GetHeight())
 		, m_fenceValues{}
+		, m_window(window)
 	{
 		ED_PROFILE_FUNCTION("D3D12Device Init");
 
@@ -67,8 +71,8 @@ namespace Eden
 
 		// Describe and create the swap chain
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-		swapchainDesc.Width = width;
-		swapchainDesc.Height = height;
+		swapchainDesc.Width = m_window->GetWidth();
+		swapchainDesc.Height = m_window->GetHeight();
 		swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		swapchainDesc.SampleDesc.Count = 1;
 		swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -77,11 +81,11 @@ namespace Eden
 		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
 		ComPtr<IDXGISwapChain1> swapchain;
-		if (FAILED(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), handle, &swapchainDesc, nullptr, nullptr, &swapchain)))
+		if (FAILED(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), m_window->GetHandle(), &swapchainDesc, nullptr, nullptr, &swapchain)))
 			ED_ASSERT_MB(false, "Failed to create swapchain!");
 
 		// NOTE(Daniel): Disable fullscreen
-		m_factory->MakeWindowAssociation(handle, DXGI_MWA_NO_ALT_ENTER);
+		m_factory->MakeWindowAssociation(m_window->GetHandle(), DXGI_MWA_NO_ALT_ENTER);
 
 		swapchain.As(&m_swapchain);
 		m_frameIndex = m_swapchain->GetCurrentBackBufferIndex();
@@ -100,7 +104,7 @@ namespace Eden
 
 			// Describe and create a shader resource view (SRV) heap for the texture.
 			D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-			srvHeapDesc.NumDescriptors = 1;
+			srvHeapDesc.NumDescriptors = 3;
 			srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -151,9 +155,13 @@ namespace Eden
 			WaitForGPU();
 		}
 
+		// Setup profiler
 		ID3D12Device* pDevice = m_device.Get();
 		ID3D12CommandQueue* pCommandQueue = m_commandQueue.Get();
 		ED_PROFILE_GPU_INIT(pDevice, &pCommandQueue, 1);
+
+		// Setup imgui
+		ImGui_ImplDX12_Init(m_device.Get(), s_frameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_srvHeap.Get(), m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 	}
 
 	GraphicsDevice::~GraphicsDevice()
@@ -442,7 +450,10 @@ namespace Eden
 			srvDesc.Format = textureDesc.Format;
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			srvDesc.Texture2D.MipLevels = 1;
-			m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+
+			// NOTE(Daniel): Offset srv handle cause of imgui
+			CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+			m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, handle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
 
 			edelete texture;
 		}
@@ -508,6 +519,8 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
+		ImGui::Render();
+
 		// Record all the commands we need to render the scene into the command list
 		PopulateCommandList();
 
@@ -519,6 +532,14 @@ namespace Eden
 		ED_PROFILE_GPU_FLIP(m_swapchain.Get());
 		if (FAILED(m_swapchain->Present(1, 0)))
 			ED_ASSERT_MB(false, "Failed to swapchain present!");
+
+		// Update and Render additional Platform Windows
+		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable &&
+			!m_window->IsCloseRequested())
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
 
 		MoveToNextFrame();
 	}
@@ -546,7 +567,10 @@ namespace Eden
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-		m_commandList->SetGraphicsRootDescriptorTable(0, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+		// NOTE(Daniel): Offset srv handle cause of imgui
+		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 		m_commandList->SetGraphicsRootConstantBufferView(1, m_constantBuffer->GetGPUVirtualAddress());
 
 		m_commandList->RSSetViewports(1, &m_viewport);
@@ -566,6 +590,8 @@ namespace Eden
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 		m_commandList->DrawInstanced(3, 1, 0, 0);
+
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 
 		// Indicate that the back buffer will be used as present
 		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),

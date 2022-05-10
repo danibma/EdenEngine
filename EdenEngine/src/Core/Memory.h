@@ -12,8 +12,7 @@ namespace Eden::Memory
 		size_t TotalFreed = 0;
 	};
 
-	[[nodiscard]] static const AllocationStats& GetAllocationStats();
-	const void DumpAllocationStats();
+	[[nodiscard]] const AllocationStats& GetAllocationStats();
 }
 
 #ifdef ED_TRACK_MEMORY
