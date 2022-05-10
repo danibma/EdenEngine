@@ -208,7 +208,6 @@ namespace Eden
 
 		ImGui_ImplDX12_Shutdown();
 
-		m_vertexBufferAllocation->Release();
 		m_cbAllocation->Release();
 		m_textureAllocation->Release();
 
@@ -365,8 +364,13 @@ namespace Eden
 		}
 	}
 
-	void GraphicsDevice::CreateVertexBuffer(void* data, uint32_t size, uint32_t stride)
+	VertexBuffer GraphicsDevice::CreateVertexBuffer(void* data, uint32_t vertexCount, uint32_t stride)
 	{
+		VertexBuffer vb;
+		vb.vertexCount = vertexCount;
+
+		uint32_t size = vertexCount * stride;
+
 		D3D12_RESOURCE_DESC resourceDesc = {};
 		resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 		resourceDesc.Alignment = 0;
@@ -387,20 +391,22 @@ namespace Eden
 									&CD3DX12_RESOURCE_DESC::Buffer(size),
 									D3D12_RESOURCE_STATE_GENERIC_READ,
 									nullptr,
-									&m_vertexBufferAllocation,
-									IID_PPV_ARGS(&m_vertexBuffer));
+									&vb.allocation,
+									IID_PPV_ARGS(&vb.buffer));
 
 		// Copy the buffer data to the vertex buffer.
 		UINT8* vertexDataBegin;
 		CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-		m_vertexBuffer->Map(0, &readRange, (void**)&vertexDataBegin);
+		vb.buffer->Map(0, &readRange, (void**)&vertexDataBegin);
 		memcpy(vertexDataBegin, data, size);
-		m_vertexBuffer->Unmap(0, nullptr);
+		vb.buffer->Unmap(0, nullptr);
 
 		// Initialize the vertex buffer view.
-		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = stride;
-		m_vertexBufferView.SizeInBytes = size;
+		vb.bufferView.BufferLocation = vb.buffer->GetGPUVirtualAddress();
+		vb.bufferView.StrideInBytes = stride;
+		vb.bufferView.SizeInBytes = size;
+
+		return vb;
 	}
 
 	void GraphicsDevice::CreateConstantBuffer(SceneData data)
@@ -633,8 +639,8 @@ namespace Eden
 		m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		m_commandList->DrawInstanced(2904, 1, 0, 0); // NOTE(Daniel): THE VERTEX COUNT IS HARCODED, FIX THIS
+		m_commandList->IASetVertexBuffers(0, 1, &vertexBuffer.bufferView);
+		m_commandList->DrawInstanced(vertexBuffer.vertexCount, 1, 0, 0);
 
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 

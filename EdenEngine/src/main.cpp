@@ -42,6 +42,7 @@ glm::mat4 projection;
 SceneData sceneData;
 Camera camera;
 
+VertexBuffer meshVB;
 std::vector<Vertex> meshVertices;
 
 void LoadObj(const char* file)
@@ -159,9 +160,11 @@ void Init()
 	model = glm::mat4(1.0f);
 	sceneData.MVPMatrix = projection * view * model;
 
-	gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size() * sizeof(Vertex), sizeof(Vertex));
+	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
 	gfx->CreateTexture2D("assets/container2.png");
 	gfx->CreateConstantBuffer(sceneData);
+
+	gfx->vertexBuffer = meshVB;
 }
 
 uint32_t frameNumber;
@@ -176,7 +179,6 @@ void Update()
 	// Update timers
 	deltaTime = (float)timer.ElapsedSeconds();
 	timer.Record();
-
 
 	if (!window->IsMinimized())
 	{
@@ -213,6 +215,8 @@ void Update()
 
 void Destroy()
 {
+	meshVB.allocation->Release();
+
 	edelete gfx;
 
 	edelete window;
