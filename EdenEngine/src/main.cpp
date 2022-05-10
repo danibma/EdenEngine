@@ -13,8 +13,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <imgui/imgui.h>
-#include <imgui/backends/imgui_impl_dx12.h>
-#include <imgui/backends/imgui_impl_win32.h>
 #include "Utilities/Utils.h"
 
 using namespace Eden;
@@ -75,7 +73,7 @@ void Init()
 }
 
 uint32_t frameNumber;
-bool openDebugWindow = false;
+bool openDebugWindow = true;
 
 void Update()
 {

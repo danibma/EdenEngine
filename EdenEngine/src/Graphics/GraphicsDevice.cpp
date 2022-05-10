@@ -34,8 +34,13 @@ namespace Eden
 			if (!FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 			{
 				debugController->EnableDebugLayer();
-
 				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+
+				ComPtr<ID3D12Debug1> debugController1;
+				if (FAILED(debugController->QueryInterface(IID_PPV_ARGS(&debugController1))))
+					ED_LOG_WARN("Failed to get ID3D12Debug1!");
+
+				debugController1->SetEnableGPUBasedValidation(true);
 			}
 		}
 	#endif
