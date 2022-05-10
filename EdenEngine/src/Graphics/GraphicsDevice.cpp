@@ -371,19 +371,6 @@ namespace Eden
 
 		uint32_t size = vertexCount * stride;
 
-		D3D12_RESOURCE_DESC resourceDesc = {};
-		resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		resourceDesc.Alignment = 0;
-		resourceDesc.Width = 1024;
-		resourceDesc.Height = 1024;
-		resourceDesc.DepthOrArraySize = 1;
-		resourceDesc.MipLevels = 1;
-		resourceDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		resourceDesc.SampleDesc.Count = 1;
-		resourceDesc.SampleDesc.Quality = 0;
-		resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
 		D3D12MA::ALLOCATION_DESC allocationDesc = {};
 		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
 
@@ -407,6 +394,37 @@ namespace Eden
 		vb.bufferView.SizeInBytes = size;
 
 		return vb;
+	}
+
+	IndexBuffer GraphicsDevice::CreateIndexBuffer(void* data, uint32_t indexCount, uint32_t stride)
+	{
+		IndexBuffer ib;
+		ib.indexCount = indexCount;
+
+		uint32_t size = indexCount * stride;
+
+		D3D12MA::ALLOCATION_DESC allocationDesc = {};
+		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+		m_allocator->CreateResource(&allocationDesc,
+									&CD3DX12_RESOURCE_DESC::Buffer(size),
+									D3D12_RESOURCE_STATE_GENERIC_READ,
+									nullptr,
+									&ib.allocation,
+									IID_PPV_ARGS(&ib.buffer));
+
+		// Copy the buffer data to the vertex buffer.
+		UINT8* indexDataBegin;
+		ib.buffer->Map(0, nullptr, (void**)&indexDataBegin);
+		memcpy(indexDataBegin, data, size);
+		ib.buffer->Unmap(0, nullptr);
+
+		// Initialize the vertex buffer view.
+		ib.bufferView.BufferLocation = ib.buffer->GetGPUVirtualAddress();
+		ib.bufferView.SizeInBytes = size;
+		ib.bufferView.Format = DXGI_FORMAT_R32_UINT;
+
+		return ib;
 	}
 
 	void GraphicsDevice::CreateConstantBuffer(SceneData data)
@@ -640,7 +658,9 @@ namespace Eden
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_commandList->IASetVertexBuffers(0, 1, &vertexBuffer.bufferView);
-		m_commandList->DrawInstanced(vertexBuffer.vertexCount, 1, 0, 0);
+		m_commandList->IASetIndexBuffer(&indexBuffer.bufferView);
+		//m_commandList->DrawInstanced(vertexBuffer.vertexCount, 1, 0, 0);
+		m_commandList->DrawIndexedInstanced(indexBuffer.indexCount, 1, 0, 0, 0);
 
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
 

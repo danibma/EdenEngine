@@ -57,6 +57,14 @@ namespace Eden
 		uint32_t vertexCount;
 	};
 
+	struct IndexBuffer
+	{
+		ComPtr<ID3D12Resource> buffer;
+		D3D12_INDEX_BUFFER_VIEW bufferView;
+		D3D12MA::Allocation* allocation;
+		uint32_t indexCount;
+	};
+
 	class GraphicsDevice
 	{
 		Window* m_window;
@@ -107,6 +115,7 @@ namespace Eden
 
 		void CreateGraphicsPipeline(std::string shaderName);
 		VertexBuffer CreateVertexBuffer(void* data, uint32_t vertexCount, uint32_t stride);
+		IndexBuffer CreateIndexBuffer(void* data, uint32_t indexCount, uint32_t stride);
 		void CreateConstantBuffer(SceneData data);
 		void CreateTexture2D(std::string filePath);
 
@@ -115,6 +124,7 @@ namespace Eden
 		void Render();
 
 		VertexBuffer vertexBuffer;
+		IndexBuffer indexBuffer;
 
 	private:
 		void GetHardwareAdapter();

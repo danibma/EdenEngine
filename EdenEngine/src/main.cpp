@@ -43,7 +43,9 @@ SceneData sceneData;
 Camera camera;
 
 VertexBuffer meshVB;
+IndexBuffer meshIB;
 std::vector<Vertex> meshVertices;
+std::vector<uint32_t> meshIndices;
 
 void LoadObj(const char* file)
 {
@@ -142,12 +144,19 @@ void Init()
 
 	gfx->CreateGraphicsPipeline("basic");
 
-#if 0
+#if 1
 	meshVertices =
 	{
-		{ {  0.0f,  1.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
-		{ {  1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-		{ { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } }
+		{ { -0.5f,  0.5f, 0.5f }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }}, // top left
+		{ {  0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }}, // bottom right
+		{ { -0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }}, // bottom left
+		{ {  0.5f,  0.5f, 0.5f }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }}, // top right
+	};
+
+	meshIndices = 
+	{
+		0, 1, 2, // first triangle
+		0, 3, 1 // second triangle
 	};
 #else
 	LoadObj("assets/monkey_flat.obj");
@@ -161,10 +170,12 @@ void Init()
 	sceneData.MVPMatrix = projection * view * model;
 
 	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
+	meshIB = gfx->CreateIndexBuffer(meshIndices.data(), (uint32_t)meshIndices.size(), sizeof(uint32_t));
 	gfx->CreateTexture2D("assets/container2.png");
 	gfx->CreateConstantBuffer(sceneData);
 
 	gfx->vertexBuffer = meshVB;
+	gfx->indexBuffer = meshIB;
 }
 
 uint32_t frameNumber;
@@ -216,6 +227,7 @@ void Update()
 void Destroy()
 {
 	meshVB.allocation->Release();
+	meshIB.allocation->Release();
 
 	edelete gfx;
 
