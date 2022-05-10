@@ -46,7 +46,7 @@ void Init()
 	Log::Init();
 
 #ifdef ED_DEBUG
-	window = enew Window("Eden Engine(DEBUG)", 1600, 900);
+	window = enew Window("Eden Engine[DEBUG]", 1600, 900);
 #else
 	window = enew Window("Eden Engine", 1600, 900);
 #endif
@@ -75,7 +75,7 @@ void Init()
 }
 
 uint32_t frameNumber;
-bool openDebugWindow = true;
+bool openDebugWindow = false;
 
 void Update()
 {
@@ -99,10 +99,8 @@ void Update()
 			ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse);
 			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Press F3 to close this window!").x) * 0.5f); // center text
 			ImGui::TextDisabled("Press F3 to close this window!");
-			if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				ImGui::Text("CPU time: %.3fms", deltaTime * 1000.0f);
-			}
+			ImGui::Separator();
+			ImGui::Text("CPU time: %.2fms", deltaTime * 1000.0f);
 			ImGui::End();
 		}
 
@@ -125,11 +123,6 @@ void Update()
 
 void Destroy()
 {
-	// Cleanup
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-
 	edelete gfx;
 
 	edelete window;

@@ -187,6 +187,8 @@ namespace Eden
 
 	Window::~Window()
 	{
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
 	}
 
 	void Window::UpdateEvents()

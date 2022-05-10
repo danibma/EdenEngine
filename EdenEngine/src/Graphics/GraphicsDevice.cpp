@@ -168,6 +168,8 @@ namespace Eden
 	{
 		WaitForGPU();
 
+		ImGui_ImplDX12_Shutdown();
+
 		m_vertexBufferAllocation->Release();
 		m_cbAllocation->Release();
 		m_textureAllocation->Release();

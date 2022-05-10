@@ -6,6 +6,7 @@
 
 namespace Eden::Utils
 {
+	// NOTE(Daniel): This is leaking 16bytes per frame in debug mode, idk why
 	inline std::string BytesToString(uint64_t bytes)
 	{
 		constexpr uint64_t GB = 1024 * 1024 * 1024;
