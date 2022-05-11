@@ -202,9 +202,12 @@ namespace Eden
 			DispatchMessage(&msg);
 		}
 
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
+		if (!IsMinimized())
+		{
+			ImGui_ImplDX12_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+		}
 	}
 
 	void Window::SetResizeCallback(std::function<void(uint32_t, uint32_t)> resizeCallback)
@@ -216,6 +219,8 @@ namespace Eden
 	{
 		m_width = width;
 		m_height = height;
+
+		m_isMinimized = false;
 
 		m_resizeCallback(width, height);
 	}
