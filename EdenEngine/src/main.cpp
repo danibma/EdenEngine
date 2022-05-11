@@ -60,12 +60,13 @@ glm::mat4 projection;
 SceneData sceneData;
 Camera camera;
 
+Texture2D meshTextureDiffuse;
 VertexBuffer meshVB;
 IndexBuffer meshIB;
 std::vector<Vertex> meshVertices;
 std::vector<uint32_t> meshIndices;
 
-void LoadObj(const char* file)
+void LoadObj(std::filesystem::path file)
 {
 	//attrib will contain the vertex arrays of the file
 	tinyobj::attrib_t attrib;
@@ -78,7 +79,9 @@ void LoadObj(const char* file)
 	std::string warn;
 	std::string err;
 
-	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file);
+	std::string parentPath = file.parent_path().string() + "/";
+
+	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file.string().c_str(), parentPath.c_str());
 	if (!warn.empty())
 	{
 		ED_LOG_ERROR("{}", warn);
@@ -95,7 +98,6 @@ void LoadObj(const char* file)
 	// Loop over shapes
 	for (const auto& shape : shapes)
 	{
-		// Loop over faces(polygon)
 		for (const auto& index : shape.mesh.indices)
 		{
 			// vertex position
@@ -131,14 +133,8 @@ void LoadObj(const char* file)
 			new_vert.normal.z = nz;
 
 			new_vert.uv.x = ux;
-			new_vert.uv.y = uy; //do the 1-y on the uv.y because Vulkan UV coordinates work like that.
+			new_vert.uv.y = 1 - uy;
 
-			//we are setting the vertex color as the vertex normal. This is just for display purposes
-			/*auto id = shapes[s].mesh.material_ids[f];
-			if (id > -1)
-				new_vert.color = glm::vec3(materials[id].diffuse[0], materials[id].diffuse[1], materials[id].diffuse[2]);
-			else
-				new_vert.color = glm::vec3(1, 1, 1);*/
 			if (uniqueVertices.count(new_vert) == 0) {
 				uniqueVertices[new_vert] = static_cast<uint32_t>(meshVertices.size());
 				meshVertices.push_back(new_vert);
@@ -146,8 +142,11 @@ void LoadObj(const char* file)
 
 			meshIndices.push_back(uniqueVertices[new_vert]);
 		}
-
 	}
+
+	// TODO(Daniel): Right now this is only loading the first diffuse texture,
+	//				 make it so it loads every texture
+	meshTextureDiffuse = gfx->CreateTexture2D(parentPath + materials[0].diffuse_texname);
 }
 
 void Init()
@@ -179,23 +178,24 @@ void Init()
 		0, 3, 1 // second triangle
 	};
 #else
-	LoadObj("assets/sponza/sponza.obj");
+	LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
 #endif
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
 	view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
 	projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 1000.0f);
-	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
+	model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f));
 	sceneData.MVPMatrix = projection * view * model;
 
 	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
 	meshIB = gfx->CreateIndexBuffer(meshIndices.data(), (uint32_t)meshIndices.size(), sizeof(uint32_t));
-	gfx->CreateTexture2D("assets/container2.png");
+	//gfx->CreateTexture2D("assets/container2.png");
 	gfx->CreateConstantBuffer(sceneData);
 
 	gfx->vertexBuffer = meshVB;
 	gfx->indexBuffer = meshIB;
+	gfx->texture2D = meshTextureDiffuse;
 }
 
 uint32_t frameNumber;
@@ -250,6 +250,7 @@ void Destroy()
 {
 	meshVB.allocation->Release();
 	meshIB.allocation->Release();
+	meshTextureDiffuse.allocation->Release();
 
 	edelete gfx;
 

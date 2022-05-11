@@ -209,7 +209,6 @@ namespace Eden
 		ImGui_ImplDX12_Shutdown();
 
 		m_cbAllocation->Release();
-		m_textureAllocation->Release();
 
 		CloseHandle(m_fenceEvent);
 	}
@@ -446,11 +445,13 @@ namespace Eden
 		m_constantBuffer->Unmap(0, nullptr);
 	}
 
-	void GraphicsDevice::CreateTexture2D(std::string filePath)
+	Texture2D GraphicsDevice::CreateTexture2D(std::string filePath)
 	{
 		ED_PROFILE_FUNCTION();
 
 		m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get());
+
+		Texture2D texture;
 
 		ComPtr<ID3D12Resource> textureUploadHeap;
 		D3D12MA::Allocation* uploadAllocation;
@@ -462,7 +463,13 @@ namespace Eden
 		{
 			// Load texture from file
 			int width, height, nchannels;
-			unsigned char* texture = stbi_load(filePath.c_str(), &width, &height, &nchannels, 4);
+			unsigned char* textureFile = stbi_load(filePath.c_str(), &width, &height, &nchannels, 4);
+			if (!textureFile)
+			{
+				ED_LOG_ERROR("Could not load texture file: {}", filePath);
+				return Texture2D();
+			}
+				
 
 			// Describe and create a texture2D
 			D3D12_RESOURCE_DESC textureDesc = {};
@@ -483,10 +490,10 @@ namespace Eden
 										&textureDesc,
 										D3D12_RESOURCE_STATE_COPY_DEST,
 										nullptr,
-										&m_textureAllocation,
-										IID_PPV_ARGS(&m_texture));
+										&texture.allocation,
+										IID_PPV_ARGS(&texture.texture));
 
-			const uint64_t uploadBufferSize = GetRequiredIntermediateSize(m_texture.Get(), 0, 1);
+			const uint64_t uploadBufferSize = GetRequiredIntermediateSize(texture.texture.Get(), 0, 1);
 
 			// Create the GPU upload buffer
 			D3D12MA::ALLOCATION_DESC uploadAllocationDesc = {};
@@ -502,12 +509,12 @@ namespace Eden
 			// Copy data to the intermediate upload heap and then schedule a copy 
 			// from the upload heap to the Texture2D.
 			D3D12_SUBRESOURCE_DATA textureData = {};
-			textureData.pData = &texture[0];
+			textureData.pData = &textureFile[0];
 			textureData.RowPitch = width * 4;
 			textureData.SlicePitch = height * textureData.RowPitch;
 
-			UpdateSubresources(m_commandList.Get(), m_texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
-			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			UpdateSubresources(m_commandList.Get(), texture.texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
 			// Describe and craete a Shader resource view(SRV) for the texture
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -518,9 +525,9 @@ namespace Eden
 
 			// NOTE(Daniel): Offset srv handle cause of imgui
 			CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-			m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, handle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+			m_device->CreateShaderResourceView(texture.texture.Get(), &srvDesc, handle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
 
-			edelete texture;
+			edelete textureFile;
 		}
 
 		m_commandList->Close();
@@ -530,6 +537,8 @@ namespace Eden
 		WaitForGPU();
 
 		uploadAllocation->Release();
+
+		return texture;
 	}
 
 	void GraphicsDevice::UpdateConstantBuffer(SceneData data)
