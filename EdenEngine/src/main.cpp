@@ -10,8 +10,10 @@
 
 #include <algorithm>
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/hash.hpp>
 
 #include <imgui/imgui.h>
 
@@ -34,7 +36,23 @@ struct Vertex
 	glm::vec3 position;
 	glm::vec2 uv;
 	glm::vec3 normal;
+
+	bool operator==(const Vertex& other) const
+	{
+		return position == other.position && uv == other.uv && normal == other.normal;
+	}
 };
+
+namespace std
+{
+	template<> struct hash<Vertex> {
+		size_t operator()(Vertex const& vertex) const {
+			return ((hash<glm::vec3>()(vertex.position) ^
+					 (hash<glm::vec2>()(vertex.uv) << 1)) >> 1) ^
+				(hash<glm::vec3>()(vertex.normal) << 1);
+		}
+	};
+}
 
 glm::mat4 model;
 glm::mat4 view;
@@ -72,59 +90,61 @@ void LoadObj(const char* file)
 		return;
 	}
 
+	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
 	// Loop over shapes
-	for (size_t s = 0; s < shapes.size(); s++)
+	for (const auto& shape : shapes)
 	{
 		// Loop over faces(polygon)
-		size_t indexOffset = 0;
-		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
+		for (const auto& index : shape.mesh.indices)
 		{
-			//hardcode loading to triangles
-			int fv = 3;
+			// vertex position
+			tinyobj::real_t vx = attrib.vertices[3 * index.vertex_index + 0];
+			tinyobj::real_t vy = attrib.vertices[3 * index.vertex_index + 1];
+			tinyobj::real_t vz = -attrib.vertices[3 * index.vertex_index + 2];
 
-			// Loop over vertices in the face
-			for (size_t v = 0; v < fv; v++)
+			// vertex uv
+			tinyobj::real_t ux = attrib.texcoords[2 * index.texcoord_index + 0];
+			tinyobj::real_t uy = attrib.texcoords[2 * index.texcoord_index + 1];
+
+			// vertex normal
+			// NOTE(Daniel): this is just for testing while this isn't loading the model's textures
+			tinyobj::real_t nx = ux;
+			tinyobj::real_t ny = uy;
+			tinyobj::real_t nz = 0.0f;
+
+			if (attrib.normals.size() > 0)
 			{
-				// access to vertex
-				tinyobj::index_t idx = shapes[s].mesh.indices[indexOffset + v];
-
-				//vertex position
-				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
-				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
-				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
-				//vertex normal
-				tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
-
-				if (idx.texcoord_index < 0) idx.texcoord_index = 0;
-				tinyobj::real_t ux = attrib.texcoords[2 * idx.texcoord_index + 0];
-				tinyobj::real_t uy = attrib.texcoords[2 * idx.texcoord_index + 1];
-
-				Vertex new_vert;
-				//copy it into our vertex
-				new_vert.position.x = vx;
-				new_vert.position.y = vy;
-				new_vert.position.z = vz;
-
-				new_vert.normal.x = nx;
-				new_vert.normal.y = ny;
-				new_vert.normal.z = nz;
-
-				new_vert.uv.x = ux;
-				new_vert.uv.y = 1 - uy; //do the 1-y on the uv.y because Vulkan UV coordinates work like that.
-
-				//we are setting the vertex color as the vertex normal. This is just for display purposes
-				/*auto id = shapes[s].mesh.material_ids[f];
-				if (id > -1)
-					new_vert.color = glm::vec3(materials[id].diffuse[0], materials[id].diffuse[1], materials[id].diffuse[2]);
-				else
-					new_vert.color = glm::vec3(1, 1, 1);`*/
-
-				meshVertices.push_back(new_vert);
-
+				nx = attrib.normals[3 * index.normal_index + 0];
+				ny = attrib.normals[3 * index.normal_index + 1];
+				nz = -attrib.normals[3 * index.normal_index + 2];
 			}
-			indexOffset += fv;
+
+			Vertex new_vert;
+			//copy it into our vertex
+			new_vert.position.x = vx;
+			new_vert.position.y = vy;
+			new_vert.position.z = vz;
+
+			new_vert.normal.x = nx;
+			new_vert.normal.y = ny;
+			new_vert.normal.z = nz;
+
+			new_vert.uv.x = ux;
+			new_vert.uv.y = uy; //do the 1-y on the uv.y because Vulkan UV coordinates work like that.
+
+			//we are setting the vertex color as the vertex normal. This is just for display purposes
+			/*auto id = shapes[s].mesh.material_ids[f];
+			if (id > -1)
+				new_vert.color = glm::vec3(materials[id].diffuse[0], materials[id].diffuse[1], materials[id].diffuse[2]);
+			else
+				new_vert.color = glm::vec3(1, 1, 1);*/
+			if (uniqueVertices.count(new_vert) == 0) {
+				uniqueVertices[new_vert] = static_cast<uint32_t>(meshVertices.size());
+				meshVertices.push_back(new_vert);
+			}
+
+			meshIndices.push_back(uniqueVertices[new_vert]);
 		}
 
 	}
@@ -144,7 +164,7 @@ void Init()
 
 	gfx->CreateGraphicsPipeline("basic");
 
-#if 1
+#if 0
 	meshVertices =
 	{
 		{ { -0.5f,  0.5f, 0.5f }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }}, // top left
@@ -159,14 +179,14 @@ void Init()
 		0, 3, 1 // second triangle
 	};
 #else
-	LoadObj("assets/monkey_flat.obj");
+	LoadObj("assets/sponza/sponza.obj");
 #endif
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
 	view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
-	projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-	model = glm::mat4(1.0f);
+	projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 1000.0f);
+	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 	sceneData.MVPMatrix = projection * view * model;
 
 	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
@@ -204,6 +224,8 @@ void Update()
 			ImGui::TextDisabled("Press F3 to close this window!");
 			ImGui::Separator();
 			ImGui::Text("CPU time: %.2fms", deltaTime * 1000.0f);
+			ImGui::Text("Mesh Vertices: %d", meshVertices.size());
+			ImGui::Text("Mesh Indices: %d", meshIndices.size());
 			ImGui::End();
 		}
 
