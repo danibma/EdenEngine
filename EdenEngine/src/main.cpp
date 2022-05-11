@@ -61,6 +61,7 @@ SceneData sceneData;
 Camera camera;
 
 Texture2D meshTextureDiffuse;
+Texture2D meshTextureNormal;
 VertexBuffer meshVB;
 IndexBuffer meshIB;
 std::vector<Vertex> meshVertices;
@@ -147,6 +148,7 @@ void LoadObj(std::filesystem::path file)
 	// TODO(Daniel): Right now this is only loading the first diffuse texture,
 	//				 make it so it loads every texture
 	meshTextureDiffuse = gfx->CreateTexture2D(parentPath + materials[0].diffuse_texname);
+	meshTextureNormal = gfx->CreateTexture2D(parentPath + materials[0].bump_texname);
 }
 
 void Init()
@@ -195,12 +197,9 @@ void Init()
 
 	gfx->vertexBuffer = meshVB;
 	gfx->indexBuffer = meshIB;
-	gfx->texture2D = meshTextureDiffuse;
 }
 
-uint32_t frameNumber;
 bool openDebugWindow = true;
-
 void Update()
 {
 	ED_PROFILE_FUNCTION();
@@ -224,6 +223,7 @@ void Update()
 			ImGui::TextDisabled("Press F3 to close this window!");
 			ImGui::Separator();
 			ImGui::Text("CPU time: %.2fms", deltaTime * 1000.0f);
+			ImGui::Separator();
 			ImGui::Text("Mesh Vertices: %d", meshVertices.size());
 			ImGui::Text("Mesh Indices: %d", meshIndices.size());
 			ImGui::End();
@@ -234,7 +234,6 @@ void Update()
 
 		view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-		//model = glm::rotate(glm::mat4(1.0f), glm::radians(frameNumber + 0.4f), glm::vec3(0, 1, 0));
 		sceneData.MVPMatrix = projection * view * model;
 
 		gfx->UpdateConstantBuffer(sceneData);
@@ -242,8 +241,6 @@ void Update()
 		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
 	}
-
-	frameNumber++;
 }
 
 void Destroy()
@@ -251,6 +248,7 @@ void Destroy()
 	meshVB.allocation->Release();
 	meshIB.allocation->Release();
 	meshTextureDiffuse.allocation->Release();
+	meshTextureNormal.allocation->Release();
 
 	edelete gfx;
 

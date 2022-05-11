@@ -126,16 +126,23 @@ namespace Eden
 
 		VertexBuffer vertexBuffer;
 		IndexBuffer indexBuffer;
-		Texture2D texture2D;
+		uint32_t textureHeapOffset = 1;
 
 	private:
 		void GetHardwareAdapter();
+
 		void PopulateCommandList();
+
 		// Prepare to render the next frame
 		void MoveToNextFrame();
+
 		// Wait for pending GPU work to complete
 		void WaitForGPU();
+
 		ComPtr<IDxcBlob> CompileShader(std::filesystem::path filePath, ShaderTarget target);
+
+		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility);
+		void CreateRootSignature();
 	};
 }
 

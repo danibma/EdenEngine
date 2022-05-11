@@ -10,8 +10,12 @@ cbuffer SceneData : register(b0)
     float4x4 mvpMatrix;
 };
 
-Texture2D g_texture : register(t0);
-SamplerState g_sampler : register(s0);
+Texture2D g_textureDiffuse : register(t0);
+SamplerState g_samplerDiffuse : register(s0);
+
+// NOTE(Daniel): Loading normal maps correctly, just not using them because we have no light
+Texture2D g_textureNormal : register(t1);
+SamplerState g_samplerNormal : register(s1);
 
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL)
 {
@@ -26,5 +30,5 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return g_texture.Sample(g_sampler, input.uv);
+    return g_textureDiffuse.Sample(g_samplerDiffuse, input.uv);
 }

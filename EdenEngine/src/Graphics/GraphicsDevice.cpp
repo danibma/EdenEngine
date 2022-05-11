@@ -264,11 +264,28 @@ namespace Eden
 		return shaderBlob;
 	}
 
-	void GraphicsDevice::CreateGraphicsPipeline(std::string shaderName)
+	D3D12_STATIC_SAMPLER_DESC GraphicsDevice::CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility)
 	{
-		ED_PROFILE_FUNCTION();
+		D3D12_STATIC_SAMPLER_DESC sampler = {};
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		sampler.MipLODBias = 0;
+		sampler.MaxAnisotropy = 0;
+		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+		sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+		sampler.MinLOD = 0.0f;
+		sampler.MaxLOD = D3D12_FLOAT32_MAX;
+		sampler.ShaderRegister = shaderRegister;
+		sampler.RegisterSpace = registerSpace;
+		sampler.ShaderVisibility = shaderVisibility;
 
-		// Create the root signature
+		return sampler;
+	}
+
+	void GraphicsDevice::CreateRootSignature()
+	{
 		{
 			D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 
@@ -281,29 +298,18 @@ namespace Eden
 			}
 
 			CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
 			CD3DX12_ROOT_PARAMETER1 rootParameters[2];
 			rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 			rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
 
-			D3D12_STATIC_SAMPLER_DESC sampler = {};
-			sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-			sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-			sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-			sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-			sampler.MipLODBias = 0;
-			sampler.MaxAnisotropy = 0;
-			sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-			sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-			sampler.MinLOD = 0.0f;
-			sampler.MaxLOD = D3D12_FLOAT32_MAX;
-			sampler.ShaderRegister = 0;
-			sampler.RegisterSpace = 0;
-			sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			D3D12_STATIC_SAMPLER_DESC samplerDiffuse = CreateStaticSamplerDesc(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+			D3D12_STATIC_SAMPLER_DESC samplerNormal = CreateStaticSamplerDesc(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+			D3D12_STATIC_SAMPLER_DESC samplers[] = { samplerDiffuse, samplerNormal };
 
 			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-			rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+			rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, _countof(samplers), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 			ComPtr<ID3DBlob> signature;
 			ComPtr<ID3DBlob> error;
@@ -314,6 +320,14 @@ namespace Eden
 			if (FAILED(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature))))
 				ED_ASSERT_MB(false, "Failed to create root signature");
 		}
+	}
+
+	void GraphicsDevice::CreateGraphicsPipeline(std::string shaderName)
+	{
+		ED_PROFILE_FUNCTION();
+
+		// Create the root signature
+		CreateRootSignature();
 
 		// Compile shaders and create pipeline state object(PSO)
 		{
@@ -525,7 +539,7 @@ namespace Eden
 
 			// NOTE(Daniel): Offset srv handle cause of imgui
 			CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-			m_device->CreateShaderResourceView(texture.texture.Get(), &srvDesc, handle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+			m_device->CreateShaderResourceView(texture.texture.Get(), &srvDesc, handle.Offset(textureHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
 
 			edelete textureFile;
 		}
@@ -538,6 +552,7 @@ namespace Eden
 
 		uploadAllocation->Release();
 
+		textureHeapOffset++;
 		return texture;
 	}
 
