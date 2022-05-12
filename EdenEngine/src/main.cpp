@@ -14,12 +14,22 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <imgui/imgui.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
 
+#include <stb/stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
+
+#define TINYGLTF_USE_CPP14
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE
+#define TINYGLTF_IMPLEMENTATION
+#include <tinygltf/tiny_gltf.h>
 
 using namespace Eden;
 
@@ -57,7 +67,7 @@ namespace std
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 lightPosition(0.0f);
+glm::vec3 lightPosition(0.0f, 0.0f, -8.0f);
 SceneData sceneData;
 Camera camera;
 
@@ -140,6 +150,136 @@ void LoadObj(std::filesystem::path file)
 	meshTextureNormal = gfx->CreateTexture2D(parentPath + materials[0].bump_texname);
 }
 
+void LoadGLTF(std::filesystem::path file)
+{
+	tinygltf::Model model;
+	tinygltf::TinyGLTF loader;
+	std::string err;
+	std::string warn;
+	bool result = false;
+
+	if(file.extension() == ".gltf")
+		result = loader.LoadASCIIFromFile(&model, &err, &warn, file.string());
+	else if (file.extension() == ".glb")
+		result = loader.LoadBinaryFromFile(&model, &err, &warn, file.string());
+
+	if (!warn.empty())
+		ED_LOG_WARN("{}", warn.c_str());
+
+	if (!err.empty())
+		ED_LOG_ERROR("{}", err.c_str());
+
+	if (!result) 
+	{
+		ED_LOG_ERROR("Failed to parse GLTF Model!");
+		return;
+	}
+
+	std::string parentPath = file.parent_path().string() + "/";
+
+	for (auto const& gltf_mesh : model.meshes)
+	{
+		for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
+		{
+			auto& glTFPrimitive = gltf_mesh.primitives[p];
+			uint32_t vertexStart = (uint32_t)meshVertices.size();
+			uint32_t firstIndex = (uint32_t)meshIndices.size();
+			uint32_t indexCount = 0;
+
+			// Vertices
+			{
+				const float* positionBuffer;
+				const float* normalsBuffer;
+				const float* uvsBuffer;
+				size_t vertexCount = 0;
+
+				// Get buffer data for vertex normals
+				if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
+					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("POSITION")->second];
+					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
+					positionBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+					vertexCount = accessor.count;
+				}
+
+				// Get buffer data for vertex normals
+				if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end()) {
+					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
+					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
+					normalsBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+				}
+
+				// Get buffer data for vertex texture coordinates
+				// glTF supports multiple sets, we only load the first one
+				if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end()) {
+					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
+					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
+					uvsBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+				}
+
+				for (size_t v = 0; v < vertexCount; ++v)
+				{
+					Vertex newVert = {};
+					newVert.position = glm::make_vec3(&positionBuffer[v * 3]);
+					newVert.position.z = -newVert.position.z;
+					newVert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
+					newVert.normal.z = -newVert.normal.z;
+					newVert.uv = uvsBuffer ? glm::make_vec2(&uvsBuffer[v * 2]) : glm::vec2(0.0f);
+					meshVertices.emplace_back(newVert);
+				}
+			}
+
+			// Indices
+			{
+				const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.indices];
+				const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+				const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+
+				indexCount += static_cast<uint32_t>(accessor.count);
+
+				// glTF supports different component types of indices
+				switch (accessor.componentType) {
+				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+				{
+					uint32_t* buf = new uint32_t[accessor.count];
+					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint32_t));
+					for (size_t index = 0; index < accessor.count; index++) {
+						meshIndices.push_back(buf[index] + vertexStart);
+					}
+					break;
+				}
+				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+				{
+					uint16_t* buf = new uint16_t[accessor.count];
+					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint16_t));
+					for (size_t index = 0; index < accessor.count; index++) {
+						meshIndices.push_back(buf[index] + vertexStart);
+					}
+					break;
+				}
+				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+				{
+					uint8_t* buf = new uint8_t[accessor.count];
+					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint8_t));
+					for (size_t index = 0; index < accessor.count; index++) {
+						meshIndices.push_back(buf[index] + vertexStart);
+					}
+					break;
+				}
+				default:
+					ED_LOG_ERROR("Index component type {} not supported!");
+					return;
+				}
+			}
+		}
+	}
+
+	// Load texture
+	// TODO(Daniel): Right now this is only loading the first diffuse texture,
+	//				 make it so it loads every texture
+	meshTextureDiffuse = gfx->CreateTexture2D(parentPath + model.images[0].uri);
+	meshTextureNormal = gfx->CreateTexture2D(parentPath + model.images[2].uri);
+}
+
 void Init()
 {
 	Log::Init();
@@ -148,7 +288,7 @@ void Init()
 	window = enew Window("Eden Engine[DEBUG]", 1600, 900);
 #else
 	window = enew Window("Eden Engine", 1600, 900);
-#endif
+#endif 
 
 	gfx = enew GraphicsDevice(window);
 
@@ -169,14 +309,15 @@ void Init()
 		0, 3, 1 // second triangle
 	};
 #else
-	LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
+	LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
+ 	//LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
 #endif
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
 	view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 	projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-	model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f));
+	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 	sceneData.MVPMatrix = projection * view * model;
 	sceneData.modelViewMatrix = view * model;
 	sceneData.lightPosition = lightPosition;
@@ -229,8 +370,8 @@ void Update()
 		camera.Update(window, deltaTime);
 
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
-		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f));
+		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 		sceneData.MVPMatrix = projection * view * model;
 		sceneData.modelViewMatrix = view * model;
 		sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
