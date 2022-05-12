@@ -6,12 +6,18 @@ struct PSInput
     float3 normal : NORMAL;
 };
 
+// TODO: Change this to view space instead of world space by doing this:
+//       If you still want to calculate lighting in view space you want to transform 
+//       all the relevant vectors with the view matrix as well (don't forget to change the normal matrix too).
+
 cbuffer SceneData : register(b0)
 {
     float4x4 mvpMatrix;
     float4x4 modelMatrix;
     float4x4 normalMatrix;
     float3 lightPosition;
+    float3 viewPos;
+    float padding[2];
 };
 
 Texture2D g_textureDiffuse : register(t0);
@@ -40,6 +46,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
     float3 lightPos = lightPosition;
+    float3 fragPos = float3(input.positionModel.xyz);
     
     // Ambient Light
     float ambientStrength = 0.1f;
@@ -47,11 +54,19 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     // Diffuse Light
     float3 norm = normalize(input.normal);
-    float3 lightDirection = normalize(lightPos - float3(input.positionModel.xyz));
+    float3 lightDirection = normalize(lightPos - fragPos);
     float diffuseColor = max(dot(norm, lightDirection), 0.0f);
     float4 diffuse = float4(diffuseColor * lightColor, 1.0f);
     
-    float4 pixelColor = (ambient + diffuse) * objectColor;
+    // Specular Light
+    float specularStrength = 0.5f;
+    float3 viewDirection = normalize(viewPos - fragPos);
+    float3 reflectDirection = reflect(-lightDirection, norm);
+    float shininess = 32;
+    float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
+    float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
+    
+    float4 pixelColor = (ambient + diffuse + specular) * objectColor;
     
     return pixelColor;
 }

@@ -102,47 +102,35 @@ void LoadObj(std::filesystem::path file)
 	{
 		for (const auto& index : shape.mesh.indices)
 		{
-			// vertex position
-			tinyobj::real_t vx = attrib.vertices[3 * index.vertex_index + 0];
-			tinyobj::real_t vy = attrib.vertices[3 * index.vertex_index + 1];
-			tinyobj::real_t vz = -attrib.vertices[3 * index.vertex_index + 2];
+			Vertex newVert = {};
 
-			// vertex uv
-			tinyobj::real_t ux = attrib.texcoords[2 * index.texcoord_index + 0];
-			tinyobj::real_t uy = attrib.texcoords[2 * index.texcoord_index + 1];
+			// vertex position
+			newVert.position.x =  attrib.vertices[3 * index.vertex_index + 0];
+			newVert.position.y =  attrib.vertices[3 * index.vertex_index + 1];
+			newVert.position.z = -attrib.vertices[3 * index.vertex_index + 2];
 
 			// vertex normal
-			// NOTE(Daniel): this is just for testing while this isn't loading the model's textures
-			tinyobj::real_t nx = ux;
-			tinyobj::real_t ny = uy;
-			tinyobj::real_t nz = 0.0f;
-
 			if (attrib.normals.size() > 0)
 			{
-				nx = attrib.normals[3 * index.normal_index + 0];
-				ny = attrib.normals[3 * index.normal_index + 1];
-				nz = attrib.normals[3 * index.normal_index + 2];
+				newVert.normal.x =  attrib.normals[3 * index.normal_index + 0];
+				newVert.normal.y =  attrib.normals[3 * index.normal_index + 1];
+				newVert.normal.z = -attrib.normals[3 * index.normal_index + 2];
+			}
+			
+			// vertex uv
+			if (attrib.texcoords.size() > 0)
+			{
+				newVert.uv.x = attrib.texcoords[2 * index.texcoord_index + 0];
+				newVert.uv.y = 1 - attrib.texcoords[2 * index.texcoord_index + 1];
+			}
+			
+
+			if (uniqueVertices.count(newVert) == 0) {
+				uniqueVertices[newVert] = static_cast<uint32_t>(meshVertices.size());
+				meshVertices.push_back(newVert);
 			}
 
-			Vertex new_vert;
-			//copy it into our vertex
-			new_vert.position.x = vx;
-			new_vert.position.y = vy;
-			new_vert.position.z = vz;
-
-			new_vert.normal.x = nx;
-			new_vert.normal.y = ny;
-			new_vert.normal.z = nz;
-
-			new_vert.uv.x = ux;
-			new_vert.uv.y = 1 - uy;
-
-			if (uniqueVertices.count(new_vert) == 0) {
-				uniqueVertices[new_vert] = static_cast<uint32_t>(meshVertices.size());
-				meshVertices.push_back(new_vert);
-			}
-
-			meshIndices.push_back(uniqueVertices[new_vert]);
+			meshIndices.push_back(uniqueVertices[newVert]);
 		}
 	}
 

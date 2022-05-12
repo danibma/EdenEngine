@@ -35,6 +35,8 @@ namespace Eden
 		// This matrix is used to fix the problem of a uniform scale only changing the normal's magnitude and not it's direction
 		glm::mat4 normalMatrix;
 		glm::vec3 lightPosition;
+		glm::vec3 viewPosition; // this is temporary, until we calculate lighting through view space instead of world space
+		float padding[2];
 	};
 
 	namespace Utils
