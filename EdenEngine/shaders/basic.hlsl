@@ -13,11 +13,9 @@ struct PSInput
 cbuffer SceneData : register(b0)
 {
     float4x4 mvpMatrix;
-    float4x4 modelMatrix;
+    float4x4 modelViewMatrix;
     float4x4 normalMatrix;
     float3 lightPosition;
-    float3 viewPos;
-    float padding[2];
 };
 
 Texture2D g_textureDiffuse : register(t0);
@@ -32,7 +30,7 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
     PSInput result;
 
     result.position = mul(mvpMatrix, float4(position, 1.0f));
-    result.positionModel = mul(modelMatrix, float4(position, 1.0f));
+    result.positionModel = mul(modelViewMatrix, float4(position, 1.0f));
     result.normal = float3(mul(normalMatrix, float4(normal, 1.0f)).xyz);
     result.uv = uv;
 
@@ -60,7 +58,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     // Specular Light
     float specularStrength = 0.5f;
-    float3 viewDirection = normalize(viewPos - fragPos);
+    float3 viewDirection = normalize(-fragPos);
     float3 reflectDirection = reflect(-lightDirection, norm);
     float shininess = 32;
     float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
