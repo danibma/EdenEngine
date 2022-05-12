@@ -39,7 +39,7 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 objectColor = g_textureDiffuse.Sample(g_samplerDiffuse, input.uv);
+    float4 diffuseTexture = g_textureDiffuse.Sample(g_samplerDiffuse, input.uv);
     
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
@@ -48,13 +48,13 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     // Ambient Light
     float ambientStrength = 0.1f;
-    float4 ambient = float4(ambientStrength * lightColor, 1.0f);
+    float4 ambient = float4(ambientStrength * lightColor, 1.0f) * diffuseTexture;
     
     // Diffuse Light
     float3 norm = normalize(input.normal);
     float3 lightDirection = normalize(lightPos - fragPos);
     float diffuseColor = max(dot(norm, lightDirection), 0.0f);
-    float4 diffuse = float4(diffuseColor * lightColor, 1.0f);
+    float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * diffuseTexture;
     
     // Specular Light
     float specularStrength = 0.5f;
@@ -64,7 +64,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
     float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
     
-    float4 pixelColor = (ambient + diffuse + specular) * objectColor;
+    float4 pixelColor = (ambient + diffuse + specular);
     
     return pixelColor;
 }
