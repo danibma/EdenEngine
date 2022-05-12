@@ -363,7 +363,7 @@ namespace Eden
 			psoDesc.SampleMask = UINT_MAX;
 			psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-			psoDesc.RasterizerState.FrontCounterClockwise = false;
+			psoDesc.RasterizerState.FrontCounterClockwise = true;
 			psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT); // a default depth stencil state;
 			psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 			psoDesc.InputLayout.NumElements = ARRAYSIZE(inputElementDesc);

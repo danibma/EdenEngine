@@ -10,6 +10,7 @@ cbuffer SceneData : register(b0)
 {
     float4x4 mvpMatrix;
     float4x4 modelMatrix;
+    float4x4 normalMatrix;
     float3 lightPosition;
 };
 
@@ -26,7 +27,7 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 
     result.position = mul(mvpMatrix, float4(position, 1.0f));
     result.positionModel = mul(modelMatrix, float4(position, 1.0f));
-    result.normal = normal;
+    result.normal = float3(mul(normalMatrix, float4(normal, 1.0f)).xyz);
     result.uv = uv;
 
     return result;

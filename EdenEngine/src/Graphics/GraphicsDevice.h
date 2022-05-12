@@ -32,6 +32,8 @@ namespace Eden
 	{
 		glm::mat4 MVPMatrix;
 		glm::mat4 modelMatrix;
+		// This matrix is used to fix the problem of a uniform scale only changing the normal's magnitude and not it's direction
+		glm::mat4 normalMatrix;
 		glm::vec3 lightPosition;
 	};
 
