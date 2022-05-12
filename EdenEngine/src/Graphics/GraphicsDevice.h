@@ -31,6 +31,8 @@ namespace Eden
 	struct SceneData
 	{
 		glm::mat4 MVPMatrix;
+		glm::mat4 modelMatrix;
+		glm::vec3 lightPosition;
 	};
 
 	namespace Utils

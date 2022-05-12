@@ -57,6 +57,7 @@ namespace std
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
+glm::vec3 lightPosition(0.0f);
 SceneData sceneData;
 Camera camera;
 
@@ -120,7 +121,7 @@ void LoadObj(std::filesystem::path file)
 			{
 				nx = attrib.normals[3 * index.normal_index + 0];
 				ny = attrib.normals[3 * index.normal_index + 1];
-				nz = -attrib.normals[3 * index.normal_index + 2];
+				nz = attrib.normals[3 * index.normal_index + 2];
 			}
 
 			Vertex new_vert;
@@ -185,10 +186,12 @@ void Init()
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
-	view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
-	projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 1000.0f);
-	model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f));
+	view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
+	projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+	model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f)) * glm::translate(glm::mat4(1.0f), glm::vec3(500.0f, 0.0f, 0.0f));
 	sceneData.MVPMatrix = projection * view * model;
+	sceneData.modelMatrix = model;
+	sceneData.lightPosition = lightPosition;
 
 	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
 	meshIB = gfx->CreateIndexBuffer(meshIndices.data(), (uint32_t)meshIndices.size(), sizeof(uint32_t));
@@ -226,15 +229,21 @@ void Update()
 			ImGui::Separator();
 			ImGui::Text("Mesh Vertices: %d", meshVertices.size());
 			ImGui::Text("Mesh Indices: %d", meshIndices.size());
+			ImGui::Separator();
+			ImGui::DragFloat3("Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::Text("Camera Position: %f, %f, %f", camera.position.x, camera.position.y, camera.position.z);
 			ImGui::End();
 		}
 
 		// This is where the "real" loop begins
 		camera.Update(window, deltaTime);
 
-		view = glm::lookAtRH(camera.position, camera.position + camera.front, camera.up);
-		projection = glm::perspectiveFovRH(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
+		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(0.01f)) * glm::translate(glm::mat4(1.0f), glm::vec3(500.0f, 0.0f, 0.0f));
 		sceneData.MVPMatrix = projection * view * model;
+		sceneData.modelMatrix = model;
+		sceneData.lightPosition = lightPosition;
 
 		gfx->UpdateConstantBuffer(sceneData);
 

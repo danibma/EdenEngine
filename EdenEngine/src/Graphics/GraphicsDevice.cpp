@@ -302,7 +302,7 @@ namespace Eden
 
 			CD3DX12_ROOT_PARAMETER1 rootParameters[2];
 			rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-			rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
+			rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
 
 			D3D12_STATIC_SAMPLER_DESC samplerDiffuse = CreateStaticSamplerDesc(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 			D3D12_STATIC_SAMPLER_DESC samplerNormal = CreateStaticSamplerDesc(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -362,7 +362,8 @@ namespace Eden
 			psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 			psoDesc.SampleMask = UINT_MAX;
 			psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+			psoDesc.RasterizerState.FrontCounterClockwise = false;
 			psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT); // a default depth stencil state;
 			psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 			psoDesc.InputLayout.NumElements = ARRAYSIZE(inputElementDesc);
