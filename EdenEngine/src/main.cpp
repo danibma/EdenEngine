@@ -40,7 +40,6 @@ GraphicsDevice* gfx;
 Timer timer;
 float deltaTime;
 
-// scene data
 struct Vertex
 {
 	glm::vec3 position;
@@ -64,13 +63,24 @@ namespace std
 	};
 }
 
+// scene data
+struct SceneData
+{
+	glm::mat4 MVPMatrix;
+	glm::mat4 modelViewMatrix;
+	// This matrix is used to fix the problem of a uniform scale only changing the normal's magnitude and not it's direction
+	glm::mat4 normalMatrix;
+	glm::vec3 lightPosition;
+};
+
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 lightPosition(0.0f, 0.0f, -8.0f);
+glm::vec3 lightPosition(0.0f, 7.0f, -8.0f);
 SceneData sceneData;
 Camera camera;
 
+Pipeline meshPipeline;
 Texture2D meshTextureDiffuse;
 Texture2D meshTextureNormal;
 VertexBuffer meshVB;
@@ -291,8 +301,9 @@ void Init()
 #endif 
 
 	gfx = enew GraphicsDevice(window);
+	gfx->EnableImGui();
 
-	gfx->CreateGraphicsPipeline("basic");
+	meshPipeline = gfx->CreateGraphicsPipeline("basic");
 
 #if 0
 	meshVertices =
@@ -324,11 +335,9 @@ void Init()
 
 	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
 	meshIB = gfx->CreateIndexBuffer(meshIndices.data(), (uint32_t)meshIndices.size(), sizeof(uint32_t));
-	//gfx->CreateTexture2D("assets/container2.png");
-	gfx->CreateConstantBuffer(sceneData);
 
-	gfx->vertexBuffer = meshVB;
-	gfx->indexBuffer = meshIB;
+	gfx->BindVertexBuffer(meshVB);
+	gfx->BindIndexBuffer(meshIB);
 
 	ED_LOG_INFO("Scene Data size: {}", sizeof(SceneData));
 }
@@ -355,14 +364,17 @@ void Update()
 			ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse);
 			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Press F3 to close this window!").x) * 0.5f); // center text
 			ImGui::TextDisabled("Press F3 to close this window!");
-			ImGui::Separator();
-			ImGui::Text("CPU time: %.2fms", deltaTime * 1000.0f);
-			ImGui::Separator();
-			ImGui::Text("Mesh Vertices: %d", meshVertices.size());
-			ImGui::Text("Mesh Indices: %d", meshIndices.size());
-			ImGui::Separator();
-			ImGui::DragFloat3("Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-			ImGui::Text("Camera Position: %f, %f, %f", camera.position.x, camera.position.y, camera.position.z);
+			if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("CPU time: %.2fms", deltaTime * 1000.0f);
+			}
+			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("Mesh Vertices: %d", meshVertices.size());
+				ImGui::Text("Mesh Indices: %d", meshIndices.size());
+				ImGui::DragFloat3("Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::Text("Camera Position: %f, %f, %f", camera.position.x, camera.position.y, camera.position.z);
+			}
 			ImGui::End();
 		}
 
@@ -377,7 +389,10 @@ void Update()
 		sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
 		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
 
-		gfx->UpdateConstantBuffer(sceneData);
+		gfx->SetPipelineParameter(meshPipeline, "SceneData", sceneData);
+
+		gfx->BindPipeline(meshPipeline);
+		gfx->DrawIndexed(meshIB.indexCount);
 
 		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
@@ -386,10 +401,11 @@ void Update()
 
 void Destroy()
 {
-	meshVB.allocation->Release();
-	meshIB.allocation->Release();
-	meshTextureDiffuse.allocation->Release();
-	meshTextureNormal.allocation->Release();
+	meshPipeline.Release();
+	meshVB.Release();
+	meshIB.Release();
+	meshTextureDiffuse.Release();
+	meshTextureNormal.Release();
 
 	edelete gfx;
 

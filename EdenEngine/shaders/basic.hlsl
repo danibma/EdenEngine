@@ -6,10 +6,6 @@ struct PSInput
     float3 normal : NORMAL;
 };
 
-// TODO: Change this to view space instead of world space by doing this:
-//       If you still want to calculate lighting in view space you want to transform 
-//       all the relevant vectors with the view matrix as well (don't forget to change the normal matrix too).
-
 cbuffer SceneData : register(b0)
 {
     float4x4 mvpMatrix;
@@ -40,6 +36,7 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 diffuseTexture = g_textureDiffuse.Sample(g_samplerDiffuse, input.uv);
+    float4 normalTexture = g_textureNormal.Sample(g_samplerNormal, input.uv);
     
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
