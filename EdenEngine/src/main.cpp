@@ -83,8 +83,10 @@ Camera camera;
 Pipeline meshPipeline;
 Texture2D meshTextureDiffuse;
 Texture2D meshTextureNormal;
-VertexBuffer meshVB;
-IndexBuffer meshIB;
+Buffer meshVB;
+Buffer meshIB;
+Buffer meshCB1;
+Buffer meshCB2;
 std::vector<Vertex> meshVertices;
 std::vector<uint32_t> meshIndices;
 
@@ -333,8 +335,10 @@ void Init()
 	sceneData.modelViewMatrix = view * model;
 	sceneData.lightPosition = lightPosition;
 
-	meshVB = gfx->CreateVertexBuffer(meshVertices.data(), (uint32_t)meshVertices.size(), sizeof(Vertex));
-	meshIB = gfx->CreateIndexBuffer(meshIndices.data(), (uint32_t)meshIndices.size(), sizeof(uint32_t));
+	meshVB = gfx->CreateBuffer<Vertex>(meshVertices.data(), (uint32_t)meshVertices.size());
+	meshIB = gfx->CreateBuffer<uint32_t>(meshIndices.data(), (uint32_t)meshIndices.size());
+	meshCB1 = gfx->CreateBuffer<SceneData>(&sceneData, 1);
+	meshCB2 = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 
 	gfx->BindVertexBuffer(meshVB);
 	gfx->BindIndexBuffer(meshIB);
@@ -383,16 +387,28 @@ void Update()
 
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
 		sceneData.MVPMatrix = projection * view * model;
 		sceneData.modelViewMatrix = view * model;
 		sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
 		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
+		gfx->UpdateBuffer<SceneData>(meshCB1, &sceneData, 1);
 
-		gfx->SetPipelineParameter(meshPipeline, "SceneData", sceneData);
+		gfx->ClearRenderTargets();
 
 		gfx->BindPipeline(meshPipeline);
-		gfx->DrawIndexed(meshIB.indexCount);
+		gfx->BindConstantBuffer(meshCB1);
+		gfx->DrawIndexed(meshIB.count);
+
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(3, 0, 0));
+		sceneData.MVPMatrix = projection * view * model;
+		sceneData.modelViewMatrix = view * model;
+		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
+		gfx->UpdateBuffer<SceneData>(meshCB2, &sceneData, 1);
+		
+		gfx->BindPipeline(meshPipeline);
+		gfx->BindConstantBuffer(meshCB2);
+		gfx->DrawIndexed(meshIB.count);
 
 		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
@@ -401,9 +417,11 @@ void Update()
 
 void Destroy()
 {
-	meshPipeline.Release();
+	//meshPipeline.Release();
 	meshVB.Release();
 	meshIB.Release();
+	meshCB1.Release();
+	meshCB2.Release();
 	meshTextureDiffuse.Release();
 	meshTextureNormal.Release();
 

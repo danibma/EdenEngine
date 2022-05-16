@@ -210,7 +210,8 @@ namespace Eden
 	{
 		WaitForGPU();
 
-		ImGui_ImplDX12_Shutdown();
+		if(m_imguiInitialized)
+			ImGui_ImplDX12_Shutdown();
 
 		CloseHandle(m_fenceEvent);
 	}
@@ -353,11 +354,34 @@ namespace Eden
 			ED_LOG_ERROR("Failed to create root signature");
 	}
 
+	Buffer GraphicsDevice::CreateBuffer(uint64_t size, void* data)
+	{
+		Buffer buffer = {};
+		buffer.size = size;
+
+		D3D12MA::ALLOCATION_DESC allocationDesc = {};
+		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+		m_allocator->CreateResource(&allocationDesc,
+									&CD3DX12_RESOURCE_DESC::Buffer(size),
+									D3D12_RESOURCE_STATE_GENERIC_READ,
+									nullptr,
+									&buffer.allocation,
+									IID_PPV_ARGS(&buffer.resource));
+
+		buffer.resource->Map(0, nullptr, &buffer.data);
+		memcpy(buffer.data, data, size);
+		buffer.resource->Unmap(0, nullptr);
+
+		return buffer;
+	}
+
 	Pipeline GraphicsDevice::CreateGraphicsPipeline(std::string programName)
 	{
 		ED_PROFILE_FUNCTION();
 
 		Pipeline pipeline = {};
+		pipeline.type = Pipeline::Graphics;
 
 		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&m_utils));
 		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_compiler));
@@ -410,69 +434,6 @@ namespace Eden
 			ED_ASSERT_MB(false, "Failed to create graphics pipeline state!");
 
 		return pipeline;
-	}
-
-	VertexBuffer GraphicsDevice::CreateVertexBuffer(void* data, uint32_t vertexCount, uint32_t stride)
-	{
-		VertexBuffer vb;
-		vb.vertexCount = vertexCount;
-
-		uint32_t size = vertexCount * stride;
-
-		D3D12MA::ALLOCATION_DESC allocationDesc = {};
-		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-
-		m_allocator->CreateResource(&allocationDesc,
-									&CD3DX12_RESOURCE_DESC::Buffer(size),
-									D3D12_RESOURCE_STATE_GENERIC_READ,
-									nullptr,
-									&vb.allocation,
-									IID_PPV_ARGS(&vb.resource));
-
-		// Copy the buffer data to the vertex buffer.
-		UINT8* vertexDataBegin;
-		CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-		vb.resource->Map(0, &readRange, (void**)&vertexDataBegin);
-		memcpy(vertexDataBegin, data, size);
-		vb.resource->Unmap(0, nullptr);
-
-		// Initialize the vertex buffer view.
-		vb.bufferView.BufferLocation = vb.resource->GetGPUVirtualAddress();
-		vb.bufferView.StrideInBytes = stride;
-		vb.bufferView.SizeInBytes = size;
-
-		return vb;
-	}
-
-	IndexBuffer GraphicsDevice::CreateIndexBuffer(void* data, uint32_t indexCount, uint32_t stride)
-	{
-		IndexBuffer ib;
-		ib.indexCount = indexCount;
-
-		uint32_t size = indexCount * stride;
-
-		D3D12MA::ALLOCATION_DESC allocationDesc = {};
-		allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-
-		m_allocator->CreateResource(&allocationDesc,
-									&CD3DX12_RESOURCE_DESC::Buffer(size),
-									D3D12_RESOURCE_STATE_GENERIC_READ,
-									nullptr,
-									&ib.allocation,
-									IID_PPV_ARGS(&ib.resource));
-
-		// Copy the buffer data to the vertex buffer.
-		UINT8* indexDataBegin;
-		ib.resource->Map(0, nullptr, (void**)&indexDataBegin);
-		memcpy(indexDataBegin, data, size);
-		ib.resource->Unmap(0, nullptr);
-
-		// Initialize the vertex buffer view.
-		ib.bufferView.BufferLocation = ib.resource->GetGPUVirtualAddress();
-		ib.bufferView.SizeInBytes = size;
-		ib.bufferView.Format = DXGI_FORMAT_R32_UINT;
-
-		return ib;
 	}
 
 	Texture2D GraphicsDevice::CreateTexture2D(std::string filePath)
@@ -583,26 +544,39 @@ namespace Eden
 
 	void GraphicsDevice::BindPipeline(const Pipeline& pipeline)
 	{
+		ED_PROFILE_FUNCTION();
 		m_commandList->SetPipelineState(pipeline.pipelineState.Get());
 		m_commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		boundPipeline = pipeline;
 	}
 
-	void GraphicsDevice::BindVertexBuffer(VertexBuffer vertexBuffer)
+	void GraphicsDevice::BindVertexBuffer(Buffer vertexBuffer)
 	{
+		ED_PROFILE_FUNCTION();
 		ED_ASSERT_LOG(vertexBuffer.resource != nullptr, "Can't bind a empty vertex buffer!");
-		boundVertexBuffer = vertexBuffer;
+		boundVertexBuffer.BufferLocation = vertexBuffer.resource->GetGPUVirtualAddress();
+		boundVertexBuffer.SizeInBytes	 = vertexBuffer.size;
+		boundVertexBuffer.StrideInBytes	 = vertexBuffer.stride;
 	}
 
-	void GraphicsDevice::BindIndexBuffer(IndexBuffer indexBuffer)
+	void GraphicsDevice::BindIndexBuffer(Buffer indexBuffer)
 	{
+		ED_PROFILE_FUNCTION();
 		ED_ASSERT_LOG(indexBuffer.resource != nullptr, "Can't bind a empty index buffer!");
-		boundIndexBuffer = indexBuffer;
+		boundIndexBuffer.BufferLocation = indexBuffer.resource->GetGPUVirtualAddress();
+		boundIndexBuffer.SizeInBytes	= indexBuffer.size;
+		boundIndexBuffer.Format			= DXGI_FORMAT_R32_UINT;
+	}
+
+	void GraphicsDevice::BindConstantBuffer(Buffer constantBuffer)
+	{
+		ED_PROFILE_FUNCTION();
+		// JUST WORKING WITH ONE PARAMETER, FIX THIS
+		m_commandList->SetGraphicsRootConstantBufferView(1, constantBuffer.resource->GetGPUVirtualAddress());
 	}
 
 	void GraphicsDevice::Draw(uint32_t vertexCount, uint32_t instanceCount /*= 1*/, uint32_t startVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
 	{
-		ED_ASSERT_LOG(boundVertexBuffer.resource != nullptr, "Can't Draw without a valid vertex buffer bound!");
 		ED_ASSERT_LOG(boundPipeline.pipelineState != nullptr, "Can't Draw without a valid pipeline bound!");
 		ED_ASSERT_LOG(boundPipeline.rootSignature != nullptr, "Can't Draw without a valid pipeline bound!");
 
@@ -626,24 +600,24 @@ namespace Eden
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-		for (auto& parameter : boundPipeline.parameters) // JUST WORKING WITH ONE PARAMETER, FIX THIS
+		/*for (auto& parameter : boundPipeline.parameters) // JUST WORKING WITH ONE PARAMETER, FIX THIS
 		{
 			auto& [name, data] = parameter;
 			m_commandList->SetGraphicsRootConstantBufferView(1, data.paramData.resource.resource->GetGPUVirtualAddress());
-		}
+		}*/
 
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer.bufferView);
-		m_commandList->DrawInstanced(boundVertexBuffer.vertexCount, 1, 0, 0);
+
+		// Initialize the vertex buffer view.
+		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer);
+		m_commandList->DrawInstanced(vertexCount, 1, 0, 0);
 	}
 
 	void GraphicsDevice::DrawIndexed(uint32_t indexCount, uint32_t instanceCount /*= 1*/, uint32_t startIndexLocation /*= 0*/, uint32_t baseIndexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
 	{
-		ED_ASSERT_LOG(boundVertexBuffer.resource != nullptr, "Can't DrawIndexed without a valid vertex buffer bound!");
-		ED_ASSERT_LOG(boundIndexBuffer.resource != nullptr, "Can't DrawIndexed without a valid index buffer bound!");
 		ED_ASSERT_LOG(boundPipeline.pipelineState != nullptr, "Can't DrawIndexed without a valid pipeline bound!");
 		ED_ASSERT_LOG(boundPipeline.rootSignature != nullptr, "Can't DrawIndexed without a valid pipeline bound!");
 
@@ -656,10 +630,6 @@ namespace Eden
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 		m_commandList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
 
-		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-		m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -667,18 +637,19 @@ namespace Eden
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-		for (auto& parameter : boundPipeline.parameters) // JUST WORKING WITH ONE PARAMETER, FIX THIS
+		/*for (auto& parameter : boundPipeline.parameters) // JUST WORKING WITH ONE PARAMETER, FIX THIS
 		{
 			auto& [name, data] = parameter;
 			m_commandList->SetGraphicsRootConstantBufferView(1, data.paramData.resource.resource->GetGPUVirtualAddress());
-		}
+		}*/
 
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer.bufferView);
-		m_commandList->IASetIndexBuffer(&boundIndexBuffer.bufferView);
+		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer);
+		m_commandList->IASetIndexBuffer(&boundIndexBuffer);
+
 		m_commandList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
 	}
 
@@ -723,13 +694,11 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
-		ImGui::Render();
-
-		// Record all the commands we need to render the scene into the command list
-		//PopulateCommandList();
-
 		if (m_imguiInitialized)
+		{
+			ImGui::Render();
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
+		}
 
 		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),
 																				D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -750,7 +719,7 @@ namespace Eden
 
 		// Update and Render additional Platform Windows
 		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable &&
-			!m_window->IsCloseRequested())
+			!m_window->IsCloseRequested() && m_imguiInitialized)
 		{
 			ImGui::UpdatePlatformWindows();
 			ImGui::RenderPlatformWindowsDefault();
@@ -784,6 +753,16 @@ namespace Eden
 		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),
 																				D3D12_RESOURCE_STATE_PRESENT,
 																				D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
+
+	void GraphicsDevice::ClearRenderTargets()
+	{
+		CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+
+		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+		m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	}
 
 	void GraphicsDevice::WaitForGPU()
