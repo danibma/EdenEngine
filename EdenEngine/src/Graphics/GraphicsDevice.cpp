@@ -210,8 +210,12 @@ namespace Eden
 	{
 		WaitForGPU();
 
-		if(m_imguiInitialized)
+		if (m_imguiInitialized)
+		{
 			ImGui_ImplDX12_Shutdown();
+			ImGui_ImplWin32_Shutdown();
+			ImGui::DestroyContext();
+		}
 
 		CloseHandle(m_fenceEvent);
 	}
@@ -540,6 +544,24 @@ namespace Eden
 		// Setup imgui
 		ImGui_ImplDX12_Init(m_device.Get(), s_frameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_srvHeap.Get(), m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		m_imguiInitialized = true;
+
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+	}
+
+	void GraphicsDevice::ImGuiNewFrame()
+	{
+		// Update and Render additional Platform Windows
+		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
+
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
 	}
 
 	void GraphicsDevice::BindPipeline(const Pipeline& pipeline)
@@ -600,11 +622,6 @@ namespace Eden
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-		/*for (auto& parameter : boundPipeline.parameters) // JUST WORKING WITH ONE PARAMETER, FIX THIS
-		{
-			auto& [name, data] = parameter;
-			m_commandList->SetGraphicsRootConstantBufferView(1, data.paramData.resource.resource->GetGPUVirtualAddress());
-		}*/
 
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
@@ -637,11 +654,6 @@ namespace Eden
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-		/*for (auto& parameter : boundPipeline.parameters) // JUST WORKING WITH ONE PARAMETER, FIX THIS
-		{
-			auto& [name, data] = parameter;
-			m_commandList->SetGraphicsRootConstantBufferView(1, data.paramData.resource.resource->GetGPUVirtualAddress());
-		}*/
 
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
@@ -717,14 +729,6 @@ namespace Eden
 		ED_PROFILE_GPU_FLIP(m_swapchain.Get());
 		m_swapchain->Present(1, 0);
 
-		// Update and Render additional Platform Windows
-		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable &&
-			!m_window->IsCloseRequested() && m_imguiInitialized)
-		{
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-		}
-
 		// Update the frame index
 		m_frameIndex = m_swapchain->GetCurrentBackBufferIndex();
 
@@ -753,6 +757,9 @@ namespace Eden
 		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),
 																				D3D12_RESOURCE_STATE_PRESENT,
 																				D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+		if (m_imguiInitialized)
+			ImGuiNewFrame();
 	}
 
 	void GraphicsDevice::ClearRenderTargets()

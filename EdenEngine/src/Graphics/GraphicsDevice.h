@@ -151,6 +151,7 @@ namespace Eden
 		[[nodiscard]] Texture2D CreateTexture2D(std::string filePath);
 
 		void EnableImGui();
+		void ImGuiNewFrame();
 
 		void BindPipeline(const Pipeline& pipeline);
 		void BindVertexBuffer(Buffer vertexBuffer);

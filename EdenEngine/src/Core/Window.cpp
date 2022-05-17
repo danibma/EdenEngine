@@ -187,8 +187,6 @@ namespace Eden
 
 	Window::~Window()
 	{
-		ImGui_ImplWin32_Shutdown();
-		ImGui::DestroyContext();
 	}
 
 	void Window::UpdateEvents()
@@ -204,9 +202,7 @@ namespace Eden
 
 		if (!IsMinimized())
 		{
-			ImGui_ImplDX12_NewFrame();
-			ImGui_ImplWin32_NewFrame();
-			ImGui::NewFrame();
+			
 		}
 	}
 

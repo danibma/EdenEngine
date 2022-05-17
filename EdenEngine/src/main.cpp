@@ -76,7 +76,7 @@ struct SceneData
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 lightPosition(0.0f, 7.0f, -8.0f);
+glm::vec3 lightPosition(0.0f, 7.0f, 0.0f);
 SceneData sceneData;
 Camera camera;
 
@@ -387,7 +387,7 @@ void Update()
 
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(-5, 0, 0));
 		sceneData.MVPMatrix = projection * view * model;
 		sceneData.modelViewMatrix = view * model;
 		sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
@@ -400,7 +400,7 @@ void Update()
 		gfx->BindConstantBuffer(meshCB1);
 		gfx->DrawIndexed(meshIB.count);
 
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(3, 0, 0));
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(5, 0, 0));
 		sceneData.MVPMatrix = projection * view * model;
 		sceneData.modelViewMatrix = view * model;
 		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
