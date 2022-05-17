@@ -590,11 +590,10 @@ namespace Eden
 		boundIndexBuffer.Format			= DXGI_FORMAT_R32_UINT;
 	}
 
-	void GraphicsDevice::BindConstantBuffer(Buffer constantBuffer)
+	void GraphicsDevice::BindConstantBuffer(uint32_t rootParameterIndex, Buffer constantBuffer)
 	{
 		ED_PROFILE_FUNCTION();
-		// JUST WORKING WITH ONE PARAMETER, FIX THIS
-		m_commandList->SetGraphicsRootConstantBufferView(1, constantBuffer.resource->GetGPUVirtualAddress());
+		m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, constantBuffer.resource->GetGPUVirtualAddress());
 	}
 
 	void GraphicsDevice::Draw(uint32_t vertexCount, uint32_t instanceCount /*= 1*/, uint32_t startVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)

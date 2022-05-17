@@ -156,7 +156,7 @@ namespace Eden
 		void BindPipeline(const Pipeline& pipeline);
 		void BindVertexBuffer(Buffer vertexBuffer);
 		void BindIndexBuffer(Buffer indexBuffer);
-		void BindConstantBuffer(Buffer constantBuffer);
+		void BindConstantBuffer(uint32_t rootParameterIndex, Buffer constantBuffer);
 
 		void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0);
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseIndexLocation = 0, uint32_t startInstanceLocation = 0);

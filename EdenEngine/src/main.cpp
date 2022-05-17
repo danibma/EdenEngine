@@ -370,7 +370,7 @@ void Update()
 			ImGui::TextDisabled("Press F3 to close this window!");
 			if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::Text("CPU time: %.2fms", deltaTime * 1000.0f);
+				ImGui::Text("CPU frame time: %.3fms", deltaTime * 1000.0f);
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
@@ -397,7 +397,7 @@ void Update()
 		gfx->ClearRenderTargets();
 
 		gfx->BindPipeline(meshPipeline);
-		gfx->BindConstantBuffer(meshCB1);
+		gfx->BindConstantBuffer(1, meshCB1);
 		gfx->DrawIndexed(meshIB.count);
 
 		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(5, 0, 0));
@@ -407,7 +407,7 @@ void Update()
 		gfx->UpdateBuffer<SceneData>(meshCB2, &sceneData, 1);
 		
 		gfx->BindPipeline(meshPipeline);
-		gfx->BindConstantBuffer(meshCB2);
+		gfx->BindConstantBuffer(1, meshCB2);
 		gfx->DrawIndexed(meshIB.count);
 
 		// This is where the "real" loop ends, do not write rendering stuff below this

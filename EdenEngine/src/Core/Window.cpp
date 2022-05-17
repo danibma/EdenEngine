@@ -70,7 +70,8 @@ namespace Eden
 		auto& style = ImGui::GetStyle();
 		style.Colors[ImGuiCol_Text] = TEXT_COLOR(0.78f);
 		style.Colors[ImGuiCol_TextDisabled] = TEXT_COLOR(0.28f);
-		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.14f, 0.17f, 1.00f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.14f, 0.17f, 0.70f);
+		style.Colors[ImGuiCol_ChildBg] = BG(0.58f);
 		style.Colors[ImGuiCol_PopupBg] = BG(0.9f);
 		style.Colors[ImGuiCol_Border] = ImVec4(0.31f, 0.31f, 1.00f, 0.00f);
 		style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
@@ -102,7 +103,7 @@ namespace Eden
 		style.Colors[ImGuiCol_PlotHistogram] = TEXT_COLOR(0.63f);
 		style.Colors[ImGuiCol_PlotHistogramHovered] = MED(1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = MED(0.43f);
-		// [...]
+		style.Colors[ImGuiCol_ModalWindowDimBg] = BG(0.73);
 
 		style.WindowPadding = ImVec2(6, 4);
 		style.WindowRounding = 0.0f;
