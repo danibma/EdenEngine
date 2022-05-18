@@ -54,6 +54,7 @@ namespace Eden
 			if (resource != nullptr)
 			{
 				resource->Release();
+				resource = nullptr;
 				allocation->Release();
 			}
 		}
@@ -72,6 +73,7 @@ namespace Eden
 		uint32_t width;
 		uint32_t height;
 		DXGI_FORMAT format;
+		uint32_t heapOffset;
 	};
 
 	struct Pipeline
@@ -100,6 +102,7 @@ namespace Eden
 		uint32_t m_rtvDescriptorSize;
 		ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 		ComPtr<ID3D12DescriptorHeap> m_srvHeap;
+		ComPtr<ID3D12DescriptorHeap> m_texturesHeap;
 		ComPtr<ID3D12Resource> m_renderTargets[s_frameCount];
 		ComPtr<ID3D12Resource> m_depthStencil;
 		ComPtr<ID3D12CommandAllocator> m_commandAllocator;
@@ -157,9 +160,10 @@ namespace Eden
 		void BindVertexBuffer(Buffer vertexBuffer);
 		void BindIndexBuffer(Buffer indexBuffer);
 		void BindConstantBuffer(uint32_t rootParameterIndex, Buffer constantBuffer);
+		void BindTexture2D(Texture2D texture);
 
 		void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0);
-		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseIndexLocation = 0, uint32_t startInstanceLocation = 0);
+		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0);
 
 		void Render();
 

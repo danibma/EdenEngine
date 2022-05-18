@@ -117,7 +117,7 @@ namespace Eden
 
 			// Describe and create a shader resource view (SRV) heap for the texture.
 			D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-			srvHeapDesc.NumDescriptors = 16;
+			srvHeapDesc.NumDescriptors = 128;
 			srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -335,15 +335,14 @@ namespace Eden
 		}
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
 		CD3DX12_ROOT_PARAMETER1 rootParameters[2] = {};
 		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 		rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
 
 		D3D12_STATIC_SAMPLER_DESC samplerDiffuse = CreateStaticSamplerDesc(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-		D3D12_STATIC_SAMPLER_DESC samplerNormal = CreateStaticSamplerDesc(1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-		D3D12_STATIC_SAMPLER_DESC samplers[] = { samplerDiffuse, samplerNormal };
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { samplerDiffuse };
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, _countof(samplers), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -413,6 +412,7 @@ namespace Eden
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,   0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT,   0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
 		// Describe and create pipeline state object(PSO)
@@ -512,17 +512,6 @@ namespace Eden
 			UpdateSubresources(m_commandList.Get(), texture.resource.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-			// Describe and craete a Shader resource view(SRV) for the texture
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = textureDesc.Format;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = 1;
-
-			// NOTE(Daniel): Offset srv handle cause of imgui
-			CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-			m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(textureHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
-
 			edelete textureFile;
 		}
 
@@ -531,11 +520,24 @@ namespace Eden
 		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 		m_commandList->Reset(m_commandAllocator.Get(), nullptr);
 
+		// Describe and craete a Shader resource view(SRV) for the texture
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = texture.format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		// NOTE(Daniel): Offset srv handle cause of imgui
+		texture.heapOffset = textureHeapOffset;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(textureHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+
 		WaitForGPU();
 
 		uploadAllocation->Release();
 
 		textureHeapOffset++;
+
 		return texture;
 	}
 
@@ -596,6 +598,17 @@ namespace Eden
 		m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, constantBuffer.resource->GetGPUVirtualAddress());
 	}
 
+	void GraphicsDevice::BindTexture2D(Texture2D texture)
+	{
+		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
+		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+		// TODO(Daniel): Offset srv handle cause of imgui, make a descriptor heap for imgui only
+		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+		srvHandle.Offset(texture.heapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
+	}
+
 	void GraphicsDevice::Draw(uint32_t vertexCount, uint32_t instanceCount /*= 1*/, uint32_t startVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
 	{
 		ED_ASSERT_LOG(boundPipeline.pipelineState != nullptr, "Can't Draw without a valid pipeline bound!");
@@ -614,25 +627,16 @@ namespace Eden
 		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 		m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
-		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-		// TODO(Daniel): Offset srv handle cause of imgui, make a descriptor heap for imgui only
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		// Initialize the vertex buffer view.
 		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer);
-		m_commandList->DrawInstanced(vertexCount, 1, 0, 0);
+		m_commandList->DrawInstanced(vertexCount, instanceCount, startVertexLocation, startInstanceLocation);
 	}
 
-	void GraphicsDevice::DrawIndexed(uint32_t indexCount, uint32_t instanceCount /*= 1*/, uint32_t startIndexLocation /*= 0*/, uint32_t baseIndexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
+	void GraphicsDevice::DrawIndexed(uint32_t indexCount, uint32_t instanceCount /*= 1*/, uint32_t startIndexLocation /*= 0*/, uint32_t baseVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
 	{
 		ED_ASSERT_LOG(boundPipeline.pipelineState != nullptr, "Can't DrawIndexed without a valid pipeline bound!");
 		ED_ASSERT_LOG(boundPipeline.rootSignature != nullptr, "Can't DrawIndexed without a valid pipeline bound!");
@@ -646,14 +650,6 @@ namespace Eden
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 		m_commandList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
 
-		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
-		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-		// TODO(Daniel): Offset srv handle cause of imgui, make a descriptor heap for imgui only
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-		srvHandle.Offset(1, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
-
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
 
@@ -661,7 +657,7 @@ namespace Eden
 		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer);
 		m_commandList->IASetIndexBuffer(&boundIndexBuffer);
 
-		m_commandList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
+		m_commandList->DrawIndexedInstanced(indexCount, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
 	}
 
 	void GraphicsDevice::GetHardwareAdapter()

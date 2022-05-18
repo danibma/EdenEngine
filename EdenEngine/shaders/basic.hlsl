@@ -4,6 +4,7 @@ struct PSInput
     float4 positionModel : Position;
     float2 uv : TEXCOORD;
     float3 normal : NORMAL;
+    float4 color : COLOR;
 };
 
 cbuffer SceneData : register(b0)
@@ -15,13 +16,9 @@ cbuffer SceneData : register(b0)
 };
 
 Texture2D g_textureDiffuse : register(t0);
-SamplerState g_samplerDiffuse : register(s0);
+SamplerState g_sampler : register(s0);
 
-// NOTE(Daniel): Loading normal maps correctly, just not using them because we have no light
-Texture2D g_textureNormal : register(t1);
-SamplerState g_samplerNormal : register(s1);
-
-PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL)
+PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 color : COLOR)
 {
     PSInput result;
 
@@ -29,14 +26,19 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
     result.positionModel = mul(modelViewMatrix, float4(position, 1.0f));
     result.normal = float3(mul(normalMatrix, float4(normal, 1.0f)).xyz);
     result.uv = uv;
+    result.color = color;
 
     return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 diffuseTexture = g_textureDiffuse.Sample(g_samplerDiffuse, input.uv);
-    float4 normalTexture = g_textureNormal.Sample(g_samplerNormal, input.uv);
+    float4 diffuseTexture = g_textureDiffuse.Sample(g_sampler, input.uv);
+    
+    if (diffuseTexture.x == 0.0f &&
+        diffuseTexture.y == 0.0f &&
+        diffuseTexture.z == 0.0f)
+        diffuseTexture = float4(input.uv, 1.0f, 1.0f);
     
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);

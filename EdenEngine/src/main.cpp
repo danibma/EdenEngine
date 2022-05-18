@@ -45,6 +45,7 @@ struct Vertex
 	glm::vec3 position;
 	glm::vec2 uv;
 	glm::vec3 normal;
+	glm::vec4 color;
 
 	bool operator==(const Vertex& other) const
 	{
@@ -80,16 +81,235 @@ glm::vec3 lightPosition(0.0f, 7.0f, 0.0f);
 SceneData sceneData;
 Camera camera;
 
+struct Model
+{
+	struct Mesh
+	{
+		struct SubMesh
+		{
+			uint32_t materialIndex;
+			uint32_t vertexStart;
+			uint32_t indexStart;
+			uint32_t indexCount;
+		};
+
+		std::vector<SubMesh> submeshes;
+	};
+
+	std::vector<Vertex> vertices;
+	Buffer meshVB;
+	std::vector<uint32_t> indices;
+	Buffer meshIB;
+
+	glm::mat4 matrix = glm::mat4(1.0f);
+
+	std::vector<Mesh> meshes;
+
+	std::vector<uint32_t> textureIndices;
+	std::vector<uint32_t> materials;
+	std::vector<Texture2D> textures;
+
+	void LoadGLTF(std::filesystem::path file)
+	{
+		tinygltf::Model gltfModel;
+		tinygltf::TinyGLTF loader;
+		std::string err;
+		std::string warn;
+		bool result = false;
+
+		if (file.extension() == ".gltf")
+			result = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, file.string());
+		else if (file.extension() == ".glb")
+			result = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, file.string());
+
+		if (!warn.empty())
+			ED_LOG_WARN("{}", warn.c_str());
+
+		if (!err.empty())
+			ED_LOG_ERROR("{}", err.c_str());
+
+		ED_ASSERT_LOG(result, "Failed to parse GLTF Model!");
+
+		std::string parentPath = file.parent_path().string() + "/";
+
+		
+
+
+		for (const auto& gltf_node : gltfModel.nodes)
+		{
+			// Get the local node matrix
+			// It's either made up from translation, rotation, scale or a 4x4 matrix
+			if (gltf_node.translation.size() == 3)
+			{
+				matrix = glm::translate(matrix, glm::vec3(glm::make_vec3(gltf_node.translation.data())));
+			}
+
+			if (gltf_node.rotation.size() == 4)
+			{
+				glm::quat q = glm::make_quat(gltf_node.rotation.data());
+				matrix *= glm::mat4(q);
+			}
+
+			if (gltf_node.scale.size() == 3)
+			{
+				matrix = glm::scale(matrix, glm::vec3(glm::make_vec3(gltf_node.scale.data())));
+			}
+			
+			if (gltf_node.matrix.size() == 16)
+			{
+				matrix = glm::make_mat4x4(gltf_node.matrix.data());
+			}
+
+			if (gltf_node.mesh < 0)
+				continue;
+
+			const auto& gltf_mesh = gltfModel.meshes[gltf_node.mesh];
+			Mesh mesh;
+			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
+			{
+				Mesh::SubMesh submesh;
+				auto& glTFPrimitive = gltf_mesh.primitives[p];
+				submesh.vertexStart = (uint32_t)vertices.size();
+				submesh.indexStart = (uint32_t)indices.size();
+				submesh.indexCount = 0;
+
+				// Vertices
+				{
+					const float* positionBuffer;
+					const float* normalsBuffer;
+					const float* uvsBuffer;
+					size_t vertexCount = 0;
+
+					// Get buffer data for vertex normals
+					if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end())
+					{
+						const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.attributes.find("POSITION")->second];
+						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
+						positionBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+						vertexCount = accessor.count;
+					}
+
+					// Get buffer data for vertex normals
+					if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end())
+					{
+						const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
+						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
+						normalsBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+					}
+
+					// Get buffer data for vertex texture coordinates
+					// glTF supports multiple sets, we only load the first one
+					if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end())
+					{
+						const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
+						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
+						uvsBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+					}
+
+					for (size_t v = 0; v < vertexCount; ++v)
+					{
+						Vertex newVert = {};
+						newVert.position = glm::make_vec3(&positionBuffer[v * 3]);
+						//newVert.position.y = glm::make_vec3(&positionBuffer[v * 3]).z;
+						//newVert.position.z = glm::make_vec3(&positionBuffer[v * 3]).y;
+						newVert.position.z = -newVert.position.z;
+						newVert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
+						//newVert.normal.y = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).z;
+						//newVert.normal.z = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).y;
+						newVert.normal.z = -newVert.normal.z;
+						newVert.uv = uvsBuffer ? glm::make_vec2(&uvsBuffer[v * 2]) : glm::vec2(0.0f);
+						//newVert.color = glm::make_vec4(gltfModel.materials[glTFPrimitive.material].values["baseColorFactor"].ColorFactor().data());
+						newVert.color = glm::vec4(1.0f);
+						vertices.push_back(newVert);
+					}
+				}
+
+				// Indices
+				{
+					const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.indices];
+					const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
+					const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
+
+					submesh.indexCount += static_cast<uint32_t>(accessor.count);
+
+					// glTF supports different component types of indices
+					switch (accessor.componentType)
+					{
+					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+					{
+						uint32_t* buf = new uint32_t[accessor.count];
+						memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint32_t));
+						for (size_t index = 0; index < accessor.count; index++)
+							indices.push_back(buf[index] + submesh.vertexStart);
+
+						break;
+					}
+					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+					{
+						uint16_t* buf = new uint16_t[accessor.count];
+						memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint16_t));
+						for (size_t index = 0; index < accessor.count; index++)
+							indices.push_back(buf[index] + submesh.vertexStart);
+
+						break;
+					}
+					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+					{
+						uint8_t* buf = new uint8_t[accessor.count];
+						memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint8_t));
+						for (size_t index = 0; index < accessor.count; index++)
+							indices.push_back(buf[index] + submesh.vertexStart);
+
+						break;
+					}
+					default:
+						ED_LOG_ERROR("Index component type {} not supported!");
+					}
+				}
+
+				submesh.materialIndex = glTFPrimitive.material;
+
+				mesh.submeshes.push_back(submesh);
+			}
+
+			meshes.push_back(mesh);
+		}
+
+		textureIndices.resize(gltfModel.textures.size());
+		for (size_t i = 0; i < gltfModel.textures.size(); ++i)
+			textureIndices[i] = gltfModel.textures[i].source;
+
+		textures.resize(gltfModel.images.size());
+		for (size_t i = 0; i < gltfModel.images.size(); ++i)
+			textures[i] = gfx->CreateTexture2D(parentPath + gltfModel.images[i].uri);
+
+		materials.resize(gltfModel.materials.size());
+		for (size_t i = 0; i < gltfModel.materials.size(); ++i)
+			materials[i] = gltfModel.materials[i].values["baseColorTexture"].TextureIndex();
+
+		meshVB = gfx->CreateBuffer<Vertex>(vertices.data(), (uint32_t)vertices.size());
+		meshIB = gfx->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
+	}
+
+	void Destroy()
+	{
+		meshVB.Release();
+		meshIB.Release();
+
+		for (auto& texture : textures)
+			texture.Release();
+
+		textures.clear();
+	}
+};
+
 Pipeline meshPipeline;
-Texture2D meshTextureDiffuse;
-Texture2D meshTextureNormal;
-Buffer meshVB;
-Buffer meshIB;
 Buffer meshCB1;
 Buffer meshCB2;
-std::vector<Vertex> meshVertices;
-std::vector<uint32_t> meshIndices;
+Model sponza;
+Model flightHelmet;
 
+/*
 void LoadObj(std::filesystem::path file)
 {
 	//attrib will contain the vertex arrays of the file
@@ -160,137 +380,7 @@ void LoadObj(std::filesystem::path file)
 	//				 make it so it loads every texture
 	meshTextureDiffuse = gfx->CreateTexture2D(parentPath + materials[0].diffuse_texname);
 	meshTextureNormal = gfx->CreateTexture2D(parentPath + materials[0].bump_texname);
-}
-
-void LoadGLTF(std::filesystem::path file)
-{
-	tinygltf::Model model;
-	tinygltf::TinyGLTF loader;
-	std::string err;
-	std::string warn;
-	bool result = false;
-
-	if(file.extension() == ".gltf")
-		result = loader.LoadASCIIFromFile(&model, &err, &warn, file.string());
-	else if (file.extension() == ".glb")
-		result = loader.LoadBinaryFromFile(&model, &err, &warn, file.string());
-
-	if (!warn.empty())
-		ED_LOG_WARN("{}", warn.c_str());
-
-	if (!err.empty())
-		ED_LOG_ERROR("{}", err.c_str());
-
-	if (!result) 
-	{
-		ED_LOG_ERROR("Failed to parse GLTF Model!");
-		return;
-	}
-
-	std::string parentPath = file.parent_path().string() + "/";
-
-	for (auto const& gltf_mesh : model.meshes)
-	{
-		for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
-		{
-			auto& glTFPrimitive = gltf_mesh.primitives[p];
-			uint32_t vertexStart = (uint32_t)meshVertices.size();
-			uint32_t firstIndex = (uint32_t)meshIndices.size();
-			uint32_t indexCount = 0;
-
-			// Vertices
-			{
-				const float* positionBuffer;
-				const float* normalsBuffer;
-				const float* uvsBuffer;
-				size_t vertexCount = 0;
-
-				// Get buffer data for vertex normals
-				if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
-					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("POSITION")->second];
-					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
-					positionBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-					vertexCount = accessor.count;
-				}
-
-				// Get buffer data for vertex normals
-				if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end()) {
-					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
-					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
-					normalsBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-				}
-
-				// Get buffer data for vertex texture coordinates
-				// glTF supports multiple sets, we only load the first one
-				if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end()) {
-					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
-					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
-					uvsBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-				}
-
-				for (size_t v = 0; v < vertexCount; ++v)
-				{
-					Vertex newVert = {};
-					newVert.position = glm::make_vec3(&positionBuffer[v * 3]);
-					newVert.position.z = -newVert.position.z;
-					newVert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
-					newVert.normal.z = -newVert.normal.z;
-					newVert.uv = uvsBuffer ? glm::make_vec2(&uvsBuffer[v * 2]) : glm::vec2(0.0f);
-					meshVertices.emplace_back(newVert);
-				}
-			}
-
-			// Indices
-			{
-				const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.indices];
-				const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-				const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-
-				indexCount += static_cast<uint32_t>(accessor.count);
-
-				// glTF supports different component types of indices
-				switch (accessor.componentType) {
-				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
-				{
-					uint32_t* buf = new uint32_t[accessor.count];
-					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint32_t));
-					for (size_t index = 0; index < accessor.count; index++) {
-						meshIndices.push_back(buf[index] + vertexStart);
-					}
-					break;
-				}
-				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
-				{
-					uint16_t* buf = new uint16_t[accessor.count];
-					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint16_t));
-					for (size_t index = 0; index < accessor.count; index++) {
-						meshIndices.push_back(buf[index] + vertexStart);
-					}
-					break;
-				}
-				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-				{
-					uint8_t* buf = new uint8_t[accessor.count];
-					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint8_t));
-					for (size_t index = 0; index < accessor.count; index++) {
-						meshIndices.push_back(buf[index] + vertexStart);
-					}
-					break;
-				}
-				default:
-					ED_LOG_ERROR("Index component type {} not supported!");
-					return;
-				}
-			}
-		}
-	}
-
-	// Load texture
-	// TODO(Daniel): Right now this is only loading the first diffuse texture,
-	//				 make it so it loads every texture
-	meshTextureDiffuse = gfx->CreateTexture2D(parentPath + model.images[0].uri);
-	meshTextureNormal = gfx->CreateTexture2D(parentPath + model.images[2].uri);
-}
+}*/
 
 void Init()
 {
@@ -322,7 +412,9 @@ void Init()
 		0, 3, 1 // second triangle
 	};
 #else
-	LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
+	//LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
+	//sponza.LoadGLTF("assets/sponza/sponza.gltf");
+	flightHelmet.LoadGLTF("assets/flightHelmet/flightHelmet.gltf");
  	//LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
 #endif
 
@@ -335,13 +427,8 @@ void Init()
 	sceneData.modelViewMatrix = view * model;
 	sceneData.lightPosition = lightPosition;
 
-	meshVB = gfx->CreateBuffer<Vertex>(meshVertices.data(), (uint32_t)meshVertices.size());
-	meshIB = gfx->CreateBuffer<uint32_t>(meshIndices.data(), (uint32_t)meshIndices.size());
 	meshCB1 = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 	meshCB2 = gfx->CreateBuffer<SceneData>(&sceneData, 1);
-
-	gfx->BindVertexBuffer(meshVB);
-	gfx->BindIndexBuffer(meshIB);
 
 	ED_LOG_INFO("Scene Data size: {}", sizeof(SceneData));
 }
@@ -374,8 +461,8 @@ void Update()
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::Text("Mesh Vertices: %d", meshVertices.size());
-				ImGui::Text("Mesh Indices: %d", meshIndices.size());
+				ImGui::Text("Mesh Vertices: %d", sponza.vertices.size());
+				ImGui::Text("Mesh Indices: %d", sponza.indices.size());
 				ImGui::DragFloat3("Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 				ImGui::Text("Camera Position: %f, %f, %f", camera.position.x, camera.position.y, camera.position.z);
 			}
@@ -385,30 +472,54 @@ void Update()
 		// This is where the "real" loop begins
 		camera.Update(window, deltaTime);
 
+		gfx->ClearRenderTargets();
+
+		gfx->BindPipeline(meshPipeline);
+
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(-5, 0, 0));
+
+		// Sponza
+		//model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
+		//model *= sponza.matrix; // multiply it by the gltf model matrix
+		//sceneData.MVPMatrix = projection * view * model;
+		//sceneData.modelViewMatrix = view * model;
+		//sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
+		//sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
+		//gfx->UpdateBuffer<SceneData>(meshCB1, &sceneData, 1);
+		//gfx->BindConstantBuffer(1, meshCB1);
+		//gfx->BindVertexBuffer(sponza.meshVB);
+		//gfx->BindIndexBuffer(sponza.meshIB);
+		//
+		//for (auto& mesh : sponza.meshes)
+		//{
+		//	for (auto& submesh : mesh.submeshes)
+		//	{
+		//		gfx->BindTexture2D(sponza.textures[sponza.textureIndices[sponza.materials[submesh.materialIndex]]]);
+		//		gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+		//	}
+		//}
+
+		// Flight Helmet
+		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
+		model *= flightHelmet.matrix; // multiply it by the gltf model matrix
 		sceneData.MVPMatrix = projection * view * model;
 		sceneData.modelViewMatrix = view * model;
 		sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
 		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
-		gfx->UpdateBuffer<SceneData>(meshCB1, &sceneData, 1);
-
-		gfx->ClearRenderTargets();
-
-		gfx->BindPipeline(meshPipeline);
-		gfx->BindConstantBuffer(1, meshCB1);
-		gfx->DrawIndexed(meshIB.count);
-
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(5, 0, 0));
-		sceneData.MVPMatrix = projection * view * model;
-		sceneData.modelViewMatrix = view * model;
-		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
 		gfx->UpdateBuffer<SceneData>(meshCB2, &sceneData, 1);
-		
-		gfx->BindPipeline(meshPipeline);
 		gfx->BindConstantBuffer(1, meshCB2);
-		gfx->DrawIndexed(meshIB.count);
+		gfx->BindVertexBuffer(flightHelmet.meshVB);
+		gfx->BindIndexBuffer(flightHelmet.meshIB);
+
+		for (auto& mesh : flightHelmet.meshes)
+		{
+			for (auto& submesh : mesh.submeshes)
+			{
+				gfx->BindTexture2D(flightHelmet.textures[flightHelmet.textureIndices[flightHelmet.materials[submesh.materialIndex]]]);
+				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+			}
+		}
 
 		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
@@ -417,13 +528,10 @@ void Update()
 
 void Destroy()
 {
-	//meshPipeline.Release();
-	meshVB.Release();
-	meshIB.Release();
+	sponza.Destroy();
+	flightHelmet.Destroy();
 	meshCB1.Release();
 	meshCB2.Release();
-	meshTextureDiffuse.Release();
-	meshTextureNormal.Release();
 
 	edelete gfx;
 
