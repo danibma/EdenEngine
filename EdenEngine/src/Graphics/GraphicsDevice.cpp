@@ -21,7 +21,6 @@ namespace Eden
 		: m_viewport(0.0f, 0.0f, (float)window->GetWidth(), (float)window->GetHeight())
 		, m_scissor(0, 0, window->GetWidth(), window->GetHeight())
 		, m_fenceValues{}
-		, m_window(window)
 	{
 		uint32_t dxgiFactoryFlags = 0;
 
@@ -76,8 +75,8 @@ namespace Eden
 
 		// Describe and create the swap chain
 		DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-		swapchainDesc.Width = m_window->GetWidth();
-		swapchainDesc.Height = m_window->GetHeight();
+		swapchainDesc.Width = window->GetWidth();
+		swapchainDesc.Height = window->GetHeight();
 		swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		swapchainDesc.SampleDesc.Count = 1;
 		swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -86,11 +85,11 @@ namespace Eden
 		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
 		ComPtr<IDXGISwapChain1> swapchain;
-		if (FAILED(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), m_window->GetHandle(), &swapchainDesc, nullptr, nullptr, &swapchain)))
+		if (FAILED(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), window->GetHandle(), &swapchainDesc, nullptr, nullptr, &swapchain)))
 			ED_ASSERT_MB(false, "Failed to create swapchain!");
 
 		// NOTE(Daniel): Disable fullscreen
-		m_factory->MakeWindowAssociation(m_window->GetHandle(), DXGI_MWA_NO_ALT_ENTER);
+		m_factory->MakeWindowAssociation(window->GetHandle(), DXGI_MWA_NO_ALT_ENTER);
 
 		swapchain.As(&m_swapchain);
 		m_frameIndex = m_swapchain->GetCurrentBackBufferIndex();
@@ -125,20 +124,7 @@ namespace Eden
 				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
 		}
 
-		// Create frame resources
-		{
-			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-			// Create a RTV for each frame
-			for (uint32_t i = 0; i < s_frameCount; ++i)
-			{
-				if (FAILED(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i]))))
-					ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
-
-				m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
-				rtvHandle.Offset(1, m_rtvDescriptorSize);
-			}
-		}
+		CreateBackBuffers(window->GetWidth(), window->GetHeight());
 
 		// Create command allocator
 		if (FAILED(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator))))
@@ -167,7 +153,7 @@ namespace Eden
 			if (FAILED(m_device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_window->GetWidth(), m_window->GetHeight(), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+				&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, window->GetWidth(), window->GetHeight(), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
 				D3D12_RESOURCE_STATE_DEPTH_WRITE,
 				&depthOptimizedClearValue,
 				IID_PPV_ARGS(&m_depthStencil)
@@ -194,6 +180,9 @@ namespace Eden
 			// complete before continuing.
 			WaitForGPU();
 		}
+
+		// Associate the graphics device Resize with the window resize callback
+		window->SetResizeCallback([&](uint32_t x, uint32_t y) { Resize(x, y); });
 
 		// Setup profiler
 		ID3D12Device* pDevice = m_device.Get();
@@ -377,6 +366,49 @@ namespace Eden
 		buffer.resource->Unmap(0, nullptr);
 
 		return buffer;
+	}
+
+	void GraphicsDevice::CreateBackBuffers(uint32_t width, uint32_t height)
+{
+		// Create render targets
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+		// Create a RTV for each frame
+		for (uint32_t i = 0; i < s_frameCount; ++i)
+		{
+			if (FAILED(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i]))))
+				ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
+
+			m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
+			rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+			m_renderTargets[i]->SetName(L"backbuffer");
+		}
+
+		// Create DSV
+		D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+		depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
+		depthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+		if (FAILED(m_device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&depthOptimizedClearValue,
+			IID_PPV_ARGS(&m_depthStencil)
+		)))
+		{
+			ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
+		}
+
+		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
 	Pipeline GraphicsDevice::CreateGraphicsPipeline(std::string programName)
@@ -757,6 +789,43 @@ namespace Eden
 			ImGuiNewFrame();
 	}
 
+	void GraphicsDevice::Resize(uint32_t width, uint32_t height)
+	{
+		if (m_device && m_swapchain)
+		{
+			ED_LOG_TRACE("Resizing Window to {}x{}", width, height);
+
+			WaitForGPU();
+			if (FAILED(m_commandList->Close()))
+				ED_ASSERT_MB(false, "Failed to close command list");
+
+			for (UINT n = 0; n < s_frameCount; n++)
+			{
+				m_renderTargets[n].Reset();
+				m_fenceValues[n] = m_fenceValues[m_frameIndex];
+			}
+
+			m_depthStencil.Reset();
+
+			m_swapchain->ResizeBuffers(s_frameCount, width, height, DXGI_FORMAT_UNKNOWN, 0);
+
+			m_frameIndex = m_swapchain->GetCurrentBackBufferIndex();
+
+			CreateBackBuffers(width, height);
+
+			m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)width, (float)height);
+			m_scissor  = CD3DX12_RECT(0, 0, width, height);
+
+			m_commandAllocator->Reset();
+			m_commandList->Reset(m_commandAllocator.Get(), nullptr);
+
+			// Indicate that the back buffer will be used as a render target
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),
+																					D3D12_RESOURCE_STATE_PRESENT,
+																					D3D12_RESOURCE_STATE_RENDER_TARGET));
+		}
+	}
+
 	void GraphicsDevice::ClearRenderTargets()
 	{
 		CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -774,7 +843,7 @@ namespace Eden
 
 		// Wait until the fence has been processed
 		m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent);
-		WaitForSingleObjectEx(m_fenceEvent, INFINITE, false);
+		WaitForSingleObject(m_fenceEvent, INFINITE);
 
 		// Increment the fence value for the current frame
 		m_fenceValues[m_frameIndex]++;

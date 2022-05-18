@@ -23,13 +23,23 @@ static LRESULT CALLBACK WindowProc(HWND handle, UINT uMsg, WPARAM wParam, LPARAM
 				{
 					window->SetMinimized(IsIconic(window->GetHandle()));
 				}
-				else
+				else if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED) // When the user click on the maximize/"unmaximize" button on the window
+				{
+					UINT width = LOWORD(lParam);
+					UINT height = HIWORD(lParam);
+					window->Resize(width, height);
+					window->ResizeCallback();
+				}
+				else // When the user is resizing the window manually, wait until the user stops resizing to call the resize callback
 				{
 					UINT width = LOWORD(lParam);
 					UINT height = HIWORD(lParam);
 					window->Resize(width, height);
 				}
 			}
+			break;
+		case WM_EXITSIZEMOVE:
+			window->ResizeCallback();
 			break;
 		case WM_DESTROY:
 			window->CloseWasRequested();
@@ -212,14 +222,17 @@ namespace Eden
 		m_resizeCallback = resizeCallback;
 	}
 
+	void Window::ResizeCallback()
+	{
+		m_resizeCallback(m_width, m_height);
+	}
+
 	void Window::Resize(uint32_t width, uint32_t height)
 	{
 		m_width = width;
 		m_height = height;
 
 		m_isMinimized = false;
-
-		m_resizeCallback(width, height);
 	}
 
 }

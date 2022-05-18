@@ -91,8 +91,6 @@ namespace Eden
 
 	class GraphicsDevice
 	{
-		Window* m_window;
-
 		ComPtr<ID3D12Device> m_device;
 		ComPtr<IDXGIFactory4> m_factory;
 		ComPtr<IDXGIAdapter1> m_adapter;
@@ -166,6 +164,7 @@ namespace Eden
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0);
 
 		void Render();
+		void Resize(uint32_t width, uint32_t height);
 
 		void ClearRenderTargets();
 
@@ -176,6 +175,7 @@ namespace Eden
 		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint64_t size, void* data);
+		void CreateBackBuffers(uint32_t width, uint32_t height);
 	};
 }
 

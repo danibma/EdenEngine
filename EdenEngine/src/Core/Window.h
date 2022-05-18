@@ -20,6 +20,7 @@ namespace Eden
 		~Window();
 
 		void UpdateEvents();
+		void ResizeCallback();
 		void Resize(uint32_t width, uint32_t height);
 		void SetResizeCallback(std::function<void(uint32_t, uint32_t)> resizeCallback);
 
