@@ -169,7 +169,7 @@ struct Model
 			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
 			{
 				Mesh::SubMesh submesh;
-				auto& glTFPrimitive = gltf_mesh.primitives[p];
+				auto& gltf_primitive = gltf_mesh.primitives[p];
 				submesh.vertexStart = (uint32_t)vertices.size();
 				submesh.indexStart = (uint32_t)indices.size();
 				submesh.indexCount = 0;
@@ -182,27 +182,27 @@ struct Model
 					size_t vertexCount = 0;
 
 					// Get buffer data for vertex normals
-					if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end())
+					if (gltf_primitive.attributes.find("POSITION") != gltf_primitive.attributes.end())
 					{
-						const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.attributes.find("POSITION")->second];
+						const tinygltf::Accessor& accessor = gltfModel.accessors[gltf_primitive.attributes.find("POSITION")->second];
 						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
 						positionBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 						vertexCount = accessor.count;
 					}
 
 					// Get buffer data for vertex normals
-					if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end())
+					if (gltf_primitive.attributes.find("NORMAL") != gltf_primitive.attributes.end())
 					{
-						const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
+						const tinygltf::Accessor& accessor = gltfModel.accessors[gltf_primitive.attributes.find("NORMAL")->second];
 						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
 						normalsBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					}
 
 					// Get buffer data for vertex texture coordinates
 					// glTF supports multiple sets, we only load the first one
-					if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end())
+					if (gltf_primitive.attributes.find("TEXCOORD_0") != gltf_primitive.attributes.end())
 					{
-						const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
+						const tinygltf::Accessor& accessor = gltfModel.accessors[gltf_primitive.attributes.find("TEXCOORD_0")->second];
 						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
 						uvsBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					}
@@ -210,27 +210,31 @@ struct Model
 					for (size_t v = 0; v < vertexCount; ++v)
 					{
 						Vertex newVert = {};
+
 						newVert.position = glm::make_vec3(&positionBuffer[v * 3]);
 						//newVert.position.y = glm::make_vec3(&positionBuffer[v * 3]).z;
 						//newVert.position.z = glm::make_vec3(&positionBuffer[v * 3]).y;
 						newVert.position.z = -newVert.position.z;
+
 						newVert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
 						//newVert.normal.y = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).z;
 						//newVert.normal.z = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).y;
 						newVert.normal.z = -newVert.normal.z;
+
 						newVert.uv = uvsBuffer ? glm::make_vec2(&uvsBuffer[v * 2]) : glm::vec2(0.0f);
 
-						if (gltfModel.materials[glTFPrimitive.material].values.find("baseColorFactor") != gltfModel.materials[glTFPrimitive.material].values.end())
-							newVert.color = glm::make_vec4(gltfModel.materials[glTFPrimitive.material].values["baseColorFactor"].ColorFactor().data());
+						if (gltfModel.materials[gltf_primitive.material].values.find("baseColorFactor") != gltfModel.materials[gltf_primitive.material].values.end())
+							newVert.color = glm::make_vec4(gltfModel.materials[gltf_primitive.material].values["baseColorFactor"].ColorFactor().data());
 						else
 							newVert.color = glm::vec4(1.0f);
+
 						vertices.push_back(newVert);
 					}
 				}
 
 				// Indices
 				{
-					const tinygltf::Accessor& accessor = gltfModel.accessors[glTFPrimitive.indices];
+					const tinygltf::Accessor& accessor = gltfModel.accessors[gltf_primitive.indices];
 					const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
 					const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
 
@@ -271,7 +275,7 @@ struct Model
 					}
 				}
 
-				submesh.materialIndex = glTFPrimitive.material;
+				submesh.materialIndex = gltf_primitive.material;
 
 				mesh.submeshes.push_back(submesh);
 			}
@@ -316,8 +320,6 @@ struct Model
 };
 
 Pipeline meshPipeline;
-Buffer meshCB1;
-Buffer meshCB2;
 Model sponza;
 Model flightHelmet;
 
@@ -425,7 +427,7 @@ void Init()
 	};
 #else
 	//LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
-	sponza.LoadGLTF("assets/lantern/lantern.gltf");
+	sponza.LoadGLTF("assets/Sponza/Sponza.gltf");
 	//flightHelmet.LoadGLTF("assets/flightHelmet/flightHelmet.gltf");
  	//LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
 #endif
@@ -438,9 +440,6 @@ void Init()
 	sceneData.MVPMatrix = projection * view * model;
 	sceneData.modelViewMatrix = view * model;
 	sceneData.lightPosition = lightPosition;
-
-	meshCB1 = gfx->CreateBuffer<SceneData>(&sceneData, 1);
-	meshCB2 = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 
 	ED_LOG_INFO("Scene Data size: {}", sizeof(SceneData));
 }
@@ -523,8 +522,6 @@ void Destroy()
 {
 	sponza.Destroy();
 	flightHelmet.Destroy();
-	meshCB1.Release();
-	meshCB2.Release();
 
 	edelete gfx;
 

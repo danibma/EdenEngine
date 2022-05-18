@@ -38,7 +38,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     if (diffuseTexture.x == 0.0f &&
         diffuseTexture.y == 0.0f &&
         diffuseTexture.z == 0.0f)
-        diffuseTexture = float4(input.uv, 1.0f, 1.0f);
+        diffuseTexture = input.color;
     
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
