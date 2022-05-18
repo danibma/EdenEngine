@@ -16,6 +16,8 @@ cbuffer SceneData : register(b0)
 };
 
 Texture2D g_textureDiffuse : register(t0);
+//Texture2D g_textureMetalRoughness : register(t1);
+Texture2D g_textureEmissive : register(t2);
 SamplerState g_sampler : register(s0);
 
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 color : COLOR)
@@ -63,7 +65,10 @@ float4 PSMain(PSInput input) : SV_TARGET
     float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
     float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
     
-    float4 pixelColor = (ambient + diffuse + specular);
+    // Emissive
+    float4 emissive = g_textureEmissive.Sample(g_sampler, input.uv).rgba * 3.0f;
+    
+    float4 pixelColor = (ambient + diffuse + specular + emissive);
     
     return pixelColor;
 }

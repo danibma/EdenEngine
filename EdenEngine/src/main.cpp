@@ -147,7 +147,8 @@ struct Model
 			if (gltf_node.rotation.size() == 4)
 			{
 				glm::quat q = glm::make_quat(gltf_node.rotation.data());
-				mesh.matrix *= glm::mat4(q);
+				auto rotation = glm::quat(q.w, -q.x, q.y, q.z);
+				mesh.matrix *= glm::mat4(rotation);
 			}
 
 			if (gltf_node.scale.size() == 3)
@@ -335,26 +336,7 @@ void Init()
 
 	meshPipeline = gfx->CreateGraphicsPipeline("basic");
 
-#if 0
-	meshVertices =
-	{
-		{ { -0.5f,  0.5f, 0.5f }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }}, // top left
-		{ {  0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }}, // bottom right
-		{ { -0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }}, // bottom left
-		{ {  0.5f,  0.5f, 0.5f }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }}, // top right
-	};
-
-	meshIndices = 
-	{
-		0, 1, 2, // first triangle
-		0, 3, 1 // second triangle
-	};
-#else
-	//LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
 	sponza.LoadGLTF("assets/DamagedHelmet/DamagedHelmet.gltf");
-	//flightHelmet.LoadGLTF("assets/flightHelmet/flightHelmet.gltf");
- 	//LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
-#endif
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 

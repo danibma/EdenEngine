@@ -324,7 +324,7 @@ namespace Eden
 		}
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
 		CD3DX12_ROOT_PARAMETER1 rootParameters[2] = {};
 		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
@@ -799,10 +799,10 @@ namespace Eden
 			if (FAILED(m_commandList->Close()))
 				ED_ASSERT_MB(false, "Failed to close command list");
 
-			for (UINT n = 0; n < s_frameCount; n++)
+			for (size_t i = 0; i < s_frameCount; ++i)
 			{
-				m_renderTargets[n].Reset();
-				m_fenceValues[n] = m_fenceValues[m_frameIndex];
+				m_renderTargets[i].Reset();
+				m_fenceValues[i] = m_fenceValues[m_frameIndex];
 			}
 
 			m_depthStencil.Reset();
