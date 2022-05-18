@@ -94,14 +94,15 @@ struct Model
 		};
 
 		std::vector<SubMesh> submeshes;
+
+		glm::mat4 matrix = glm::mat4(1.0f);
+		Buffer meshCB;
 	};
 
 	std::vector<Vertex> vertices;
 	Buffer meshVB;
 	std::vector<uint32_t> indices;
 	Buffer meshIB;
-
-	glm::mat4 matrix = glm::mat4(1.0f);
 
 	std::vector<Mesh> meshes;
 
@@ -132,39 +133,39 @@ struct Model
 
 		std::string parentPath = file.parent_path().string() + "/";
 
-		
-
-
 		for (const auto& gltf_node : gltfModel.nodes)
 		{
+			if (gltf_node.mesh < 0)
+				continue;
+
+			Mesh mesh;
+
 			// Get the local node matrix
 			// It's either made up from translation, rotation, scale or a 4x4 matrix
 			if (gltf_node.translation.size() == 3)
 			{
-				matrix = glm::translate(matrix, glm::vec3(glm::make_vec3(gltf_node.translation.data())));
+				mesh.matrix = glm::translate(mesh.matrix, glm::vec3(glm::make_vec3(gltf_node.translation.data())));
 			}
 
 			if (gltf_node.rotation.size() == 4)
 			{
 				glm::quat q = glm::make_quat(gltf_node.rotation.data());
-				matrix *= glm::mat4(q);
+				mesh.matrix *= glm::mat4(q);
 			}
 
 			if (gltf_node.scale.size() == 3)
 			{
-				matrix = glm::scale(matrix, glm::vec3(glm::make_vec3(gltf_node.scale.data())));
+				mesh.matrix = glm::scale(mesh.matrix, glm::vec3(glm::make_vec3(gltf_node.scale.data())));
 			}
 			
 			if (gltf_node.matrix.size() == 16)
 			{
-				matrix = glm::make_mat4x4(gltf_node.matrix.data());
+				mesh.matrix = glm::make_mat4x4(gltf_node.matrix.data());
 			}
 
-			if (gltf_node.mesh < 0)
-				continue;
+			mesh.meshCB = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 
 			const auto& gltf_mesh = gltfModel.meshes[gltf_node.mesh];
-			Mesh mesh;
 			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
 			{
 				Mesh::SubMesh submesh;
@@ -218,8 +219,11 @@ struct Model
 						//newVert.normal.z = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).y;
 						newVert.normal.z = -newVert.normal.z;
 						newVert.uv = uvsBuffer ? glm::make_vec2(&uvsBuffer[v * 2]) : glm::vec2(0.0f);
-						//newVert.color = glm::make_vec4(gltfModel.materials[glTFPrimitive.material].values["baseColorFactor"].ColorFactor().data());
-						newVert.color = glm::vec4(1.0f);
+
+						if (gltfModel.materials[glTFPrimitive.material].values.find("baseColorFactor") != gltfModel.materials[glTFPrimitive.material].values.end())
+							newVert.color = glm::make_vec4(gltfModel.materials[glTFPrimitive.material].values["baseColorFactor"].ColorFactor().data());
+						else
+							newVert.color = glm::vec4(1.0f);
 						vertices.push_back(newVert);
 					}
 				}
@@ -285,8 +289,13 @@ struct Model
 
 		materials.resize(gltfModel.materials.size());
 		for (size_t i = 0; i < gltfModel.materials.size(); ++i)
-			materials[i] = gltfModel.materials[i].values["baseColorTexture"].TextureIndex();
-
+		{
+			if (gltfModel.materials[i].values.find("baseColorTexture") != gltfModel.materials[i].values.end())
+				materials[i] = gltfModel.materials[i].values["baseColorTexture"].TextureIndex();
+			else
+				materials[i] = gltfModel.materials[i].values["baseColorFactor"].TextureIndex();
+		}
+			
 		meshVB = gfx->CreateBuffer<Vertex>(vertices.data(), (uint32_t)vertices.size());
 		meshIB = gfx->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
 	}
@@ -300,6 +309,9 @@ struct Model
 			texture.Release();
 
 		textures.clear();
+
+		for (auto& mesh : meshes)
+			mesh.meshCB.Release();
 	}
 };
 
@@ -413,8 +425,8 @@ void Init()
 	};
 #else
 	//LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
-	//sponza.LoadGLTF("assets/sponza/sponza.gltf");
-	flightHelmet.LoadGLTF("assets/flightHelmet/flightHelmet.gltf");
+	sponza.LoadGLTF("assets/lantern/lantern.gltf");
+	//flightHelmet.LoadGLTF("assets/flightHelmet/flightHelmet.gltf");
  	//LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
 #endif
 
@@ -480,43 +492,24 @@ void Update()
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
 
 		// Sponza
-		//model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
-		//model *= sponza.matrix; // multiply it by the gltf model matrix
-		//sceneData.MVPMatrix = projection * view * model;
-		//sceneData.modelViewMatrix = view * model;
-		//sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
-		//sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
-		//gfx->UpdateBuffer<SceneData>(meshCB1, &sceneData, 1);
-		//gfx->BindConstantBuffer(1, meshCB1);
-		//gfx->BindVertexBuffer(sponza.meshVB);
-		//gfx->BindIndexBuffer(sponza.meshIB);
-		//
-		//for (auto& mesh : sponza.meshes)
-		//{
-		//	for (auto& submesh : mesh.submeshes)
-		//	{
-		//		gfx->BindTexture2D(sponza.textures[sponza.textureIndices[sponza.materials[submesh.materialIndex]]]);
-		//		gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
-		//	}
-		//}
-
-		// Flight Helmet
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
-		model *= flightHelmet.matrix; // multiply it by the gltf model matrix
-		sceneData.MVPMatrix = projection * view * model;
-		sceneData.modelViewMatrix = view * model;
-		sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
-		sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
-		gfx->UpdateBuffer<SceneData>(meshCB2, &sceneData, 1);
-		gfx->BindConstantBuffer(1, meshCB2);
-		gfx->BindVertexBuffer(flightHelmet.meshVB);
-		gfx->BindIndexBuffer(flightHelmet.meshIB);
-
-		for (auto& mesh : flightHelmet.meshes)
+		gfx->BindVertexBuffer(sponza.meshVB);
+		gfx->BindIndexBuffer(sponza.meshIB);
+		for (auto& mesh : sponza.meshes)
 		{
+			model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
+			model *= mesh.matrix; // multiply it by the gltf model matrix
+			sceneData.MVPMatrix = projection * view * model;
+			sceneData.modelViewMatrix = view * model;
+			sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
+			sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
+			gfx->UpdateBuffer<SceneData>(mesh.meshCB, &sceneData, 1);
+			gfx->BindConstantBuffer(1, mesh.meshCB);
+
 			for (auto& submesh : mesh.submeshes)
 			{
-				gfx->BindTexture2D(flightHelmet.textures[flightHelmet.textureIndices[flightHelmet.materials[submesh.materialIndex]]]);
+				if (sponza.materials[submesh.materialIndex] != UINT32_MAX)
+					gfx->BindTexture2D(sponza.textures[sponza.textureIndices[sponza.materials[submesh.materialIndex]]]);
+
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
 			}
 		}
