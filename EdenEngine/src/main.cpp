@@ -18,9 +18,6 @@
 
 #include <imgui/imgui.h>
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tinyobjloader/tiny_obj_loader.h>
-
 #include <stb/stb_image.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb/stb_image_write.h>
@@ -323,79 +320,6 @@ Pipeline meshPipeline;
 Model sponza;
 Model flightHelmet;
 
-/*
-void LoadObj(std::filesystem::path file)
-{
-	//attrib will contain the vertex arrays of the file
-	tinyobj::attrib_t attrib;
-	//shapes contains the info for each separate object in the file
-	std::vector<tinyobj::shape_t> shapes;
-	//materials contains the information about the material of each shape, but we won't use it.
-	std::vector<tinyobj::material_t> materials;
-
-	//error and warning output from the load function
-	std::string warn;
-	std::string err;
-
-	std::string parentPath = file.parent_path().string() + "/";
-
-	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file.string().c_str(), parentPath.c_str());
-	if (!warn.empty())
-	{
-		ED_LOG_ERROR("{}", warn);
-	}
-
-	if (!err.empty())
-	{
-		ED_LOG_FATAL("{}", err);
-		return;
-	}
-
-	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-	// Loop over shapes
-	for (const auto& shape : shapes)
-	{
-		for (const auto& index : shape.mesh.indices)
-		{
-			Vertex newVert = {};
-
-			// vertex position
-			newVert.position.x =  attrib.vertices[3 * index.vertex_index + 0];
-			newVert.position.y =  attrib.vertices[3 * index.vertex_index + 1];
-			newVert.position.z = -attrib.vertices[3 * index.vertex_index + 2];
-
-			// vertex normal
-			if (attrib.normals.size() > 0)
-			{
-				newVert.normal.x =  attrib.normals[3 * index.normal_index + 0];
-				newVert.normal.y =  attrib.normals[3 * index.normal_index + 1];
-				newVert.normal.z = -attrib.normals[3 * index.normal_index + 2];
-			}
-			
-			// vertex uv
-			if (attrib.texcoords.size() > 0)
-			{
-				newVert.uv.x = attrib.texcoords[2 * index.texcoord_index + 0];
-				newVert.uv.y = 1 - attrib.texcoords[2 * index.texcoord_index + 1];
-			}
-			
-
-			if (uniqueVertices.count(newVert) == 0) {
-				uniqueVertices[newVert] = static_cast<uint32_t>(meshVertices.size());
-				meshVertices.push_back(newVert);
-			}
-
-			meshIndices.push_back(uniqueVertices[newVert]);
-		}
-	}
-
-	// TODO(Daniel): Right now this is only loading the first diffuse texture,
-	//				 make it so it loads every texture
-	meshTextureDiffuse = gfx->CreateTexture2D(parentPath + materials[0].diffuse_texname);
-	meshTextureNormal = gfx->CreateTexture2D(parentPath + materials[0].bump_texname);
-}*/
-
 void Init()
 {
 	Log::Init();
@@ -427,7 +351,7 @@ void Init()
 	};
 #else
 	//LoadGLTF("assets/scifihelmet/scifihelmet.gltf");
-	sponza.LoadGLTF("assets/Sponza/Sponza.gltf");
+	sponza.LoadGLTF("assets/DamagedHelmet/DamagedHelmet.gltf");
 	//flightHelmet.LoadGLTF("assets/flightHelmet/flightHelmet.gltf");
  	//LoadObj("assets/survival_guitar_backpack/obj/sgb.obj");
 #endif
