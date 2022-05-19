@@ -136,7 +136,12 @@ namespace Optick
 			Allocator(const Allocator<U>&) {}
 			template<typename U> struct rebind { typedef Allocator<U> other; };
 
-			typename std::allocator<T>::value_type* allocate(typename std::allocator<T>::size_type n, const typename std::allocator<void>::value_type* = 0)
+			typename std::allocator<T>::value_type* allocate(typename std::allocator<T>::size_type n) 
+			{
+				return reinterpret_cast<typename std::allocator<T>::value_type*>(Memory::Alloc(n * sizeof(T)));
+			}
+
+			typename std::allocator<T>::value_type* allocate(typename std::allocator<T>::size_type n, const typename std::allocator<void>::value_type*)
 			{
 				return reinterpret_cast<typename std::allocator<T>::value_type*>(Memory::Alloc(n * sizeof(T)));
 			}
@@ -370,8 +375,8 @@ namespace Optick
 			}
 			reference operator*() { return (reference)chunkPtr->data[chunkIndex]; }
 			pointer operator->() { return &chunkPtr->data[chunkIndex]; }
-			bool operator==(const self_type& rhs) { return (chunkPtr == rhs.chunkPtr) && (chunkIndex == rhs.chunkIndex); }
-			bool operator!=(const self_type& rhs) { return (chunkPtr != rhs.chunkPtr) || (chunkIndex != rhs.chunkIndex); }
+			bool operator==(const self_type& rhs) const { return (chunkPtr == rhs.chunkPtr) && (chunkIndex == rhs.chunkIndex); }
+			bool operator!=(const self_type& rhs) const { return (chunkPtr != rhs.chunkPtr) || (chunkIndex != rhs.chunkIndex); }
 		private:
 			const Chunk* chunkPtr;
 			size_t chunkIndex;

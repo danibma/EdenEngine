@@ -125,7 +125,7 @@ namespace Eden
 		D3D12_INDEX_BUFFER_VIEW boundIndexBuffer;
 		Pipeline boundPipeline;
 
-		uint32_t textureHeapOffset = 1;
+		uint32_t m_srvHeapOffset = 1;
 
 	public:
 		GraphicsDevice(Window* window);

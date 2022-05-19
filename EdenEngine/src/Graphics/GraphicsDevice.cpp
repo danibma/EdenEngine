@@ -12,6 +12,7 @@
 #include "Core/Memory.h"
 #include "Utilities/Utils.h"
 #include "Profiling/Profiler.h"
+#include <dxgidebug.h>
 
 namespace Eden
 {
@@ -31,13 +32,21 @@ namespace Eden
 			if (!FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 			{
 				debugController->EnableDebugLayer();
-				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 
 				ComPtr<ID3D12Debug1> debugController1;
 				if (FAILED(debugController->QueryInterface(IID_PPV_ARGS(&debugController1))))
 					ED_LOG_WARN("Failed to get ID3D12Debug1!");
 
 				debugController1->SetEnableGPUBasedValidation(true);
+			}
+
+			ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
+			if (!FAILED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue))))
+			{
+				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+
+				dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+				dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
 			}
 		}
 	#endif
@@ -180,6 +189,8 @@ namespace Eden
 		}
 
 		CloseHandle(m_fenceEvent);
+
+		ED_PROFILER_SHUTDOWN();
 	}
 
 	ComPtr<IDxcBlob> GraphicsDevice::CompileShader(std::filesystem::path filePath, ShaderTarget target)
@@ -448,7 +459,6 @@ namespace Eden
 		renderTargetBlendDesc.LogicOp = D3D12_LOGIC_OP_CLEAR;
 		renderTargetBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-
 		// Describe and create pipeline state object(PSO)
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.pRootSignature = pipeline.rootSignature.Get();
@@ -471,6 +481,11 @@ namespace Eden
 
 		if (FAILED(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipeline.pipelineState))))
 			ED_ASSERT_MB(false, "Failed to create graphics pipeline state!");
+
+		std::wstring pipelineName;
+		Utils::StringConvert(programName, pipelineName);
+		pipelineName.append(L"_PSO");
+		pipeline.pipelineState->SetName(pipelineName.c_str());
 
 		return pipeline;
 	}
@@ -562,16 +577,16 @@ namespace Eden
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 
-		// NOTE(Daniel): Offset srv handle cause of imgui
-		texture.heapOffset = textureHeapOffset;
+		// Offset srv handle cause of imgui
+		texture.heapOffset = m_srvHeapOffset;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(textureHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(m_srvHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
 
 		WaitForGPU();
 
 		uploadAllocation->Release();
 
-		textureHeapOffset++;
+		m_srvHeapOffset++;
 
 		return texture;
 	}
@@ -652,15 +667,15 @@ namespace Eden
 		srvDesc.Texture2D.MipLevels = 1;
 
 		// NOTE(Daniel): Offset srv handle cause of imgui
-		texture.heapOffset = textureHeapOffset;
+		texture.heapOffset = m_srvHeapOffset;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(textureHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(m_srvHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
 
 		WaitForGPU();
 
 		uploadAllocation->Release();
 
-		textureHeapOffset++;
+		m_srvHeapOffset++;
 
 		return texture;
 	}
@@ -727,7 +742,6 @@ namespace Eden
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-		// TODO(Daniel): Offset srv handle cause of imgui, make a descriptor heap for imgui only
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		srvHandle.Offset(texture.heapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
