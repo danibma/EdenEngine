@@ -228,12 +228,15 @@ namespace Eden
 			break;
 		}
 
+		std::wstring wPdbName = filePath.filename().wstring() + targetStr + L".pdb";
+
 		std::vector<LPCWSTR> arguments =
 		{
 			filePath.c_str(),
 			L"-E", entryPoint.c_str(),
 			L"-T", targetStr.c_str(),
-			L"-Zs"
+			L"-Zi",
+			L"-Fd", wPdbName.c_str()
 		};
 
 		ComPtr<IDxcBlobEncoding> source = nullptr;
@@ -254,6 +257,20 @@ namespace Eden
 		if (errors != nullptr && errors->GetStringLength() != 0)
 			ED_LOG_ERROR("Failed to compile {} {} shader: {}", filePath.filename(), Utils::ShaderTargetToString(target), errors->GetStringPointer());
 
+		// Save pdb
+		ComPtr<IDxcBlob> pdb = nullptr;
+		ComPtr<IDxcBlobUtf16> pdbName = nullptr;
+		result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb), &pdbName);
+		{
+			FILE* fp = NULL;
+
+			// Note that if you don't specify -Fd, a pdb name will be automatically generated. Use this file name to save the pdb so that PIX can find it quickly.
+			_wfopen_s(&fp, pdbName->GetStringPointer(), L"wb");
+			fwrite(pdb->GetBufferPointer(), pdb->GetBufferSize(), 1, fp);
+			fclose(fp);
+		}
+
+		// Get shader blob
 		ComPtr<IDxcBlob> shaderBlob;
 		result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 
