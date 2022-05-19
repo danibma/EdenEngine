@@ -121,6 +121,8 @@ struct Model
 		else if (file.extension() == ".glb")
 			result = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, file.string());
 
+		ED_LOG_INFO("Starting {} file loading", file);
+
 		if (!warn.empty())
 			ED_LOG_WARN("{}", warn.c_str());
 
@@ -175,9 +177,9 @@ struct Model
 
 				// Vertices
 				{
-					const float* positionBuffer;
-					const float* normalsBuffer;
-					const float* uvsBuffer;
+					const float* positionBuffer = nullptr;
+					const float* normalsBuffer = nullptr;
+					const float* uvsBuffer = nullptr;
 					size_t vertexCount = 0;
 
 					// Get buffer data for vertex normals
@@ -332,6 +334,11 @@ struct Model
 			
 		meshVB = gfx->CreateBuffer<Vertex>(vertices.data(), (uint32_t)vertices.size());
 		meshIB = gfx->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
+
+		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());
+		ED_LOG_INFO("	{} meshes were loaded!", gltfModel.meshes.size());
+		ED_LOG_INFO("	{} textures were loaded!", gltfModel.textures.size());
+		ED_LOG_INFO("	{} materials were loaded!", gltfModel.materials.size());
 	}
 
 	void Destroy()
@@ -368,11 +375,11 @@ void Init()
 	gfx = enew GraphicsDevice(window);
 	gfx->EnableImGui();
 
-	basic_texture = gfx->CreateGraphicsPipeline("basic_texture");
-	basic = gfx->CreateGraphicsPipeline("basic");
+	basic_texture = gfx->CreateGraphicsPipeline("basic_texture", true);
+	basic = gfx->CreateGraphicsPipeline("basic", false);
 
 	sponza.LoadGLTF("assets/DamagedHelmet/DamagedHelmet.glb");
-	basicMesh.LoadGLTF("assets/basic/plane.glb");
+	basicMesh.LoadGLTF("assets/basic/sphere.glb");
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -382,8 +389,6 @@ void Init()
 	sceneData.MVPMatrix = projection * view * model;
 	sceneData.modelViewMatrix = view * model;
 	sceneData.lightPosition = lightPosition;
-
-	ED_LOG_INFO("Scene Data size: {}", sizeof(SceneData));
 }
 
 bool openDebugWindow = true;

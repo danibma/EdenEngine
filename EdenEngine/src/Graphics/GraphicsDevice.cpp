@@ -138,33 +138,6 @@ namespace Eden
 
 		m_commandList->SetName(L"gfx_command_list");
 
-		// Create the depth stencil view.
-		{
-			D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
-			depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
-			depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-			depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
-
-			D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-			depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-			depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
-			depthOptimizedClearValue.DepthStencil.Stencil = 0;
-
-			if (FAILED(m_device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, window->GetWidth(), window->GetHeight(), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-				D3D12_RESOURCE_STATE_DEPTH_WRITE,
-				&depthOptimizedClearValue,
-				IID_PPV_ARGS(&m_depthStencil)
-			)))
-			{
-				ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
-			}
-
-			m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-		}
-
 		// Create synchronization objects
 		{
 			if (FAILED(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence))))
@@ -427,7 +400,7 @@ namespace Eden
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
-	Pipeline GraphicsDevice::CreateGraphicsPipeline(std::string programName)
+	Eden::Pipeline GraphicsDevice::CreateGraphicsPipeline(std::string programName, bool enableBlending)
 	{
 		ED_PROFILE_FUNCTION();
 
@@ -463,12 +436,26 @@ namespace Eden
 			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT,   0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
+		D3D12_RENDER_TARGET_BLEND_DESC renderTargetBlendDesc = {};
+		renderTargetBlendDesc.BlendEnable = enableBlending;
+		renderTargetBlendDesc.LogicOpEnable = false;
+		renderTargetBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		renderTargetBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		renderTargetBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+		renderTargetBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+		renderTargetBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
+		renderTargetBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		renderTargetBlendDesc.LogicOp = D3D12_LOGIC_OP_CLEAR;
+		renderTargetBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+
 		// Describe and create pipeline state object(PSO)
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.pRootSignature = pipeline.rootSignature.Get();
 		psoDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
 		psoDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+		psoDesc.BlendState.RenderTarget[0] = renderTargetBlendDesc;
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;

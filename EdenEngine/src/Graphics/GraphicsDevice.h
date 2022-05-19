@@ -148,7 +148,7 @@ namespace Eden
 			memcpy(buffer.data, data, sizeof(TYPE) * elementCount);
 		}
 
-		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string programName);
+		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string programName, bool enableBlending);
 		[[nodiscard]] Texture2D CreateTexture2D(std::string filePath);
 		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* textureData, uint64_t width, uint64_t height);
 
