@@ -150,6 +150,7 @@ namespace Eden
 
 		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string programName);
 		[[nodiscard]] Texture2D CreateTexture2D(std::string filePath);
+		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* textureData, uint64_t width, uint64_t height);
 
 		void EnableImGui();
 		void ImGuiNewFrame();

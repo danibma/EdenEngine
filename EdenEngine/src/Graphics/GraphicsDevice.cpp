@@ -264,7 +264,6 @@ namespace Eden
 		{
 			FILE* fp = NULL;
 
-			// Note that if you don't specify -Fd, a pdb name will be automatically generated. Use this file name to save the pdb so that PIX can find it quickly.
 			_wfopen_s(&fp, pdbName->GetStringPointer(), L"wb");
 			fwrite(pdb->GetBufferPointer(), pdb->GetBufferSize(), 1, fp);
 			fclose(fp);
@@ -562,6 +561,95 @@ namespace Eden
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
 			edelete textureFile;
+		}
+
+		m_commandList->Close();
+		ID3D12CommandList* commandLists[] = { m_commandList.Get() };
+		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+		m_commandList->Reset(m_commandAllocator.Get(), nullptr);
+
+		// Describe and craete a Shader resource view(SRV) for the texture
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = texture.format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		// NOTE(Daniel): Offset srv handle cause of imgui
+		texture.heapOffset = textureHeapOffset;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(textureHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+
+		WaitForGPU();
+
+		uploadAllocation->Release();
+
+		textureHeapOffset++;
+
+		return texture;
+	}
+
+	Texture2D GraphicsDevice::CreateTexture2D(unsigned char* textureBuffer, uint64_t width, uint64_t height)
+	{
+		ED_PROFILE_FUNCTION();
+
+		Texture2D texture;
+		texture.width = width;
+		texture.height = height;
+		texture.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		ComPtr<ID3D12Resource> textureUploadHeap;
+		D3D12MA::Allocation* uploadAllocation;
+
+		ED_PROFILE_GPU_CONTEXT(m_commandList.Get());
+		ED_PROFILE_GPU_FUNCTION("GPU::CreateTexture2D");
+
+		// Create the texture
+		{
+			// Describe and create a texture2D
+			D3D12_RESOURCE_DESC textureDesc = {};
+			textureDesc.MipLevels = 1;
+			textureDesc.Format = texture.format;
+			textureDesc.Width = width;
+			textureDesc.Height = height;
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			textureDesc.DepthOrArraySize = 1;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+			D3D12MA::ALLOCATION_DESC allocationDesc = {};
+			allocationDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+			m_allocator->CreateResource(&allocationDesc,
+										&textureDesc,
+										D3D12_RESOURCE_STATE_COPY_DEST,
+										nullptr,
+										&texture.allocation,
+										IID_PPV_ARGS(&texture.resource));
+
+			const uint64_t uploadBufferSize = GetRequiredIntermediateSize(texture.resource.Get(), 0, 1);
+
+			// Create the GPU upload buffer
+			D3D12MA::ALLOCATION_DESC uploadAllocationDesc = {};
+			uploadAllocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+			auto hr = m_allocator->CreateResource(&uploadAllocationDesc,
+												  &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+												  D3D12_RESOURCE_STATE_GENERIC_READ,
+												  nullptr,
+												  &uploadAllocation,
+												  IID_PPV_ARGS(&textureUploadHeap));
+
+			// Copy data to the intermediate upload heap and then schedule a copy 
+			// from the upload heap to the Texture2D.
+			D3D12_SUBRESOURCE_DATA textureData = {};
+			textureData.pData = &textureBuffer[0];
+			textureData.RowPitch = width * 4;
+			textureData.SlicePitch = height * textureData.RowPitch;
+
+			UpdateSubresources(m_commandList.Get(), texture.resource.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 		}
 
 		m_commandList->Close();

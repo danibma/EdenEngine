@@ -15,6 +15,11 @@ cbuffer SceneData : register(b0)
     float3 lightPosition;
 };
 
+Texture2D g_textureDiffuse : register(t0);
+//Texture2D g_textureMetalRoughness : register(t1);
+Texture2D g_textureEmissive : register(t2);
+SamplerState g_sampler : register(s0);
+
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 color : COLOR)
 {
     PSInput result;
@@ -30,6 +35,13 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    float4 diffuseTexture = g_textureDiffuse.Sample(g_sampler, input.uv);
+    
+    if (diffuseTexture.x == 0.0f &&
+        diffuseTexture.y == 0.0f &&
+        diffuseTexture.z == 0.0f)
+        diffuseTexture = input.color;
+    
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
     float3 lightPos = lightPosition;
@@ -37,13 +49,13 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     // Ambient Light
     float ambientStrength = 0.1f;
-    float4 ambient = float4(ambientStrength * lightColor, 1.0f) * input.color;
+    float4 ambient = float4(ambientStrength * lightColor, 1.0f) * diffuseTexture;
     
     // Diffuse Light
     float3 norm = normalize(input.normal);
     float3 lightDirection = normalize(lightPos - fragPos);
     float diffuseColor = max(dot(norm, lightDirection), 0.0f);
-    float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * input.color;
+    float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * diffuseTexture;
     
     // Specular Light
     float specularStrength = 0.5f;
@@ -53,7 +65,10 @@ float4 PSMain(PSInput input) : SV_TARGET
     float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
     float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
     
-    float4 pixelColor = (ambient + diffuse + specular);
+    // Emissive
+    float4 emissive = g_textureEmissive.Sample(g_sampler, input.uv).rgba * 3.0f;
+    
+    float4 pixelColor = (ambient + diffuse + specular + emissive);
     
     return pixelColor;
 }

@@ -107,6 +107,7 @@ struct Model
 	std::vector<uint32_t> materials;
 	std::vector<Texture2D> textures;
 
+	// Based on Sascha Willems gltfloading.cpp
 	void LoadGLTF(std::filesystem::path file)
 	{
 		tinygltf::Model gltfModel;
@@ -287,7 +288,38 @@ struct Model
 
 		textures.resize(gltfModel.images.size());
 		for (size_t i = 0; i < gltfModel.images.size(); ++i)
-			textures[i] = gfx->CreateTexture2D(parentPath + gltfModel.images[i].uri);
+		{
+			tinygltf::Image& gltf_image = gltfModel.images[i];
+
+			unsigned char* buffer = nullptr;
+			bool deleteBuffer = false;
+
+			if (gltf_image.component == 3)
+			{
+				uint64_t bufferSize = gltf_image.width * gltf_image.height * 4;
+				buffer = enew unsigned char[bufferSize];
+				unsigned char* rgba = buffer;
+				unsigned char* rgb = &gltf_image.image[0];
+
+				for (size_t i = 0; i < gltf_image.width * gltf_image.height; ++i)
+				{
+					memcpy(rgba, rgb, sizeof(unsigned char) * 3);
+					rgba += 4;
+					rgb += 3;
+				}
+
+				deleteBuffer = true;
+			}
+			else
+			{
+				buffer = &gltf_image.image[0];
+			}
+
+			textures[i] = gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height);
+
+			if (deleteBuffer)
+				edelete buffer;
+		}
 
 		materials.resize(gltfModel.materials.size());
 		for (size_t i = 0; i < gltfModel.materials.size(); ++i)
@@ -317,9 +349,11 @@ struct Model
 	}
 };
 
-Pipeline meshPipeline;
+Pipeline basic_texture;
+Pipeline basic;
 Model sponza;
 Model flightHelmet;
+Model basicMesh;
 
 void Init()
 {
@@ -334,9 +368,11 @@ void Init()
 	gfx = enew GraphicsDevice(window);
 	gfx->EnableImGui();
 
-	meshPipeline = gfx->CreateGraphicsPipeline("basic");
+	basic_texture = gfx->CreateGraphicsPipeline("basic_texture");
+	basic = gfx->CreateGraphicsPipeline("basic");
 
-	sponza.LoadGLTF("assets/DamagedHelmet/DamagedHelmet.gltf");
+	sponza.LoadGLTF("assets/DamagedHelmet/DamagedHelmet.glb");
+	basicMesh.LoadGLTF("assets/basic/plane.glb");
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -391,7 +427,7 @@ void Update()
 
 		gfx->ClearRenderTargets();
 
-		gfx->BindPipeline(meshPipeline);
+		gfx->BindPipeline(basic_texture);
 
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
@@ -419,6 +455,25 @@ void Update()
 			}
 		}
 
+		// Basic mesh
+		gfx->BindPipeline(basic);
+		gfx->BindVertexBuffer(basicMesh.meshVB);
+		gfx->BindIndexBuffer(basicMesh.meshIB);
+		for (auto& mesh : basicMesh.meshes)
+		{
+			model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(5, 0, 0));
+			model *= mesh.matrix; // multiply it by the gltf model matrix
+			sceneData.MVPMatrix = projection * view * model;
+			sceneData.modelViewMatrix = view * model;
+			sceneData.lightPosition = glm::vec3(view * glm::vec4(lightPosition, 1.0f));
+			sceneData.normalMatrix = glm::transpose(glm::inverse(view * model));
+			gfx->UpdateBuffer<SceneData>(mesh.meshCB, &sceneData, 1);
+			gfx->BindConstantBuffer(1, mesh.meshCB);
+
+			for (auto& submesh : mesh.submeshes)
+				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+		}
+
 		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
 	}
@@ -428,6 +483,7 @@ void Destroy()
 {
 	sponza.Destroy();
 	flightHelmet.Destroy();
+	basicMesh.Destroy();
 
 	edelete gfx;
 
