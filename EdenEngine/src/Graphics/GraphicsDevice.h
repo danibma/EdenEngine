@@ -63,14 +63,14 @@ namespace Eden
 	struct Buffer : Resource
 	{
 		void* data;
-		uint64_t size;
+		uint32_t size;
 		uint32_t stride;
 		uint32_t count;
 	};
 
 	struct Texture2D : Resource
 	{
-		uint32_t width;
+		uint64_t width;
 		uint32_t height;
 		DXGI_FORMAT format;
 		uint32_t heapOffset;
@@ -150,7 +150,7 @@ namespace Eden
 
 		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string programName, bool enableBlending);
 		[[nodiscard]] Texture2D CreateTexture2D(std::string filePath);
-		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* textureData, uint64_t width, uint64_t height);
+		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* textureData, uint64_t width, uint32_t height);
 
 		void EnableImGui();
 		void ImGuiNewFrame();
@@ -176,7 +176,7 @@ namespace Eden
 		ComPtr<IDxcBlob> CompileShader(std::filesystem::path filePath, ShaderTarget target);
 		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility);
 		void CreateRootSignature(Pipeline& pipeline);
-		Buffer CreateBuffer(uint64_t size, void* data);
+		Buffer CreateBuffer(uint32_t size, void* data);
 		void CreateBackBuffers(uint32_t width, uint32_t height);
 	};
 }

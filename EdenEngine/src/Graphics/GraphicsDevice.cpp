@@ -349,7 +349,7 @@ namespace Eden
 			ED_LOG_ERROR("Failed to create root signature");
 	}
 
-	Buffer GraphicsDevice::CreateBuffer(uint64_t size, void* data)
+	Buffer GraphicsDevice::CreateBuffer(uint32_t size, void* data)
 	{
 		Buffer buffer = {};
 		buffer.size = size;
@@ -594,7 +594,7 @@ namespace Eden
 		return texture;
 	}
 
-	Texture2D GraphicsDevice::CreateTexture2D(unsigned char* textureBuffer, uint64_t width, uint64_t height)
+	Texture2D GraphicsDevice::CreateTexture2D(unsigned char* textureBuffer, uint64_t width, uint32_t height)
 	{
 		ED_PROFILE_FUNCTION();
 

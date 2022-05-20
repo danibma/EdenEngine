@@ -113,7 +113,7 @@ namespace Eden
 		style.Colors[ImGuiCol_PlotHistogram] = TEXT_COLOR(0.63f);
 		style.Colors[ImGuiCol_PlotHistogramHovered] = MED(1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = MED(0.43f);
-		style.Colors[ImGuiCol_ModalWindowDimBg] = BG(0.73);
+		style.Colors[ImGuiCol_ModalWindowDimBg] = BG(0.73f);
 
 		style.WindowPadding = ImVec2(6, 4);
 		style.WindowRounding = 0.0f;
