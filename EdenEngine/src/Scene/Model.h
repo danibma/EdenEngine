@@ -10,6 +10,8 @@
 #include <glm/gtx/hash.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <tinygltf/tiny_gltf.h>
+
 namespace Eden
 {
 	//==================
@@ -74,12 +76,13 @@ namespace Eden
 
 		std::vector<Mesh> meshes;
 
-		std::vector<uint32_t> textureIndices;
-		std::vector<uint32_t> materials;
 		std::vector<Texture2D> textures;
 
 		void LoadGLTF(GraphicsDevice* gfx, std::filesystem::path file);
 		void Destroy();
+
+	private:
+		uint32_t LoadImage(GraphicsDevice* gfx, tinygltf::Model& gltfModel, int32_t imageIndex);
 	};
 }
 

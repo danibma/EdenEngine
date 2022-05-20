@@ -326,7 +326,7 @@ namespace Eden
 		}
 
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
 		CD3DX12_ROOT_PARAMETER1 rootParameters[3] = {};
 		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
@@ -662,14 +662,13 @@ namespace Eden
 		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 		m_commandList->Reset(m_commandAllocator.Get(), nullptr);
 
-		// Describe and craete a Shader resource view(SRV) for the texture
+		// Describe and create a Shader resource view(SRV) for the texture
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Format = texture.format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 
-		// NOTE(Daniel): Offset srv handle cause of imgui
 		texture.heapOffset = m_srvHeapOffset;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
 		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(m_srvHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
@@ -747,6 +746,16 @@ namespace Eden
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 		srvHandle.Offset(texture.heapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
+	}
+
+	void GraphicsDevice::BindTexture2D(uint32_t heapOffset)
+	{
+		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
+		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+		srvHandle.Offset(heapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 	}
 

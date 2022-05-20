@@ -184,60 +184,31 @@ namespace Eden
 					}
 				}
 
-				submesh.materialIndex = gltf_primitive.material;
+				// Load materials
+				// TODO(Daniel): create a easy way to add more textures to load here, rn is just loading diffuse and emissive textures
+				auto gltf_material = gltfModel.materials[gltf_primitive.material];
+				if (gltf_material.values.find("baseColorTexture") != gltf_material.values.end())
+				{
+					auto materialIndex = gltf_material.values["baseColorTexture"].TextureIndex();
+					auto textureIndex = gltfModel.textures[materialIndex].source;
+
+					// This assumes every primitive that has a texture, has a diffuse
+					// so the diffuse is always the first texture of the "Material"
+					submesh.materialIndex = LoadImage(gfx, gltfModel, textureIndex);
+				}
+
+				if (gltf_material.emissiveTexture.index > -1)
+				{
+					auto materialIndex = gltf_material.emissiveTexture.index;
+					auto textureIndex = gltfModel.textures[materialIndex].source;
+
+					LoadImage(gfx, gltfModel, textureIndex);
+				}
 
 				mesh.submeshes.push_back(submesh);
 			}
 
 			meshes.push_back(mesh);
-		}
-
-		textureIndices.resize(gltfModel.textures.size());
-		for (size_t i = 0; i < gltfModel.textures.size(); ++i)
-			textureIndices[i] = gltfModel.textures[i].source;
-
-		textures.resize(gltfModel.images.size());
-		for (size_t i = 0; i < gltfModel.images.size(); ++i)
-		{
-			tinygltf::Image& gltf_image = gltfModel.images[i];
-
-			unsigned char* buffer = nullptr;
-			bool deleteBuffer = false;
-
-			if (gltf_image.component == 3)
-			{
-				uint64_t bufferSize = gltf_image.width * gltf_image.height * 4;
-				buffer = enew unsigned char[bufferSize];
-				unsigned char* rgba = buffer;
-				unsigned char* rgb = &gltf_image.image[0];
-
-				for (size_t i = 0; i < gltf_image.width * gltf_image.height; ++i)
-				{
-					memcpy(rgba, rgb, sizeof(unsigned char) * 3);
-					rgba += 4;
-					rgb += 3;
-				}
-
-				deleteBuffer = true;
-			}
-			else
-			{
-				buffer = &gltf_image.image[0];
-			}
-
-			textures[i] = gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height);
-
-			if (deleteBuffer)
-				edelete buffer;
-		}
-
-		materials.resize(gltfModel.materials.size());
-		for (size_t i = 0; i < gltfModel.materials.size(); ++i)
-		{
-			if (gltfModel.materials[i].values.find("baseColorTexture") != gltfModel.materials[i].values.end())
-				materials[i] = gltfModel.materials[i].values["baseColorTexture"].TextureIndex();
-			else
-				materials[i] = gltfModel.materials[i].values["baseColorFactor"].TextureIndex();
 		}
 
 		meshVB = gfx->CreateBuffer<Vertex>(vertices.data(), (uint32_t)vertices.size());
@@ -261,6 +232,42 @@ namespace Eden
 
 		for (auto& mesh : meshes)
 			mesh.transformCB.Release();
+	}
+
+	uint32_t Model::LoadImage(GraphicsDevice* gfx, tinygltf::Model& gltfModel, int32_t imageIndex)
+	{
+		tinygltf::Image& gltf_image = gltfModel.images[imageIndex];
+
+		unsigned char* buffer = nullptr;
+		bool deleteBuffer = false;
+
+		if (gltf_image.component == 3)
+		{
+			uint64_t bufferSize = gltf_image.width * gltf_image.height * 4;
+			buffer = enew unsigned char[bufferSize];
+			unsigned char* rgba = buffer;
+			unsigned char* rgb = &gltf_image.image[0];
+
+			for (size_t i = 0; i < gltf_image.width * gltf_image.height; ++i)
+			{
+				memcpy(rgba, rgb, sizeof(unsigned char) * 3);
+				rgba += 4;
+				rgb += 3;
+			}
+
+			deleteBuffer = true;
+		}
+		else
+		{
+			buffer = &gltf_image.image[0];
+		}
+
+		auto textureID = textures.emplace_back(gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height)).heapOffset;
+
+		if (deleteBuffer)
+			edelete buffer;
+
+		return textureID;
 	}
 
 	// Transform

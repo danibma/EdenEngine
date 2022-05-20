@@ -22,8 +22,7 @@ cbuffer Transform : register(b1)
 }
 
 Texture2D g_textureDiffuse : register(t0);
-//Texture2D g_textureMetalRoughness : register(t1);
-Texture2D g_textureEmissive : register(t2);
+Texture2D g_textureEmissive : register(t1);
 SamplerState g_sampler : register(s0);
 
 //=================
@@ -83,7 +82,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     // Emissive
     float4 emissive = g_textureEmissive.Sample(g_sampler, input.uv).rgba * 3.0f;
     
-    float4 pixelColor = (ambient + diffuse + specular + emissive);
+    float4 pixelColor = ambient + diffuse + specular + emissive;
     
     return pixelColor;
 }

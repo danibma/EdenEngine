@@ -150,9 +150,7 @@ void Update()
 
 			for (auto& submesh : mesh.submeshes)
 			{
-				if (sponza.materials[submesh.materialIndex] != UINT32_MAX)
-					gfx->BindTexture2D(sponza.textures[sponza.textureIndices[sponza.materials[submesh.materialIndex]]]);
-
+				gfx->BindTexture2D(submesh.materialIndex);
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
 			}
 		}

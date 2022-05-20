@@ -160,6 +160,7 @@ namespace Eden
 		void BindIndexBuffer(Buffer indexBuffer);
 		void BindConstantBuffer(uint32_t rootParameterIndex, Buffer constantBuffer);
 		void BindTexture2D(Texture2D texture);
+		void BindTexture2D(uint32_t heapOffset);
 
 		void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0);
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0);
