@@ -267,6 +267,8 @@ namespace Eden
 		reflectionBuffer.Size = reflectionBlob->GetBufferSize();
 		reflectionBuffer.Encoding = DXC_CP_ACP;
 
+		ComPtr<ID3D12ShaderReflection> m_pixelReflection;
+
 		m_utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&m_pixelReflection));
 
 		D3D12_SHADER_DESC shaderDesc;
@@ -326,9 +328,10 @@ namespace Eden
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
 		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-		CD3DX12_ROOT_PARAMETER1 rootParameters[2] = {};
+		CD3DX12_ROOT_PARAMETER1 rootParameters[3] = {};
 		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 		rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+		rootParameters[2].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
 
 		D3D12_STATIC_SAMPLER_DESC samplerDiffuse = CreateStaticSamplerDesc(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 		D3D12_STATIC_SAMPLER_DESC samplers[] = { samplerDiffuse };

@@ -1,3 +1,5 @@
+#include "global.hlsli"
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -9,30 +11,43 @@ struct PSInput
 
 cbuffer SceneData : register(b0)
 {
-    float4x4 mvpMatrix;
-    float4x4 modelViewMatrix;
-    float4x4 normalMatrix;
-    float3 lightPosition;
+    float4x4 view;
+    float4x4 viewProjection;
+    float4 lightPosition;
 };
+
+cbuffer Transform : register(b1)
+{
+    float4x4 transform;
+}
 
 Texture2D g_textureDiffuse : register(t0);
 //Texture2D g_textureMetalRoughness : register(t1);
 Texture2D g_textureEmissive : register(t2);
 SamplerState g_sampler : register(s0);
 
+//=================
+// Vertex Shader
+//=================
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 color : COLOR)
 {
     PSInput result;
 
+    float4x4 mvpMatrix = mul(viewProjection, transform);
+    float4x4 modelViewMatrix = mul(view, transform);
+    
     result.position = mul(mvpMatrix, float4(position, 1.0f));
     result.positionModel = mul(modelViewMatrix, float4(position, 1.0f));
-    result.normal = float3(mul(normalMatrix, float4(normal, 1.0f)).xyz);
+    result.normal = TransformDirection(transform, normal);
     result.uv = uv;
     result.color = color;
 
     return result;
 }
 
+//=================
+// Pixel Shader
+//=================
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 diffuseTexture = g_textureDiffuse.Sample(g_sampler, input.uv);
@@ -44,7 +59,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
-    float3 lightPos = lightPosition;
+    float3 lightPos = lightPosition.xyz;
     float3 fragPos = float3(input.positionModel.xyz);
     
     // Ambient Light
