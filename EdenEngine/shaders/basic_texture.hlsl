@@ -19,11 +19,11 @@ cbuffer SceneData : register(b0)
 cbuffer Transform : register(b1)
 {
     float4x4 transform;
-}
+};
 
 Texture2D g_textureDiffuse : register(t0);
 Texture2D g_textureEmissive : register(t1);
-SamplerState g_sampler : register(s0);
+SamplerState g_linearSampler : register(s0);
 
 //=================
 // Vertex Shader
@@ -49,7 +49,7 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 //=================
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 diffuseTexture = g_textureDiffuse.Sample(g_sampler, input.uv);
+    float4 diffuseTexture = g_textureDiffuse.Sample(g_linearSampler, input.uv);
     
     if (diffuseTexture.x == 0.0f &&
         diffuseTexture.y == 0.0f &&
@@ -80,7 +80,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
     
     // Emissive
-    float4 emissive = g_textureEmissive.Sample(g_sampler, input.uv).rgba * 3.0f;
+    float4 emissive = g_textureEmissive.Sample(g_linearSampler, input.uv).rgba * 3.0f;
     
     float4 pixelColor = ambient + diffuse + specular + emissive;
     

@@ -4,7 +4,6 @@ struct PSInput
 {
     float4 position : SV_POSITION;
     float4 positionModel : Position;
-    float2 uv : TEXCOORD;
     float3 normal : NORMAL;
     float4 color : COLOR;
 };
@@ -19,7 +18,7 @@ cbuffer SceneData : register(b0)
 cbuffer Transform : register(b1)
 {
     float4x4 transform;
-}
+};
 
 //=================
 // Vertex Shader
@@ -34,7 +33,6 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
     result.position = mul(mvpMatrix, float4(position, 1.0f));
     result.positionModel = mul(modelViewMatrix, float4(position, 1.0f));
     result.normal = TransformDirection(transform, normal);
-    result.uv = uv;
     result.color = color;
 
     return result;

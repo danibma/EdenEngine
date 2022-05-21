@@ -22,9 +22,9 @@ namespace Eden
 {
 	constexpr uint32_t s_frameCount = 2;
 
-	enum class ShaderTarget
+	enum ShaderTarget
 	{
-		Vertex,
+		Vertex = 0,
 		Pixel
 	};
 
@@ -87,6 +87,11 @@ namespace Eden
 		PipelineType type;
 		ComPtr<ID3D12RootSignature> rootSignature;
 		ComPtr<ID3D12PipelineState> pipelineState;
+		ComPtr<ID3D12ShaderReflection> pixelReflection;
+		ComPtr<ID3D12ShaderReflection> vertexReflection;
+
+		// name, rootParameterIndex
+		std::unordered_map<std::string, uint32_t> rootParameterIndices;
 	};
 
 	class GraphicsDevice
@@ -127,6 +132,12 @@ namespace Eden
 
 		uint32_t m_srvHeapOffset = 1;
 
+		struct ShaderResult
+		{
+			ComPtr<IDxcBlob> blob;
+			ComPtr<ID3D12ShaderReflection> reflection;
+		};
+
 	public:
 		GraphicsDevice(Window* window);
 		~GraphicsDevice();
@@ -158,9 +169,9 @@ namespace Eden
 		void BindPipeline(const Pipeline& pipeline);
 		void BindVertexBuffer(Buffer vertexBuffer);
 		void BindIndexBuffer(Buffer indexBuffer);
-		void BindConstantBuffer(uint32_t rootParameterIndex, Buffer constantBuffer);
-		void BindTexture2D(Texture2D texture);
-		void BindTexture2D(uint32_t heapOffset);
+		void BindConstantBuffer(std::string_view parameterName, Buffer constantBuffer);
+		void BindMaterial(Texture2D texture);
+		void BindMaterial(uint32_t heapOffset);
 
 		void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0);
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0);
@@ -173,11 +184,11 @@ namespace Eden
 	private:
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		ComPtr<IDxcBlob> CompileShader(std::filesystem::path filePath, ShaderTarget target);
-		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility);
+		void CreateBackBuffers(uint32_t width, uint32_t height);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint32_t size, void* data);
-		void CreateBackBuffers(uint32_t width, uint32_t height);
+		ShaderResult CompileShader(std::filesystem::path filePath, ShaderTarget target);
+		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility);
 	};
 }
 

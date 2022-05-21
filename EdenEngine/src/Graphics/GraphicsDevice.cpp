@@ -193,7 +193,7 @@ namespace Eden
 		ED_PROFILER_SHUTDOWN();
 	}
 
-	ComPtr<IDxcBlob> GraphicsDevice::CompileShader(std::filesystem::path filePath, ShaderTarget target)
+	GraphicsDevice::ShaderResult GraphicsDevice::CompileShader(std::filesystem::path filePath, ShaderTarget target)
 	{
 		ED_PROFILE_FUNCTION();
 
@@ -257,7 +257,6 @@ namespace Eden
 		ComPtr<IDxcBlob> shaderBlob;
 		result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 
-	#if 0
 		// Get reflection blob
 		ComPtr<IDxcBlob> reflectionBlob;
 		result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr);
@@ -267,36 +266,16 @@ namespace Eden
 		reflectionBuffer.Size = reflectionBlob->GetBufferSize();
 		reflectionBuffer.Encoding = DXC_CP_ACP;
 
-		ComPtr<ID3D12ShaderReflection> m_pixelReflection;
+		ComPtr<ID3D12ShaderReflection> reflection;
+		m_utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&reflection));
 
-		m_utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&m_pixelReflection));
-
-		D3D12_SHADER_DESC shaderDesc;
-		m_pixelReflection->GetDesc(&shaderDesc);
-		for (uint32_t i = 0; i < shaderDesc.BoundResources; ++i)
-		{
-			D3D12_SHADER_INPUT_BIND_DESC desc = {};
-			m_pixelReflection->GetResourceBindingDesc(i, &desc);
-
-			ED_LOG_INFO("Shader Resource {}:{}", i, desc.Name);
-		}
-
-		for (uint32_t i = 0; i < shaderDesc.InputParameters; ++i)
-		{
-			D3D12_SIGNATURE_PARAMETER_DESC desc = {};
-			m_pixelReflection->GetInputParameterDesc(i, &desc);
-
-			ED_LOG_INFO("Shader Input Parameter {}:{}", i, desc.SemanticName);
-		}
-	#endif
-
-		return shaderBlob;
+		return { shaderBlob, reflection };
 	}
 
 	D3D12_STATIC_SAMPLER_DESC GraphicsDevice::CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility)
 	{
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
-		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		sampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
 		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -325,25 +304,122 @@ namespace Eden
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 		}
 
-		CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		uint32_t srvCount = 0;
+		std::vector<CD3DX12_ROOT_PARAMETER1> rootParameters;
+		std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
+		
+		uint32_t shaderCount = 2; // For now this is always two because its only compiling vertex and pixel shader, in the future add a way to check this dynamically
+		for (uint32_t i = 0; i < shaderCount; ++i)
+		{
+			ComPtr<ID3D12ShaderReflection> reflection;
+			D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // use All because the shaders are always in one file, so most parameters will be accessed by both
 
-		CD3DX12_ROOT_PARAMETER1 rootParameters[3] = {};
-		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-		rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
-		rootParameters[2].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+			// Get shader type
+			switch (i)
+			{
+			case ShaderTarget::Vertex:
+				reflection = pipeline.vertexReflection;
+				shaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+				break;
+			case ShaderTarget::Pixel:
+				reflection = pipeline.pixelReflection;
+				shaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+				break;
+			default:
+				ED_LOG_ERROR("Shader target is not yet implemented!");
+				break;
+			}
 
-		D3D12_STATIC_SAMPLER_DESC samplerDiffuse = CreateStaticSamplerDesc(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-		D3D12_STATIC_SAMPLER_DESC samplers[] = { samplerDiffuse };
+			if (!reflection) return;
+			D3D12_SHADER_DESC shaderDesc = {};
+			reflection->GetDesc(&shaderDesc);
+
+			for (uint32_t j = 0; j < shaderDesc.BoundResources; ++j)
+			{
+				D3D12_SHADER_INPUT_BIND_DESC desc = {};
+				reflection->GetResourceBindingDesc(j, &desc);
+
+				// TODO(Daniel): Add more as needed
+				switch (desc.Type)
+				{
+				case D3D_SIT_TEXTURE:
+					srvCount++;
+					break;
+				case D3D_SIT_CBUFFER:
+					{
+						CD3DX12_ROOT_PARAMETER1 parameter = {};
+
+						bool foundParameter = false;
+						for (auto& p : rootParameters)
+						{
+							if (desc.BindPoint == p.Descriptor.ShaderRegister && 
+								desc.Space == p.Descriptor.RegisterSpace)
+							{
+								p.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+								foundParameter = true;
+								break;
+							}
+						}
+
+						if (foundParameter) continue;
+
+						parameter.InitAsConstantBufferView(desc.BindPoint, desc.Space, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, shaderVisibility);
+						pipeline.rootParameterIndices[desc.Name] = rootParameters.size(); // get the root parameter index
+						rootParameters.emplace_back(parameter);
+					}
+					break;
+				case D3D_SIT_SAMPLER:
+				{
+					// Right now is only creating linear samplers
+					D3D12_STATIC_SAMPLER_DESC sampler = {};
+					sampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+					sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					sampler.MipLODBias = 0;
+					sampler.MaxAnisotropy = 0;
+					sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+					sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+					sampler.MinLOD = 0.0f;
+					sampler.MaxLOD = D3D12_FLOAT32_MAX;
+					sampler.ShaderRegister = desc.BindPoint;
+					sampler.RegisterSpace = desc.Space;
+					sampler.ShaderVisibility = shaderVisibility;
+					samplers.emplace_back(sampler);
+				}
+				break;
+				default:
+					ED_LOG_ERROR("Resource type has not been yet implemented!");
+					break;
+				}
+			}
+		}
+
+		if (srvCount > 0)
+		{
+			CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, srvCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+			// put the srv descriptor table at the first index
+			CD3DX12_ROOT_PARAMETER1 srvParameter = {};
+			srvParameter.InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+			rootParameters.emplace(rootParameters.begin(), srvParameter);
+
+			for (auto& parameter : pipeline.rootParameterIndices)
+			{
+				auto& [name, index] = parameter;
+				index++;
+			}
+		}
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, _countof(samplers), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		rootSignatureDesc.Init_1_1(rootParameters.size(), rootParameters.data(), samplers.size(), samplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
 
 		if (FAILED(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error)))
-			ED_LOG_ERROR("Failed to serialize root signature");
+			ED_LOG_ERROR("Failed to serialize root signature: {}", (char*)error->GetBufferPointer());
 
 		if (FAILED(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&pipeline.rootSignature))))
 			ED_LOG_ERROR("Failed to create root signature");
@@ -433,22 +509,67 @@ namespace Eden
 		shaderPath.append(L".hlsl");
 
 		auto vertexShader = CompileShader(shaderPath, ShaderTarget::Vertex);
+		pipeline.vertexReflection = vertexShader.reflection;
 		auto pixelShader = CompileShader(shaderPath, ShaderTarget::Pixel);
+		pipeline.pixelReflection = pixelShader.reflection;
 
 		ED_LOG_INFO("Compiled program {} successfully!", programName);
 
-		// TODO: Implement shader reflection
 		// Create the root signature
 		CreateRootSignature(pipeline);
 
-		// Define the vertex input layout
-		D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
+		// Get input elements from vertex shader reflection
+		std::vector<D3D12_INPUT_ELEMENT_DESC> inputElements;
+		D3D12_SHADER_DESC shaderDesc;
+		pipeline.vertexReflection->GetDesc(&shaderDesc);
+		for (uint32_t i = 0; i < shaderDesc.InputParameters; ++i)
 		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,   0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT,   0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		};
+			D3D12_SIGNATURE_PARAMETER_DESC desc = {};
+			pipeline.vertexReflection->GetInputParameterDesc(i, &desc);
+
+			uint32_t componentCount = 0;
+			while (desc.Mask)
+			{
+				++componentCount;
+				desc.Mask >>= 1;
+			}
+
+			DXGI_FORMAT componentFormat = DXGI_FORMAT_UNKNOWN;
+			switch (desc.ComponentType)
+			{
+			case D3D_REGISTER_COMPONENT_UINT32:
+				componentFormat = (componentCount == 1 ? DXGI_FORMAT_R32_UINT :
+								   componentCount == 2 ? DXGI_FORMAT_R32G32_UINT :
+								   componentCount == 3 ? DXGI_FORMAT_R32G32B32_UINT :
+								   DXGI_FORMAT_R32G32B32A32_UINT);
+				break;
+			case D3D_REGISTER_COMPONENT_SINT32:
+				componentFormat = (componentCount == 1 ? DXGI_FORMAT_R32_SINT :
+								   componentCount == 2 ? DXGI_FORMAT_R32G32_SINT :
+								   componentCount == 3 ? DXGI_FORMAT_R32G32B32_SINT :
+								   DXGI_FORMAT_R32G32B32A32_SINT);
+				break;
+			case D3D_REGISTER_COMPONENT_FLOAT32:
+				componentFormat = (componentCount == 1 ? DXGI_FORMAT_R32_FLOAT :
+								   componentCount == 2 ? DXGI_FORMAT_R32G32_FLOAT :
+								   componentCount == 3 ? DXGI_FORMAT_R32G32B32_FLOAT :
+								   DXGI_FORMAT_R32G32B32A32_FLOAT);
+				break;
+			default:
+				break;  // D3D_REGISTER_COMPONENT_UNKNOWN
+			}
+
+			D3D12_INPUT_ELEMENT_DESC inputElement = {};
+			inputElement.SemanticName = desc.SemanticName;
+			inputElement.SemanticIndex = desc.SemanticIndex;
+			inputElement.Format = componentFormat;
+			inputElement.InputSlot = 0;
+			inputElement.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+			inputElement.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+			inputElement.InstanceDataStepRate = 0;
+
+			inputElements.emplace_back(inputElement);
+		}
 
 		D3D12_RENDER_TARGET_BLEND_DESC renderTargetBlendDesc = {};
 		renderTargetBlendDesc.BlendEnable = enableBlending;
@@ -465,8 +586,8 @@ namespace Eden
 		// Describe and create pipeline state object(PSO)
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.pRootSignature = pipeline.rootSignature.Get();
-		psoDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
-		psoDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+		psoDesc.VS = { vertexShader.blob->GetBufferPointer(), vertexShader.blob->GetBufferSize() };
+		psoDesc.PS = { pixelShader.blob->GetBufferPointer(), pixelShader.blob->GetBufferSize() };
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.BlendState.RenderTarget[0] = renderTargetBlendDesc;
 		psoDesc.SampleMask = UINT_MAX;
@@ -475,8 +596,8 @@ namespace Eden
 		psoDesc.RasterizerState.FrontCounterClockwise = true;
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT); // a default depth stencil state;
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-		psoDesc.InputLayout.NumElements = ARRAYSIZE(inputElementDesc);
-		psoDesc.InputLayout.pInputElementDescs = inputElementDesc;
+		psoDesc.InputLayout.NumElements = inputElements.size();
+		psoDesc.InputLayout.pInputElementDescs = inputElements.data();
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		psoDesc.NumRenderTargets = 1;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -733,13 +854,14 @@ namespace Eden
 		boundIndexBuffer.Format			= DXGI_FORMAT_R32_UINT;
 	}
 
-	void GraphicsDevice::BindConstantBuffer(uint32_t rootParameterIndex, Buffer constantBuffer)
+	void GraphicsDevice::BindConstantBuffer(std::string_view parameterName, Buffer constantBuffer)
 	{
 		ED_PROFILE_FUNCTION();
+		auto rootParameterIndex = boundPipeline.rootParameterIndices.at(parameterName.data());
 		m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, constantBuffer.resource->GetGPUVirtualAddress());
 	}
 
-	void GraphicsDevice::BindTexture2D(Texture2D texture)
+	void GraphicsDevice::BindMaterial(Texture2D texture)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -749,7 +871,7 @@ namespace Eden
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 	}
 
-	void GraphicsDevice::BindTexture2D(uint32_t heapOffset)
+	void GraphicsDevice::BindMaterial(uint32_t heapOffset)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);

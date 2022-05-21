@@ -145,12 +145,12 @@ void Update()
 			sceneData.viewProjection = projection * view;
 			sceneData.lightPosition = view * glm::vec4(lightPosition, 1.0f);
 			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
-			gfx->BindConstantBuffer(1, sceneDataCB);
-			gfx->BindConstantBuffer(2, mesh.transformCB);
+			gfx->BindConstantBuffer("SceneData", sceneDataCB);
+			gfx->BindConstantBuffer("Transform", mesh.transformCB);
 
 			for (auto& submesh : mesh.submeshes)
 			{
-				gfx->BindTexture2D(submesh.materialIndex);
+				gfx->BindMaterial(submesh.materialIndex);
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
 			}
 		}
@@ -169,8 +169,8 @@ void Update()
 			sceneData.viewProjection = projection * view;
 			sceneData.lightPosition = view * glm::vec4(lightPosition, 1.0f);
 			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
-			gfx->BindConstantBuffer(1, sceneDataCB);
-			gfx->BindConstantBuffer(2, mesh.transformCB);
+			gfx->BindConstantBuffer("SceneData", sceneDataCB);
+			gfx->BindConstantBuffer("Transform", mesh.transformCB);
 		
 			for (auto& submesh : mesh.submeshes)
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);

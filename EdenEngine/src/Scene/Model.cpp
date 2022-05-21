@@ -118,7 +118,7 @@ namespace Eden
 
 					for (size_t v = 0; v < vertexCount; ++v)
 					{
-						Vertex newVert = {};
+						VertexData newVert = {};
 
 						newVert.position = glm::make_vec3(&positionBuffer[v * 3]);
 						//newVert.position.y = glm::make_vec3(&positionBuffer[v * 3]).z;
@@ -185,7 +185,6 @@ namespace Eden
 				}
 
 				// Load materials
-				// TODO(Daniel): create a easy way to add more textures to load here, rn is just loading diffuse and emissive textures
 				auto gltf_material = gltfModel.materials[gltf_primitive.material];
 				if (gltf_material.values.find("baseColorTexture") != gltf_material.values.end())
 				{
@@ -211,7 +210,7 @@ namespace Eden
 			meshes.push_back(mesh);
 		}
 
-		meshVB = gfx->CreateBuffer<Vertex>(vertices.data(), (uint32_t)vertices.size());
+		meshVB = gfx->CreateBuffer<VertexData>(vertices.data(), (uint32_t)vertices.size());
 		meshIB = gfx->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());

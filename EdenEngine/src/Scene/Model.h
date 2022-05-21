@@ -17,14 +17,14 @@ namespace Eden
 	//==================
 	// Vertex
 	//==================
-	struct Vertex
+	struct VertexData
 	{
 		glm::vec3 position;
 		glm::vec2 uv;
 		glm::vec3 normal;
 		glm::vec4 color;
 
-		bool operator==(const Vertex& other) const
+		bool operator==(const VertexData& other) const
 		{
 			return position == other.position && uv == other.uv && normal == other.normal;
 		}
@@ -69,7 +69,7 @@ namespace Eden
 			glm::vec3 m_lastTranslation = glm::vec3(0.0f);
 		};
 
-		std::vector<Vertex> vertices;
+		std::vector<VertexData> vertices;
 		Buffer meshVB;
 		std::vector<uint32_t> indices;
 		Buffer meshIB;
@@ -88,8 +88,8 @@ namespace Eden
 
 namespace std
 {
-	template<> struct hash<Eden::Vertex> {
-		size_t operator()(Eden::Vertex const& vertex) const {
+	template<> struct hash<Eden::VertexData> {
+		size_t operator()(Eden::VertexData const& vertex) const {
 			return ((hash<glm::vec3>()(vertex.position) ^
 					 (hash<glm::vec2>()(vertex.uv) << 1)) >> 1) ^
 				(hash<glm::vec3>()(vertex.normal) << 1);
