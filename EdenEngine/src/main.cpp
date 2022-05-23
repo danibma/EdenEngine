@@ -105,7 +105,7 @@ void Init()
 
 	sceneDataCB = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 
-	skyboxTexture = gfx->CreateTexture2D("assets/skyboxes/kiara_dawn/cubemap.hdr");
+	skyboxTexture = gfx->CreateTexture2D("assets/skyboxes/sky.hdr");
 	skyboxTexture.resource->SetName(L"Skybox texture");
 
 	skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));

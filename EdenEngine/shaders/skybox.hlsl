@@ -12,7 +12,7 @@ cbuffer SkyboxData : register(b0)
 //=================
 // Vertex Shader
 //=================
-PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 color : COLOR)
+PSInput VSMain(float3 position : POSITION)
 {
     PSInput result;
     result.position = mul(viewProjection, float4(position, 1.0f));
