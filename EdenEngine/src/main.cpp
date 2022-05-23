@@ -55,6 +55,16 @@ Model sponza;
 Model flightHelmet;
 Model basicMesh;
 
+// Skybox
+Pipeline skybox;
+Model skyboxCube;
+Texture2D skyboxTexture;
+struct SkyboxData
+{
+	glm::mat4 viewProjection;
+} skyboxData;
+Buffer skyboxDataCB;
+
 void Init()
 {
 	Log::Init();
@@ -68,11 +78,21 @@ void Init()
 	gfx = enew GraphicsDevice(window);
 	gfx->EnableImGui();
 
-	basic_texture = gfx->CreateGraphicsPipeline("basic_texture", true);
-	basic = gfx->CreateGraphicsPipeline("basic", false);
+	PipelineState basic_textureDS;
+	basic_textureDS.enableBlending = true;
+	basic_texture = gfx->CreateGraphicsPipeline("basic_texture", basic_textureDS);
 
-	sponza.LoadGLTF(gfx, "assets/DamagedHelmet/DamagedHelmet.glb");
-	basicMesh.LoadGLTF(gfx, "assets/basic/sphere.glb");
+	basic = gfx->CreateGraphicsPipeline("basic");
+
+	PipelineState skyboxDS;
+	skyboxDS.cullMode = D3D12_CULL_MODE_NONE;
+	skyboxDS.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	skyboxDS.minDepth = 1.0f;
+	skybox = gfx->CreateGraphicsPipeline("skybox", skyboxDS);
+
+	sponza.LoadGLTF(gfx, "assets/Models/DamagedHelmet/DamagedHelmet.glb");
+	basicMesh.LoadGLTF(gfx, "assets/Models/basic/sphere.glb");
+	skyboxCube.LoadGLTF(gfx, "assets/Models/basic/cube.glb");
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -84,6 +104,12 @@ void Init()
 	sceneData.lightPosition = glm::vec4(lightPosition, 1.0f);
 
 	sceneDataCB = gfx->CreateBuffer<SceneData>(&sceneData, 1);
+
+	skyboxTexture = gfx->CreateTexture2D("assets/skyboxes/kiara_dawn/cubemap.hdr");
+	skyboxTexture.resource->SetName(L"Skybox texture");
+
+	skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
+	skyboxDataCB = gfx->CreateBuffer<SkyboxData>(&skyboxData, 1);
 }
 
 bool openDebugWindow = true;
@@ -127,12 +153,11 @@ void Update()
 
 		gfx->ClearRenderTargets();
 
-		gfx->BindPipeline(basic_texture);
-
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
 
 		// Sponza
+		gfx->BindPipeline(basic_texture);
 		gfx->BindVertexBuffer(sponza.meshVB);
 		gfx->BindIndexBuffer(sponza.meshIB);
 		for (auto& mesh : sponza.meshes)
@@ -176,6 +201,23 @@ void Update()
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
 		}
 
+		// Skybox
+		gfx->BindPipeline(skybox);
+		gfx->BindVertexBuffer(skyboxCube.meshVB);
+		gfx->BindIndexBuffer(skyboxCube.meshIB);
+		for (auto& mesh : skyboxCube.meshes)
+		{
+			skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
+			gfx->UpdateBuffer<SkyboxData>(skyboxDataCB, &skyboxData, 1);
+			gfx->BindConstantBuffer("SkyboxData", skyboxDataCB);
+
+			for (auto& submesh : mesh.submeshes)
+			{
+				gfx->BindMaterial(skyboxTexture);
+				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+			}
+		}
+
 		// This is where the "real" loop ends, do not write rendering stuff below this
 		gfx->Render();
 	}
@@ -184,6 +226,9 @@ void Update()
 void Destroy()
 {
 	sceneDataCB.Release();
+	skyboxDataCB.Release();
+	skyboxCube.Destroy();
+	skyboxTexture.Release();
 	sponza.Destroy();
 	flightHelmet.Destroy();
 	basicMesh.Destroy();

@@ -193,32 +193,32 @@ namespace Eden
 		ED_PROFILER_SHUTDOWN();
 	}
 
-	GraphicsDevice::ShaderResult GraphicsDevice::CompileShader(std::filesystem::path filePath, ShaderTarget target)
+	GraphicsDevice::ShaderResult GraphicsDevice::CompileShader(std::filesystem::path filePath, ShaderStage stage)
 	{
 		ED_PROFILE_FUNCTION();
 
 		std::wstring entryPoint = L"";
-		std::wstring targetStr = L"";
+		std::wstring stageStr = L"";
 
-		switch (target)
+		switch (stage)
 		{
-		case Eden::ShaderTarget::Vertex:
+		case Eden::ShaderStage::Vertex:
 			entryPoint = L"VSMain";
-			targetStr = L"vs_6_0";
+			stageStr = L"vs_6_0";
 			break;
-		case Eden::ShaderTarget::Pixel:
+		case Eden::ShaderStage::Pixel:
 			entryPoint = L"PSMain";
-			targetStr = L"ps_6_0";
+			stageStr = L"ps_6_0";
 			break;
 		}
 
-		std::wstring wPdbName = filePath.filename().wstring() + targetStr + L".pdb";
+		std::wstring wPdbName = filePath.filename().wstring() + stageStr + L".pdb";
 
 		std::vector<LPCWSTR> arguments =
 		{
 			filePath.c_str(),
 			L"-E", entryPoint.c_str(),
-			L"-T", targetStr.c_str(),
+			L"-T", stageStr.c_str(),
 			L"-Zi",
 			L"-Fd", wPdbName.c_str()
 		};
@@ -239,7 +239,7 @@ namespace Eden
 		// Note that d3dcompiler would return null if no errors or warnings are present.  
 		// IDxcCompiler3::Compile will always return an error buffer, but its length will be zero if there are no warnings or errors.
 		if (errors != nullptr && errors->GetStringLength() != 0)
-			ED_LOG_ERROR("Failed to compile {} {} shader: {}", filePath.filename(), Utils::ShaderTargetToString(target), errors->GetStringPointer());
+			ED_LOG_ERROR("Failed to compile {} {} shader: {}", filePath.filename(), Utils::ShaderStageToString(stage), errors->GetStringPointer());
 
 		// Save pdb
 		ComPtr<IDxcBlob> pdb = nullptr;
@@ -275,7 +275,7 @@ namespace Eden
 	D3D12_STATIC_SAMPLER_DESC GraphicsDevice::CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility)
 	{
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
-		sampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -314,19 +314,19 @@ namespace Eden
 			ComPtr<ID3D12ShaderReflection> reflection;
 			D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // use All because the shaders are always in one file, so most parameters will be accessed by both
 
-			// Get shader type
+			// Get shader stage
 			switch (i)
 			{
-			case ShaderTarget::Vertex:
+			case ShaderStage::Vertex:
 				reflection = pipeline.vertexReflection;
 				shaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 				break;
-			case ShaderTarget::Pixel:
+			case ShaderStage::Pixel:
 				reflection = pipeline.pixelReflection;
 				shaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 				break;
 			default:
-				ED_LOG_ERROR("Shader target is not yet implemented!");
+				ED_LOG_ERROR("Shader stage is not yet implemented!");
 				break;
 			}
 
@@ -349,6 +349,7 @@ namespace Eden
 					{
 						CD3DX12_ROOT_PARAMETER1 parameter = {};
 
+						// check if the parameter was already found in another shader stage, if it is just skip it
 						bool foundParameter = false;
 						for (auto& p : rootParameters)
 						{
@@ -360,7 +361,6 @@ namespace Eden
 								break;
 							}
 						}
-
 						if (foundParameter) continue;
 
 						parameter.InitAsConstantBufferView(desc.BindPoint, desc.Space, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, shaderVisibility);
@@ -490,12 +490,13 @@ namespace Eden
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
-	Eden::Pipeline GraphicsDevice::CreateGraphicsPipeline(std::string programName, bool enableBlending)
+	Pipeline GraphicsDevice::CreateGraphicsPipeline(std::string programName, PipelineState drawState)
 	{
 		ED_PROFILE_FUNCTION();
 
 		Pipeline pipeline = {};
 		pipeline.type = Pipeline::Graphics;
+		pipeline.drawState = drawState;
 
 		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&m_utils));
 		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_compiler));
@@ -508,9 +509,9 @@ namespace Eden
 		shaderPath.append(std::wstring(programName.begin(), programName.end()));
 		shaderPath.append(L".hlsl");
 
-		auto vertexShader = CompileShader(shaderPath, ShaderTarget::Vertex);
+		auto vertexShader = CompileShader(shaderPath, ShaderStage::Vertex);
 		pipeline.vertexReflection = vertexShader.reflection;
-		auto pixelShader = CompileShader(shaderPath, ShaderTarget::Pixel);
+		auto pixelShader = CompileShader(shaderPath, ShaderStage::Pixel);
 		pipeline.pixelReflection = pixelShader.reflection;
 
 		ED_LOG_INFO("Compiled program {} successfully!", programName);
@@ -572,7 +573,7 @@ namespace Eden
 		}
 
 		D3D12_RENDER_TARGET_BLEND_DESC renderTargetBlendDesc = {};
-		renderTargetBlendDesc.BlendEnable = enableBlending;
+		renderTargetBlendDesc.BlendEnable = drawState.enableBlending;
 		renderTargetBlendDesc.LogicOpEnable = false;
 		renderTargetBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		renderTargetBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
@@ -592,9 +593,10 @@ namespace Eden
 		psoDesc.BlendState.RenderTarget[0] = renderTargetBlendDesc;
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-		psoDesc.RasterizerState.FrontCounterClockwise = true;
+		psoDesc.RasterizerState.CullMode = drawState.cullMode;
+		psoDesc.RasterizerState.FrontCounterClockwise = drawState.frontCounterClockwise;
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT); // a default depth stencil state;
+		psoDesc.DepthStencilState.DepthFunc = drawState.depthFunc;
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		psoDesc.InputLayout.NumElements = inputElements.size();
 		psoDesc.InputLayout.pInputElementDescs = inputElements.data();
@@ -647,7 +649,7 @@ namespace Eden
 			textureDesc.Format = texture.format;
 			textureDesc.Width = width;
 			textureDesc.Height = height;
-			textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 			textureDesc.DepthOrArraySize = 1;
 			textureDesc.SampleDesc.Count = 1;
 			textureDesc.SampleDesc.Quality = 0;
@@ -881,7 +883,7 @@ namespace Eden
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 	}
 
-	void GraphicsDevice::Draw(uint32_t vertexCount, uint32_t instanceCount /*= 1*/, uint32_t startVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
+	void GraphicsDevice::PrepareDraw()
 	{
 		ED_ASSERT_LOG(boundPipeline.pipelineState != nullptr, "Can't Draw without a valid pipeline bound!");
 		ED_ASSERT_LOG(boundPipeline.rootSignature != nullptr, "Can't Draw without a valid pipeline bound!");
@@ -895,14 +897,16 @@ namespace Eden
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 		m_commandList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
 
-		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-		m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
+		m_viewport.MinDepth = boundPipeline.drawState.minDepth;
 		m_commandList->RSSetViewports(1, &m_viewport);
 		m_commandList->RSSetScissorRects(1, &m_scissor);
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
+
+	void GraphicsDevice::Draw(uint32_t vertexCount, uint32_t instanceCount /*= 1*/, uint32_t startVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
+	{
+		PrepareDraw();
 
 		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer);
 		m_commandList->DrawInstanced(vertexCount, instanceCount, startVertexLocation, startInstanceLocation);
@@ -910,25 +914,10 @@ namespace Eden
 
 	void GraphicsDevice::DrawIndexed(uint32_t indexCount, uint32_t instanceCount /*= 1*/, uint32_t startIndexLocation /*= 0*/, uint32_t baseVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
 	{
-		ED_ASSERT_LOG(boundPipeline.pipelineState != nullptr, "Can't DrawIndexed without a valid pipeline bound!");
-		ED_ASSERT_LOG(boundPipeline.rootSignature != nullptr, "Can't DrawIndexed without a valid pipeline bound!");
+		PrepareDraw();
 
-		ED_PROFILE_FUNCTION();
-
-		ED_PROFILE_GPU_CONTEXT(m_commandList.Get());
-		ED_PROFILE_GPU_FUNCTION("GPU::DrawIndexed");
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-		m_commandList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
-
-		m_commandList->RSSetViewports(1, &m_viewport);
-		m_commandList->RSSetScissorRects(1, &m_scissor);
-
-		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_commandList->IASetVertexBuffers(0, 1, &boundVertexBuffer);
 		m_commandList->IASetIndexBuffer(&boundIndexBuffer);
-
 		m_commandList->DrawIndexedInstanced(indexCount, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
 	}
 

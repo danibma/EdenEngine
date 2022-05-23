@@ -22,7 +22,7 @@ namespace Eden
 {
 	constexpr uint32_t s_frameCount = 2;
 
-	enum ShaderTarget
+	enum ShaderStage
 	{
 		Vertex = 0,
 		Pixel
@@ -30,13 +30,13 @@ namespace Eden
 
 	namespace Utils
 	{
-		inline const char* ShaderTargetToString(ShaderTarget target)
+		inline const char* ShaderStageToString(ShaderStage target)
 		{
 			switch (target)
 			{
-			case ShaderTarget::Vertex:
+			case ShaderStage::Vertex:
 				return "Vertex";
-			case ShaderTarget::Pixel:
+			case ShaderStage::Pixel:
 				return "Pixel";
 			default:
 				return "Null";
@@ -76,6 +76,15 @@ namespace Eden
 		uint32_t heapOffset;
 	};
 
+	struct PipelineState
+	{
+		bool enableBlending = false;
+		D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
+		bool frontCounterClockwise = true;
+		D3D12_COMPARISON_FUNC depthFunc = D3D12_COMPARISON_FUNC_LESS;
+		float minDepth = 0.0f;
+	};
+
 	struct Pipeline
 	{
 		enum PipelineType
@@ -84,7 +93,8 @@ namespace Eden
 			Compute // Not implemented
 		};
 
-		PipelineType type;
+		PipelineType type = Graphics;
+		PipelineState drawState;
 		ComPtr<ID3D12RootSignature> rootSignature;
 		ComPtr<ID3D12PipelineState> pipelineState;
 		ComPtr<ID3D12ShaderReflection> pixelReflection;
@@ -111,7 +121,7 @@ namespace Eden
 		ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 		ComPtr<ID3D12GraphicsCommandList> m_commandList;
 		ComPtr<ID3D12Fence> m_fence;
-		CD3DX12_VIEWPORT m_viewport;
+		
 		CD3DX12_RECT m_scissor;
 
 		ComPtr<D3D12MA::Allocator> m_allocator;
@@ -139,6 +149,7 @@ namespace Eden
 		};
 
 	public:
+		CD3DX12_VIEWPORT m_viewport;
 		GraphicsDevice(Window* window);
 		~GraphicsDevice();
 
@@ -159,7 +170,7 @@ namespace Eden
 			memcpy(buffer.data, data, sizeof(TYPE) * elementCount);
 		}
 
-		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string programName, bool enableBlending);
+		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string programName, PipelineState drawState = PipelineState());
 		[[nodiscard]] Texture2D CreateTexture2D(std::string filePath);
 		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* textureData, uint64_t width, uint32_t height);
 
@@ -182,12 +193,13 @@ namespace Eden
 		void ClearRenderTargets();
 
 	private:
+		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
 		void CreateBackBuffers(uint32_t width, uint32_t height);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint32_t size, void* data);
-		ShaderResult CompileShader(std::filesystem::path filePath, ShaderTarget target);
+		ShaderResult CompileShader(std::filesystem::path filePath, ShaderStage stage);
 		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility);
 	};
 }
