@@ -105,14 +105,12 @@ void Init()
 
 	sceneDataCB = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 
-	skyboxTexture = gfx->CreateTexture2D("assets/skyboxes/sky.hdr");
-	skyboxTexture.resource->SetName(L"Skybox texture");
-
 	skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
 	skyboxDataCB = gfx->CreateBuffer<SkyboxData>(&skyboxData, 1);
 }
 
 bool openDebugWindow = true;
+bool skyboxEnable = false;
 void Update()
 {
 	ED_PROFILE_FUNCTION();
@@ -140,10 +138,8 @@ void Update()
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::Text("Mesh Vertices: %d", sponza.vertices.size());
-				ImGui::Text("Mesh Indices: %d", sponza.indices.size());
 				ImGui::DragFloat3("Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-				ImGui::Text("Camera Position: %f, %f, %f", camera.position.x, camera.position.y, camera.position.z);
+				ImGui::Checkbox("Enable Skybox", &skyboxEnable);
 			}
 			ImGui::End();
 		}
@@ -202,19 +198,28 @@ void Update()
 		}
 
 		// Skybox
-		gfx->BindPipeline(skybox);
-		gfx->BindVertexBuffer(skyboxCube.meshVB);
-		gfx->BindIndexBuffer(skyboxCube.meshIB);
-		for (auto& mesh : skyboxCube.meshes)
+		if (skyboxEnable)
 		{
-			skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
-			gfx->UpdateBuffer<SkyboxData>(skyboxDataCB, &skyboxData, 1);
-			gfx->BindConstantBuffer("SkyboxData", skyboxDataCB);
-
-			for (auto& submesh : mesh.submeshes)
+			if (!skyboxTexture.resource) // If the texture is not loaded yet, load it
 			{
-				gfx->BindMaterial(skyboxTexture);
-				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+				skyboxTexture = gfx->CreateTexture2D("assets/skyboxes/sky.hdr");
+				skyboxTexture.resource->SetName(L"Skybox texture");
+			}
+
+			gfx->BindPipeline(skybox);
+			gfx->BindVertexBuffer(skyboxCube.meshVB);
+			gfx->BindIndexBuffer(skyboxCube.meshIB);
+			for (auto& mesh : skyboxCube.meshes)
+			{
+				skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
+				gfx->UpdateBuffer<SkyboxData>(skyboxDataCB, &skyboxData, 1);
+				gfx->BindConstantBuffer("SkyboxData", skyboxDataCB);
+
+				for (auto& submesh : mesh.submeshes)
+				{
+					gfx->BindMaterial(skyboxTexture);
+					gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+				}
 			}
 		}
 
