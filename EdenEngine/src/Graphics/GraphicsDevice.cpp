@@ -225,6 +225,9 @@ namespace Eden
 
 		ComPtr<IDxcBlobEncoding> source = nullptr;
 		m_utils->LoadFile(filePath.c_str(), nullptr, &source);
+		if (!source)
+			ED_LOG_ERROR("Could not find the program shader file: {}", filePath);
+
 		DxcBuffer sourceBuffer;
 		sourceBuffer.Ptr = source->GetBufferPointer();
 		sourceBuffer.Size = source->GetBufferSize();
@@ -514,7 +517,7 @@ namespace Eden
 		auto pixelShader = CompileShader(shaderPath, ShaderStage::Pixel);
 		pipeline.pixelReflection = pixelShader.reflection;
 
-		ED_LOG_INFO("Compiled program {} successfully!", programName);
+		ED_LOG_INFO("Compiled program '{}' successfully!", programName);
 
 		// Create the root signature
 		CreateRootSignature(pipeline);

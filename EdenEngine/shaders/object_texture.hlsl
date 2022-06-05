@@ -1,4 +1,5 @@
 #include "global.hlsli"
+#include "phong_lighting.hlsli"
 
 struct PSInput
 {
@@ -13,7 +14,6 @@ cbuffer SceneData : register(b0)
 {
     float4x4 view;
     float4x4 viewProjection;
-    float4 lightPosition;
 };
 
 cbuffer Transform : register(b1)
@@ -24,6 +24,10 @@ cbuffer Transform : register(b1)
 Texture2D g_textureDiffuse : register(t0);
 Texture2D g_textureEmissive : register(t1);
 SamplerState g_linearSampler : register(s0);
+
+// Lights
+ConstantBuffer<DirectionalLight> directionalLightCB : register(b2);
+ConstantBuffer<PointLight> pointLightCB : register(b3);
 
 //=================
 // Vertex Shader
@@ -50,39 +54,28 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 diffuseTexture = g_textureDiffuse.Sample(g_linearSampler, input.uv);
+    float4 objectColor = diffuseTexture;
     
     if (diffuseTexture.x == 0.0f &&
         diffuseTexture.y == 0.0f &&
         diffuseTexture.z == 0.0f)
-        diffuseTexture = input.color;
-    
-    // Lighting
-    float3 lightColor = float3(1.0f, 1.0f, 1.0f);
-    float3 lightPos = lightPosition.xyz;
-    float3 fragPos = float3(input.positionModel.xyz);
-    
-    // Ambient Light
-    float ambientStrength = 0.1f;
-    float4 ambient = float4(ambientStrength * lightColor, 1.0f) * diffuseTexture;
-    
-    // Diffuse Light
-    float3 norm = normalize(input.normal);
-    float3 lightDirection = normalize(lightPos - fragPos);
-    float diffuseColor = max(dot(norm, lightDirection), 0.0f);
-    float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * diffuseTexture;
-    
-    // Specular Light
-    float specularStrength = 0.5f;
-    float3 viewDirection = normalize(-fragPos);
-    float3 reflectDirection = reflect(-lightDirection, norm);
-    float shininess = 32;
-    float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
-    float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
+        objectColor = input.color;
     
     // Emissive
     float4 emissive = g_textureEmissive.Sample(g_linearSampler, input.uv).rgba * 3.0f;
     
-    float4 pixelColor = ambient + diffuse + specular + emissive;
+    // Calculate Directional Light
+    DirectionalLight dl;
+    dl.direction = directionalLightCB.direction;
+    float4 pixelColor = CalculateDirectionLight(objectColor, input.positionModel, input.normal, dl);
+    
+    // Calculate point lights
+    PointLight pl;
+    pl.position = pointLightCB.position;
+    pl.constant_value = pointLightCB.constant_value;
+    pl.linear_value = pointLightCB.linear_value;
+    pl.quadratic_value = pointLightCB.quadratic_value;
+    pixelColor += emissive + CalculatePointLight(objectColor, input.positionModel, input.normal, pl);
     
     return pixelColor;
 }

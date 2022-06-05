@@ -30,27 +30,36 @@ float deltaTime;
 //==================
 struct SceneData
 {
-	//glm::mat4 MVPMatrix;
-	//glm::mat4 modelViewMatrix;
-	//// This matrix is used to fix the problem of a uniform scale only changing the normal's magnitude and not it's direction
-	//glm::mat4 normalMatrix;
-	//glm::vec3 lightPosition;
-
 	glm::mat4 view;
 	glm::mat4 viewProjection;
-	glm::vec4 lightPosition;
 };
+
+struct DirectionalLight
+{
+	glm::vec3 direction;
+} directionalLight;
+Buffer directionalLightCB;
+
+struct PointLight
+{
+	glm::vec3 position;
+	float constant_value;
+	float linear_value;
+	float quadratic_value;
+} pointLight;
+Buffer pointLightCB;
 
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
 glm::vec3 lightPosition(0.0f, 7.0f, 0.0f);
+glm::vec3 lightDirection(-0.2f, -1.0f, -2.3f);
 SceneData sceneData;
 Buffer sceneDataCB;
 Camera camera;
 
-Pipeline basic_texture;
-Pipeline basic;
+Pipeline object_texture;
+Pipeline object_simple;
 Model sponza;
 Model flightHelmet;
 Model basicMesh;
@@ -78,11 +87,11 @@ void Init()
 	gfx = enew GraphicsDevice(window);
 	gfx->EnableImGui();
 
-	PipelineState basic_textureDS;
-	basic_textureDS.enableBlending = true;
-	basic_texture = gfx->CreateGraphicsPipeline("basic_texture", basic_textureDS);
+	PipelineState object_textureDS;
+	object_textureDS.enableBlending = true;
+	object_texture = gfx->CreateGraphicsPipeline("object_texture", object_textureDS);
 
-	basic = gfx->CreateGraphicsPipeline("basic");
+	object_simple = gfx->CreateGraphicsPipeline("object_simple");
 
 	PipelineState skyboxDS;
 	skyboxDS.cullMode = D3D12_CULL_MODE_NONE;
@@ -101,16 +110,25 @@ void Init()
 	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 	sceneData.view = view;
 	sceneData.viewProjection = projection * view;
-	sceneData.lightPosition = glm::vec4(lightPosition, 1.0f);
 
 	sceneDataCB = gfx->CreateBuffer<SceneData>(&sceneData, 1);
 
 	skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
 	skyboxDataCB = gfx->CreateBuffer<SkyboxData>(&skyboxData, 1);
+
+	// Lights
+	directionalLight.direction = lightDirection;
+	directionalLightCB = gfx->CreateBuffer<DirectionalLight>(&directionalLight, 1);
+
+	pointLight.position = lightPosition;
+	pointLight.constant_value = 1.0f;
+	pointLight.linear_value = 0.09f;
+	pointLight.quadratic_value = 0.032f;
+	pointLightCB = gfx->CreateBuffer<PointLight>(&pointLight, 1);
 }
 
 bool openDebugWindow = true;
-bool skyboxEnable = false;
+bool skyboxEnable = true;
 void Update()
 {
 	ED_PROFILE_FUNCTION();
@@ -138,7 +156,8 @@ void Update()
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::DragFloat3("Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::DragFloat3("Point Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::DragFloat3("Ambient Light Direction", (float*)&lightDirection, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 				ImGui::Checkbox("Enable Skybox", &skyboxEnable);
 			}
 			ImGui::End();
@@ -153,7 +172,7 @@ void Update()
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
 
 		// Sponza
-		gfx->BindPipeline(basic_texture);
+		gfx->BindPipeline(object_texture);
 		gfx->BindVertexBuffer(sponza.meshVB);
 		gfx->BindIndexBuffer(sponza.meshIB);
 		for (auto& mesh : sponza.meshes)
@@ -164,10 +183,17 @@ void Update()
 
 			sceneData.view = view;
 			sceneData.viewProjection = projection * view;
-			sceneData.lightPosition = view * glm::vec4(lightPosition, 1.0f);
+
+			directionalLight.direction = lightDirection;
+			gfx->UpdateBuffer<DirectionalLight>(directionalLightCB, &directionalLight, 1);
+			pointLight.position = lightPosition;
+			gfx->UpdateBuffer<PointLight>(pointLightCB, &pointLight, 1);
+
 			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
 			gfx->BindConstantBuffer("SceneData", sceneDataCB);
 			gfx->BindConstantBuffer("Transform", mesh.transformCB);
+			gfx->BindConstantBuffer("directionalLightCB", directionalLightCB);
+			gfx->BindConstantBuffer("pointLightCB", pointLightCB);
 
 			for (auto& submesh : mesh.submeshes)
 			{
@@ -177,7 +203,7 @@ void Update()
 		}
 
 		// Basic mesh
-		gfx->BindPipeline(basic);
+		gfx->BindPipeline(object_simple);
 		gfx->BindVertexBuffer(basicMesh.meshVB);
 		gfx->BindIndexBuffer(basicMesh.meshIB);
 		for (auto& mesh : basicMesh.meshes)
@@ -188,10 +214,17 @@ void Update()
 
 			sceneData.view = view;
 			sceneData.viewProjection = projection * view;
-			sceneData.lightPosition = view * glm::vec4(lightPosition, 1.0f);
+
+			directionalLight.direction = lightDirection;
+			gfx->UpdateBuffer<DirectionalLight>(directionalLightCB, &directionalLight, 1);
+			pointLight.position = lightPosition;
+			gfx->UpdateBuffer<PointLight>(pointLightCB, &pointLight, 1);
+
 			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
 			gfx->BindConstantBuffer("SceneData", sceneDataCB);
 			gfx->BindConstantBuffer("Transform", mesh.transformCB);
+			gfx->BindConstantBuffer("directionalLightCB", directionalLightCB);
+			gfx->BindConstantBuffer("pointLightCB", pointLightCB);
 		
 			for (auto& submesh : mesh.submeshes)
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
@@ -230,6 +263,8 @@ void Update()
 
 void Destroy()
 {
+	pointLightCB.Release();
+	directionalLightCB.Release();
 	sceneDataCB.Release();
 	skyboxDataCB.Release();
 	skyboxCube.Destroy();
