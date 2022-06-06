@@ -36,17 +36,20 @@ struct SceneData
 
 struct DirectionalLight
 {
-	glm::vec3 direction;
+	glm::vec4 direction;
 } directionalLight;
 Buffer directionalLightCB;
 
 struct PointLight
 {
-	glm::vec3 position;
-	float constant_value;
-	float linear_value;
-	float quadratic_value;
+	glm::vec4 color;
+	glm::vec4 position;
+	float constant_value	= 1.0f;
+	float linear_value		= 0.09f;
+	float quadratic_value	= 0.032f;
+	float padding; // no use
 } pointLight;
+std::vector<PointLight> pointLights;
 Buffer pointLightCB;
 
 glm::mat4 model;
@@ -117,18 +120,19 @@ void Init()
 	skyboxDataCB = gfx->CreateBuffer<SkyboxData>(&skyboxData, 1);
 
 	// Lights
-	directionalLight.direction = lightDirection;
+	directionalLight.direction = glm::vec4(lightDirection, 1.0f);
 	directionalLightCB = gfx->CreateBuffer<DirectionalLight>(&directionalLight, 1);
 
-	pointLight.position = lightPosition;
-	pointLight.constant_value = 1.0f;
-	pointLight.linear_value = 0.09f;
-	pointLight.quadratic_value = 0.032f;
-	pointLightCB = gfx->CreateBuffer<PointLight>(&pointLight, 1);
+	pointLight.position = glm::vec4(lightPosition, 1.0f);
+	pointLight.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+	pointLights.emplace_back(pointLight);
+	pointLight.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	pointLights.emplace_back(pointLight);
+	pointLightCB = gfx->CreateBuffer<PointLight>(pointLights.data(), pointLights.size(), true);
 }
 
 bool openDebugWindow = true;
-bool skyboxEnable = true;
+bool skyboxEnable = false;
 void Update()
 {
 	ED_PROFILE_FUNCTION();
@@ -184,20 +188,21 @@ void Update()
 			sceneData.view = view;
 			sceneData.viewProjection = projection * view;
 
-			directionalLight.direction = lightDirection;
+			directionalLight.direction = glm::vec4(lightDirection, 1.0f);
 			gfx->UpdateBuffer<DirectionalLight>(directionalLightCB, &directionalLight, 1);
-			pointLight.position = lightPosition;
-			gfx->UpdateBuffer<PointLight>(pointLightCB, &pointLight, 1);
+			pointLights[0].position = glm::vec4(lightPosition, 1.0f);
+			pointLights[1].position = glm::vec4(lightPosition, 1.0f);
+			gfx->UpdateBuffer<PointLight>(pointLightCB, pointLights.data(), pointLights.size());
 
 			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
 			gfx->BindConstantBuffer("SceneData", sceneDataCB);
 			gfx->BindConstantBuffer("Transform", mesh.transformCB);
 			gfx->BindConstantBuffer("directionalLightCB", directionalLightCB);
-			gfx->BindConstantBuffer("pointLightCB", pointLightCB);
+			gfx->BindShaderResource(pointLightCB);
 
 			for (auto& submesh : mesh.submeshes)
 			{
-				gfx->BindMaterial(submesh.materialIndex);
+				gfx->BindShaderResource(submesh.materialIndex);
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
 			}
 		}
@@ -215,16 +220,17 @@ void Update()
 			sceneData.view = view;
 			sceneData.viewProjection = projection * view;
 
-			directionalLight.direction = lightDirection;
+			directionalLight.direction = glm::vec4(lightDirection, 1.0f);
 			gfx->UpdateBuffer<DirectionalLight>(directionalLightCB, &directionalLight, 1);
-			pointLight.position = lightPosition;
-			gfx->UpdateBuffer<PointLight>(pointLightCB, &pointLight, 1);
+			pointLights[0].position = glm::vec4(lightPosition, 1.0f);
+			pointLights[1].position = glm::vec4(lightPosition, 1.0f);
+			gfx->UpdateBuffer<PointLight>(pointLightCB, pointLights.data(), pointLights.size());
 
 			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
 			gfx->BindConstantBuffer("SceneData", sceneDataCB);
 			gfx->BindConstantBuffer("Transform", mesh.transformCB);
 			gfx->BindConstantBuffer("directionalLightCB", directionalLightCB);
-			gfx->BindConstantBuffer("pointLightCB", pointLightCB);
+			gfx->BindShaderResource(pointLightCB);
 		
 			for (auto& submesh : mesh.submeshes)
 				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
@@ -250,7 +256,7 @@ void Update()
 
 				for (auto& submesh : mesh.submeshes)
 				{
-					gfx->BindMaterial(skyboxTexture);
+					gfx->BindShaderResource(skyboxTexture);
 					gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
 				}
 			}

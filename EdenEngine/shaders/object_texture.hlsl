@@ -27,7 +27,7 @@ SamplerState g_linearSampler : register(s0);
 
 // Lights
 ConstantBuffer<DirectionalLight> directionalLightCB : register(b2);
-ConstantBuffer<PointLight> pointLightCB : register(b3);
+StructuredBuffer<PointLight> PointLights;
 
 //=================
 // Vertex Shader
@@ -70,12 +70,21 @@ float4 PSMain(PSInput input) : SV_TARGET
     float4 pixelColor = CalculateDirectionLight(objectColor, input.positionModel, input.normal, dl);
     
     // Calculate point lights
-    PointLight pl;
-    pl.position = pointLightCB.position;
-    pl.constant_value = pointLightCB.constant_value;
-    pl.linear_value = pointLightCB.linear_value;
-    pl.quadratic_value = pointLightCB.quadratic_value;
-    pixelColor += emissive + CalculatePointLight(objectColor, input.positionModel, input.normal, pl);
+    uint num_structs, stride;
+    PointLights.GetDimensions(num_structs, stride);
+    for (int i = 0; i < num_structs; ++i)
+    {
+        PointLight pl;
+        pl.color = PointLights[i].color;
+        pl.position = PointLights[i].position;
+        pl.constant_value = PointLights[i].constant_value;
+        pl.linear_value = PointLights[i].linear_value;
+        pl.quadratic_value = PointLights[i].quadratic_value;
+        pixelColor += CalculatePointLight(objectColor, input.positionModel, input.normal, pl);
+    }
+    
+    pixelColor += emissive;
+    
     
     return pixelColor;
 }

@@ -345,6 +345,7 @@ namespace Eden
 				// TODO(Daniel): Add more as needed
 				switch (desc.Type)
 				{
+				case D3D_SIT_STRUCTURED:
 				case D3D_SIT_TEXTURE:
 					srvCount++;
 					break;
@@ -356,7 +357,7 @@ namespace Eden
 						bool foundParameter = false;
 						for (auto& p : rootParameters)
 						{
-							if (desc.BindPoint == p.Descriptor.ShaderRegister && 
+							if (desc.BindPoint == p.Descriptor.ShaderRegister &&
 								desc.Space == p.Descriptor.RegisterSpace)
 							{
 								p.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -372,25 +373,25 @@ namespace Eden
 					}
 					break;
 				case D3D_SIT_SAMPLER:
-				{
-					// Right now is only creating linear samplers
-					D3D12_STATIC_SAMPLER_DESC sampler = {};
-					sampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
-					sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-					sampler.MipLODBias = 0;
-					sampler.MaxAnisotropy = 0;
-					sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-					sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-					sampler.MinLOD = 0.0f;
-					sampler.MaxLOD = D3D12_FLOAT32_MAX;
-					sampler.ShaderRegister = desc.BindPoint;
-					sampler.RegisterSpace = desc.Space;
-					sampler.ShaderVisibility = shaderVisibility;
-					samplers.emplace_back(sampler);
-				}
-				break;
+					{
+						// Right now is only creating linear samplers
+						D3D12_STATIC_SAMPLER_DESC sampler = {};
+						sampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+						sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+						sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+						sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+						sampler.MipLODBias = 0;
+						sampler.MaxAnisotropy = 0;
+						sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+						sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+						sampler.MinLOD = 0.0f;
+						sampler.MaxLOD = D3D12_FLOAT32_MAX;
+						sampler.ShaderRegister = desc.BindPoint;
+						sampler.RegisterSpace = desc.Space;
+						sampler.ShaderVisibility = shaderVisibility;
+						samplers.emplace_back(sampler);
+					}
+					break;
 				default:
 					ED_LOG_ERROR("Resource type has not been yet implemented!");
 					break;
@@ -401,7 +402,7 @@ namespace Eden
 		if (srvCount > 0)
 		{
 			CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
-			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, srvCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, srvCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 
 			// put the srv descriptor table at the first index
 			CD3DX12_ROOT_PARAMETER1 srvParameter = {};
@@ -451,7 +452,7 @@ namespace Eden
 	}
 
 	void GraphicsDevice::CreateBackBuffers(uint32_t width, uint32_t height)
-{
+	{
 		// Create render targets
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -500,6 +501,7 @@ namespace Eden
 		Pipeline pipeline = {};
 		pipeline.type = Pipeline::Graphics;
 		pipeline.drawState = drawState;
+		pipeline.name = programName;
 
 		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&m_utils));
 		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_compiler));
@@ -699,14 +701,13 @@ namespace Eden
 		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 		m_commandList->Reset(m_commandAllocator.Get(), nullptr);
 
-		// Describe and craete a Shader resource view(SRV) for the texture
+		// Describe and create a Shader resource view(SRV) for the texture
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Format = texture.format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 
-		// Offset srv handle cause of imgui
 		texture.heapOffset = m_srvHeapOffset;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
 		m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, handle.Offset(m_srvHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
@@ -866,7 +867,18 @@ namespace Eden
 		m_commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, constantBuffer.resource->GetGPUVirtualAddress());
 	}
 
-	void GraphicsDevice::BindMaterial(Texture2D texture)
+	void GraphicsDevice::BindShaderResource(Buffer buffer)
+	{
+		ED_PROFILE_FUNCTION();
+		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
+		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+		srvHandle.Offset(buffer.heapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
+	}
+
+	void GraphicsDevice::BindShaderResource(Texture2D texture)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -876,7 +888,7 @@ namespace Eden
 		m_commandList->SetGraphicsRootDescriptorTable(0, srvHandle);
 	}
 
-	void GraphicsDevice::BindMaterial(uint32_t heapOffset)
+	void GraphicsDevice::BindShaderResource(uint32_t heapOffset)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_srvHeap.Get() };
 		m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -1063,7 +1075,7 @@ namespace Eden
 		CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
 
-		const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		const float clearColor[] = { 0.15f, 0.15f, 0.15f, 1.0f };
 		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 		m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	}

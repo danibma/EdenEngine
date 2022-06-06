@@ -3,7 +3,7 @@
 //=================
 struct DirectionalLight
 {
-    float3 direction;
+    float4 direction;
 };
 
 float4 CalculateDirectionLight(float4 objectColor, float4 positionModelMatrix, float3 normal, DirectionalLight directionalLight)
@@ -19,7 +19,7 @@ float4 CalculateDirectionLight(float4 objectColor, float4 positionModelMatrix, f
     // Diffuse Light
     float3 norm = normalize(normal);
     //float3 lightDirection = normalize(lightPos - fragPos);
-    float3 lightDir = normalize(directionalLight.direction);
+    float3 lightDir = normalize(directionalLight.direction.xyz);
     float diffuseColor = max(dot(norm, lightDir), 0.0f);
     float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * objectColor;
     
@@ -39,16 +39,18 @@ float4 CalculateDirectionLight(float4 objectColor, float4 positionModelMatrix, f
 //=================
 struct PointLight
 {
-    float3 position;
+    float4 color;
+    float4 position;
     float constant_value;
     float linear_value;
     float quadratic_value;
+    float padding; // no use
 };
 
 float4 CalculatePointLight(float4 objectColor, float4 positionModelMatrix, float3 normal, PointLight pointLight)
 {
      // Lighting
-    float3 lightColor = float3(1.0f, 1.0f, 1.0f);
+    float3 lightColor = pointLight.color.rgb;
     float3 fragPos = float3(positionModelMatrix.xyz);
     
     // Ambient Light
@@ -57,7 +59,7 @@ float4 CalculatePointLight(float4 objectColor, float4 positionModelMatrix, float
     
     // Diffuse Light
     float3 norm = normalize(normal);
-    float3 lightDir = normalize(pointLight.position - fragPos);
+    float3 lightDir = normalize(pointLight.position.xyz - fragPos);
     //float3 lightDir = normalize(lightDirection);
     float diffuseColor = max(dot(norm, lightDir), 0.0f);
     float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * objectColor;
@@ -71,7 +73,7 @@ float4 CalculatePointLight(float4 objectColor, float4 positionModelMatrix, float
     float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
     
     // Calculate attenuation
-    float distance = length(pointLight.position - fragPos);
+    float distance = length(pointLight.position.xyz - fragPos);
     float attenuation = 1.0f / (pointLight.constant_value + pointLight.linear_value * distance + pointLight.quadratic_value * (distance * distance));
     ambient  *= attenuation;
     diffuse  *= attenuation;

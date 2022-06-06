@@ -66,6 +66,7 @@ namespace Eden
 		uint32_t size;
 		uint32_t stride;
 		uint32_t count;
+		uint32_t heapOffset; // Used for srv's, like structured buffer
 	};
 
 	struct Texture2D : Resource
@@ -93,6 +94,7 @@ namespace Eden
 			Compute // Not implemented
 		};
 
+		std::string name;
 		PipelineType type = Graphics;
 		PipelineState drawState;
 		ComPtr<ID3D12RootSignature> rootSignature;
@@ -155,11 +157,28 @@ namespace Eden
 
 		// Template Helpers
 		template<typename TYPE>
-		inline Buffer CreateBuffer(void* data, uint32_t elementCount)
+		Buffer CreateBuffer(void* data, uint32_t elementCount, bool createSrv = false)
 		{
 			Buffer buffer = CreateBuffer(elementCount * sizeof(TYPE), data);
 			buffer.stride = (uint32_t)sizeof(TYPE);
 			buffer.count = elementCount;
+
+			if (createSrv)
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+				srvDesc.Buffer.FirstElement = 0;
+				srvDesc.Buffer.NumElements = elementCount;
+				srvDesc.Buffer.StructureByteStride = sizeof(TYPE);
+				srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+				buffer.heapOffset = m_srvHeapOffset;
+				CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+				m_device->CreateShaderResourceView(buffer.resource.Get(), &srvDesc, handle.Offset(m_srvHeapOffset, m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+				m_srvHeapOffset++;
+			}
 
 			return buffer;
 		}
@@ -181,8 +200,9 @@ namespace Eden
 		void BindVertexBuffer(Buffer vertexBuffer);
 		void BindIndexBuffer(Buffer indexBuffer);
 		void BindConstantBuffer(std::string_view parameterName, Buffer constantBuffer);
-		void BindMaterial(Texture2D texture);
-		void BindMaterial(uint32_t heapOffset);
+		void BindShaderResource(Buffer buffer);
+		void BindShaderResource(Texture2D texture);
+		void BindShaderResource(uint32_t heapOffset);
 
 		void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0);
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0);
