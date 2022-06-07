@@ -212,7 +212,7 @@ namespace Eden
 			break;
 		}
 
-		std::wstring wPdbName = filePath.filename().wstring() + stageStr + L".pdb";
+		std::wstring wPdbName = filePath.stem().wstring() + L"_" + stageStr + L".pdb";
 
 		std::vector<LPCWSTR> arguments =
 		{
@@ -249,9 +249,14 @@ namespace Eden
 		ComPtr<IDxcBlobUtf16> pdbName = nullptr;
 		result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb), &pdbName);
 		{
-			FILE* fp = NULL;
+			if (!std::filesystem::exists("shaders/intermediate/"))
+				std::filesystem::create_directory("shaders/intermediate");
 
-			_wfopen_s(&fp, pdbName->GetStringPointer(), L"wb");
+			std::wstring pdb_path = L"shaders/intermediate/";
+			pdb_path.append(pdbName->GetStringPointer());
+
+			FILE* fp = NULL;
+			_wfopen_s(&fp, pdb_path.c_str(), L"wb");
 			fwrite(pdb->GetBufferPointer(), pdb->GetBufferSize(), 1, fp);
 			fclose(fp);
 		}
