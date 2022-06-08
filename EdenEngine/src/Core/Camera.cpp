@@ -6,13 +6,13 @@
 namespace Eden
 {
 
-	Camera::Camera(uint32_t screenWidth, uint32_t screenHeight)
+	Camera::Camera(const uint32_t screen_width, const uint32_t screen_height)
 	{
 		position = { 0, 0, -10 };
 		front = { 0, 0, 1 };
 		up = { 0, 1, 0 };
-		m_LastX = (float)screenWidth / 2;
-		m_LastY = (float)screenHeight / 2;
+		m_LastX = (float)screen_width / 2;
+		m_LastY = (float)screen_height / 2;
 		m_Yaw = 0.0f;
 		m_Pitch = 0.0f;
 		m_Sensitivity = 0.2f;
@@ -21,7 +21,7 @@ namespace Eden
 		m_FirstTimeMouse = true;
 	}
 
-	void Camera::Update(Window* window, float deltaTime)
+	void Camera::Update(Window* window, const float delta_time)
 	{
 		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
@@ -29,7 +29,7 @@ namespace Eden
 
 			m_Locked = true;
 
-			float cameraSpeed = 10.0f * deltaTime;
+			float cameraSpeed = 10.0f * delta_time;
 
 			if (Input::GetKey(KeyCode::W))
 				position += cameraSpeed * front;
@@ -57,21 +57,21 @@ namespace Eden
 
 	void Camera::UpdateLookAt(Window* window)
 {
-		auto[xPos, yPos] = Input::GetMousePos(window);
+		auto[x_pos, y_pos] = Input::GetMousePos(window);
 
 		if (m_Locked)
 		{
 			if (m_FirstTimeMouse)
 			{
-				m_LastX = (float)xPos;
-				m_LastY = (float)yPos;
+				m_LastX = (float)x_pos;
+				m_LastY = (float)y_pos;
 				m_FirstTimeMouse = false;
 			}
 
-			float xoffset = xPos - m_LastX;
-			float yoffset = m_LastY - yPos;
-			m_LastX = (float)xPos;
-			m_LastY = (float)yPos;
+			float xoffset = x_pos - m_LastX;
+			float yoffset = m_LastY - y_pos;
+			m_LastX = (float)x_pos;
+			m_LastY = (float)y_pos;
 			xoffset *= m_Sensitivity;
 			yoffset *= m_Sensitivity;
 

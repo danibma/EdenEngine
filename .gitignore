@@ -1,6 +1,7 @@
 .vs/
 bin/
 EdenEngine/logs
+_ReSharper.Caches
 
 **.sln
 **.vcxproj

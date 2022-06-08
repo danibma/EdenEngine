@@ -19,10 +19,10 @@ namespace Eden
 		static void Init();
 		static void Shutdown();
 
-		inline static std::shared_ptr<spdlog::logger>& GetCoreLogger() { return s_coreLogger; }
+		inline static std::shared_ptr<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
 
 		template<typename... Args>
-		static void PrintMessage(Log::Level level, Args&&... args)
+		static void PrintMessage(const Level level, Args&&... args)
 		{
 			auto logger = GetCoreLogger();
 			switch (level)
@@ -46,7 +46,7 @@ namespace Eden
 			}
 		}
 	private:
-		static std::shared_ptr<spdlog::logger> s_coreLogger;
+		static std::shared_ptr<spdlog::logger> s_CoreLogger;
 	};
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include <vcruntime.h>
 
 // Memory Tracking
 // NOTE(Daniel): Right now its only tracking the memory, in the future make own allocator
@@ -8,8 +8,8 @@ namespace Eden::Memory
 {
 	struct AllocationStats
 	{
-		size_t TotalAllocated = 0;
-		size_t TotalFreed = 0;
+		size_t total_allocated = 0;
+		size_t total_freed = 0;
 	};
 
 	[[nodiscard]] const AllocationStats& GetAllocationStats();

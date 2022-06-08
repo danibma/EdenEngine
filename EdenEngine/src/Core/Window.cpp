@@ -3,7 +3,6 @@
 #include "Input.h"
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
-#include <imgui/backends/imgui_impl_dx12.h>
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -136,7 +135,7 @@ namespace Eden
 	}
 
 	Window::Window(const char* title, uint32_t width, uint32_t height)
-		: m_width(width), m_height(height)
+		: m_Width(width), m_Height(height)
 	{
 		WNDCLASSEX wc		= {};
 		wc.cbSize			= sizeof(wc);
@@ -147,22 +146,22 @@ namespace Eden
 		RegisterClassEx(&wc);
 
 		// Create the window.
-		m_handle = CreateWindowEx(0,                             // Optional window styles.
+		m_Handle = CreateWindowEx(0,                             // Optional window styles.
 								  title,						 // Window class
 								  title,						 // Window text
 								  WS_OVERLAPPEDWINDOW,           // Window style
    								  CW_USEDEFAULT, CW_USEDEFAULT,  // Position
-								  m_width, m_height,			 // Size
+								  m_Width, m_Height,			 // Size
 								  NULL,							 // Parent window    
 								  NULL,							 // Menu
 								  GetModuleHandle(nullptr),		 // Instance handle
 								  NULL);						 // Additional application data
 
-		ED_ASSERT(m_handle);
+		ED_ASSERT(m_Handle);
 
-		SetWindowLongPtrA(m_handle, GWLP_USERDATA, (LONG_PTR)this);
+		SetWindowLongPtrA(m_Handle, GWLP_USERDATA, (LONG_PTR)this);
 
-		::ShowWindow(m_handle, SW_SHOWMAXIMIZED);
+		::ShowWindow(m_Handle, SW_SHOWMAXIMIZED);
 		
 		// Setup ImGui context
 		IMGUI_CHECKVERSION();
@@ -176,13 +175,13 @@ namespace Eden
 		ImGui::StyleColorsDark();
 		CherryTheme();
 
-		ImGui_ImplWin32_Init(m_handle);
+		ImGui_ImplWin32_Init(m_Handle);
 
 		RAWINPUTDEVICE Rid;
 		Rid.usUsagePage = 0x1 /* HID_USAGE_PAGE_GENERIC */;
 		Rid.usUsage = 0x2 /* HID_USAGE_GENERIC_MOUSE */;
 		Rid.dwFlags = RIDEV_INPUTSINK;
-		Rid.hwndTarget = m_handle;
+		Rid.hwndTarget = m_Handle;
 		if (!RegisterRawInputDevices(&Rid, 1, sizeof(RAWINPUTDEVICE)))
 			ED_ASSERT_MB(false, "Failed to register raw input device");
 
@@ -191,9 +190,9 @@ namespace Eden
 		GetCursorPos(&currentPos);
 
 		// force the mouse to the center, so there's room to move
-		SetCursorPos(m_width / 2, m_height / 2);
+		SetCursorPos(m_Width / 2, m_Height / 2);
 
-		Input::SetMousePos(currentPos.x - (m_width / 2), currentPos.y - (m_height / 2));
+		Input::SetMousePos(currentPos.x - (m_Width / 2), currentPos.y - (m_Height / 2));
 	}
 
 	Window::~Window()
@@ -219,20 +218,20 @@ namespace Eden
 
 	void Window::SetResizeCallback(std::function<void(uint32_t, uint32_t)> resizeCallback)
 	{
-		m_resizeCallback = resizeCallback;
+		m_ResizeCallback = resizeCallback;
 	}
 
 	void Window::ResizeCallback()
 	{
-		m_resizeCallback(m_width, m_height);
+		m_ResizeCallback(m_Width, m_Height);
 	}
 
 	void Window::Resize(uint32_t width, uint32_t height)
 	{
-		m_width = width;
-		m_height = height;
+		m_Width = width;
+		m_Height = height;
 
-		m_isMinimized = false;
+		m_IsMinimized = false;
 	}
 
 }

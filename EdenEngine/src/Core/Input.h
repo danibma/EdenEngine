@@ -1,8 +1,6 @@
 #pragma once
 
-#include <windows.h>
 #include <stdint.h>
-#include <functional>
 #include "Window.h"
 
 namespace Eden
@@ -139,11 +137,11 @@ namespace Eden
 
 	class Input
 	{
-		static bool m_keyDown[VK_OEM_CLEAR];
-		static bool m_previousKeyDown[VK_OEM_CLEAR];
-		static std::pair<int64_t, int64_t> m_mousePos;
-		static std::pair<int64_t, int64_t> m_relativeMousePos;
-		static float m_mouseScrollDelta;
+		static bool s_KeyDown[VK_OEM_CLEAR];
+		static bool s_PreviousKeyDown[VK_OEM_CLEAR];
+		static std::pair<int64_t, int64_t> s_MousePos;
+		static std::pair<int64_t, int64_t> s_RelativeMousePos;
+		static float s_MouseScrollDelta;
 
 	public:
 		static void UpdateInput();
@@ -155,17 +153,17 @@ namespace Eden
 		/*
 		* Returns whether the given key is held down.
 		*/
-		static bool GetKey(KeyCode keyCode);
+		static bool GetKey(KeyCode keycode);
 
 		/*
 		* Returns true during the frame the user releases the key.
 		*/
-		static bool GetKeyUp(KeyCode keyCode);
+		static bool GetKeyUp(KeyCode keycode);
 
 		/*
 		* Returns true while the user holds down the key.
 		*/
-		static bool GetKeyDown(KeyCode keyCode);
+		static bool GetKeyDown(KeyCode keycode);
 
 		/*
 		* Returns whether the given mouse button is held down.
@@ -190,7 +188,7 @@ namespace Eden
 		/*
 		* Returns the mouse scroll delta
 		*/
-		static float GetMouseScrollDelta() { return m_mouseScrollDelta; }
+		static float GetMouseScrollDelta() { return s_MouseScrollDelta; }
 
 		/*
 		* Returns wether the cursor is being shown or is hidden

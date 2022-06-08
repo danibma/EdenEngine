@@ -4,9 +4,8 @@
 #include "Core/Log.h"
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
-#include "Graphics/GraphicsDevice.h"
+#include "Graphics/D3D12RHI.h"
 #include "Core/Camera.h"
-#include "Utilities/Utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -19,11 +18,11 @@
 using namespace Eden;
 
 Window* window;
-GraphicsDevice* gfx;
+D3D12RHI* rhi;
 
 // Timer stuff
 Timer timer;
-float deltaTime;
+float delta_time;
 
 //==================
 // Scene Data
@@ -31,14 +30,14 @@ float deltaTime;
 struct SceneData
 {
 	glm::mat4 view;
-	glm::mat4 viewProjection;
+	glm::mat4 view_projection;
 };
 
 struct DirectionalLight
 {
 	glm::vec4 direction;
-} directionalLight;
-Buffer directionalLightCB;
+} directional_light;
+Buffer directional_light_cb;
 
 struct PointLight
 {
@@ -48,34 +47,34 @@ struct PointLight
 	float linear_value		= 0.09f;
 	float quadratic_value	= 0.032f;
 	float padding; // no use
-} pointLight;
-std::vector<PointLight> pointLights;
-Buffer pointLightCB;
+} point_light;
+std::vector<PointLight> point_lights;
+Buffer point_light_cb;
 
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 lightPosition(0.0f, 7.0f, 0.0f);
-glm::vec3 lightDirection(-0.2f, -1.0f, -2.3f);
-SceneData sceneData;
-Buffer sceneDataCB;
+glm::vec3 light_position(0.0f, 7.0f, 0.0f);
+glm::vec3 light_direction(-0.2f, -1.0f, -2.3f);
+SceneData scene_data;
+Buffer scene_data_cb;
 Camera camera;
 
 Pipeline object_texture;
 Pipeline object_simple;
 Model sponza;
-Model flightHelmet;
-Model basicMesh;
+Model flight_helmet;
+Model basic_mesh;
 
 // Skybox
 Pipeline skybox;
-Model skyboxCube;
-Texture2D skyboxTexture;
+Model skybox_cube;
+Texture2D skybox_texture;
 struct SkyboxData
 {
-	glm::mat4 viewProjection;
-} skyboxData;
-Buffer skyboxDataCB;
+	glm::mat4 view_projection_;
+} skybox_data;
+Buffer skybox_data_cb;
 
 void Init()
 {
@@ -87,52 +86,52 @@ void Init()
 	window = enew Window("Eden Engine", 1600, 900);
 #endif 
 
-	gfx = enew GraphicsDevice(window);
-	gfx->EnableImGui();
+	rhi = enew D3D12RHI(window);
+	rhi->EnableImGui();
 
 	PipelineState object_textureDS;
-	object_textureDS.enableBlending = true;
-	object_texture = gfx->CreateGraphicsPipeline("object_texture", object_textureDS);
+	object_textureDS.enable_blending = true;
+	object_texture = rhi->CreateGraphicsPipeline("object_texture", object_textureDS);
 
-	object_simple = gfx->CreateGraphicsPipeline("object_simple");
+	object_simple = rhi->CreateGraphicsPipeline("object_simple");
 
-	PipelineState skyboxDS;
-	skyboxDS.cullMode = D3D12_CULL_MODE_NONE;
-	skyboxDS.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	skyboxDS.minDepth = 1.0f;
-	skybox = gfx->CreateGraphicsPipeline("skybox", skyboxDS);
+	PipelineState skybox_ds;
+	skybox_ds.cull_mode = D3D12_CULL_MODE_NONE;
+	skybox_ds.depth_func = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	skybox_ds.min_depth = 1.0f;
+	skybox = rhi->CreateGraphicsPipeline("skybox", skybox_ds);
 
-	sponza.LoadGLTF(gfx, "assets/Models/DamagedHelmet/DamagedHelmet.glb");
-	basicMesh.LoadGLTF(gfx, "assets/Models/basic/sphere.glb");
-	skyboxCube.LoadGLTF(gfx, "assets/Models/basic/cube.glb");
+	sponza.LoadGLTF(rhi, "assets/Models/DamagedHelmet/DamagedHelmet.glb");
+	basic_mesh.LoadGLTF(rhi, "assets/Models/basic/sphere.glb");
+	skybox_cube.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
 	view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 	projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
 	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
-	sceneData.view = view;
-	sceneData.viewProjection = projection * view;
+	scene_data.view = view;
+	scene_data.view_projection = projection * view;
 
-	sceneDataCB = gfx->CreateBuffer<SceneData>(&sceneData, 1);
+	scene_data_cb = rhi->CreateBuffer<SceneData>(&scene_data, 1);
 
-	skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
-	skyboxDataCB = gfx->CreateBuffer<SkyboxData>(&skyboxData, 1);
+	skybox_data.view_projection_ = projection * glm::mat4(glm::mat3(view));
+	skybox_data_cb = rhi->CreateBuffer<SkyboxData>(&skybox_data, 1);
 
 	// Lights
-	directionalLight.direction = glm::vec4(lightDirection, 1.0f);
-	directionalLightCB = gfx->CreateBuffer<DirectionalLight>(&directionalLight, 1);
+	directional_light.direction = glm::vec4(light_direction, 1.0f);
+	directional_light_cb = rhi->CreateBuffer<DirectionalLight>(&directional_light, 1);
 
-	pointLight.position = glm::vec4(lightPosition, 1.0f);
-	pointLight.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-	pointLights.emplace_back(pointLight);
-	pointLight.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-	pointLights.emplace_back(pointLight);
-	pointLightCB = gfx->CreateBuffer<PointLight>(pointLights.data(), pointLights.size(), true);
+	point_light.position = glm::vec4(light_position, 1.0f);
+	point_light.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+	point_lights.emplace_back(point_light);
+	point_light.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	point_lights.emplace_back(point_light);
+	point_light_cb = rhi->CreateBuffer<PointLight>(point_lights.data(), point_lights.size(), D3D12RHI::BufferCreateSRV::kCreateSRV);
 }
 
-bool openDebugWindow = true;
-bool skyboxEnable = false;
+bool open_debug_window = true;
+bool skybox_enable = false;
 void Update()
 {
 	ED_PROFILE_FUNCTION();
@@ -140,146 +139,146 @@ void Update()
 	window->UpdateEvents();
 
 	// Update timers
-	deltaTime = (float)timer.ElapsedSeconds();
+	delta_time = (float)timer.ElapsedSeconds();
 	timer.Record();
 
 	if (!window->IsMinimized())
 	{
 		// Debug ImGui Window stuff
 		if (Input::GetKeyDown(KeyCode::F3))
-			openDebugWindow = !openDebugWindow;
+			open_debug_window = !open_debug_window;
 
-		if (openDebugWindow)
+		if (open_debug_window)
 		{
 			ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse);
 			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Press F3 to close this window!").x) * 0.5f); // center text
 			ImGui::TextDisabled("Press F3 to close this window!");
 			if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::Text("CPU frame time: %.3fms", deltaTime * 1000.0f);
+				ImGui::Text("CPU frame time: %.3fms", delta_time * 1000.0f);
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::DragFloat3("Point Light Position", (float*)&lightPosition, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-				ImGui::DragFloat3("Ambient Light Direction", (float*)&lightDirection, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-				ImGui::Checkbox("Enable Skybox", &skyboxEnable);
+				ImGui::DragFloat3("Point Light Position", (float*)&light_position, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::DragFloat3("Ambient Light Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::Checkbox("Enable Skybox", &skybox_enable);
 			}
 			ImGui::End();
 		}
 
 		// This is where the "real" loop begins
-		camera.Update(window, deltaTime);
+		camera.Update(window, delta_time);
 
-		gfx->ClearRenderTargets();
+		rhi->ClearRenderTargets();
 
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
 
 		// Sponza
-		gfx->BindPipeline(object_texture);
-		gfx->BindVertexBuffer(sponza.meshVB);
-		gfx->BindIndexBuffer(sponza.meshIB);
+		rhi->BindPipeline(object_texture);
+		rhi->BindVertexBuffer(sponza.mesh_vb);
+		rhi->BindIndexBuffer(sponza.mesh_ib);
 		for (auto& mesh : sponza.meshes)
 		{
 			mesh.SetTranslation(-3, 0, 0);
 			mesh.UpdateTransform();
-			gfx->UpdateBuffer<glm::mat4>(mesh.transformCB, &mesh.transform, 1);
+			rhi->UpdateBuffer<glm::mat4>(mesh.transform_cb, &mesh.transform, 1);
 
-			sceneData.view = view;
-			sceneData.viewProjection = projection * view;
+			scene_data.view = view;
+			scene_data.view_projection = projection * view;
 
-			directionalLight.direction = glm::vec4(lightDirection, 1.0f);
-			gfx->UpdateBuffer<DirectionalLight>(directionalLightCB, &directionalLight, 1);
-			pointLights[0].position = glm::vec4(lightPosition, 1.0f);
-			pointLights[1].position = glm::vec4(lightPosition, 1.0f);
-			gfx->UpdateBuffer<PointLight>(pointLightCB, pointLights.data(), pointLights.size());
+			directional_light.direction = glm::vec4(light_direction, 1.0f);
+			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light, 1);
+			point_lights[0].position = glm::vec4(light_position, 1.0f);
+			point_lights[1].position = glm::vec4(light_position, 1.0f);
+			rhi->UpdateBuffer<PointLight>(point_light_cb, point_lights.data(), point_lights.size());
 
-			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
-			gfx->BindConstantBuffer("SceneData", sceneDataCB);
-			gfx->BindConstantBuffer("Transform", mesh.transformCB);
-			gfx->BindConstantBuffer("directionalLightCB", directionalLightCB);
-			gfx->BindShaderResource(pointLightCB);
+			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
+			rhi->BindConstantBuffer("SceneData", scene_data_cb);
+			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
+			rhi->BindConstantBuffer("directionalLightCB", directional_light_cb);
+			rhi->BindShaderResource(point_light_cb);
 
 			for (auto& submesh : mesh.submeshes)
 			{
-				gfx->BindShaderResource(submesh.materialIndex);
-				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+				rhi->BindShaderResource(submesh.material_index);
+				rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 			}
 		}
 
 		// Basic mesh
-		gfx->BindPipeline(object_simple);
-		gfx->BindVertexBuffer(basicMesh.meshVB);
-		gfx->BindIndexBuffer(basicMesh.meshIB);
-		for (auto& mesh : basicMesh.meshes)
+		rhi->BindPipeline(object_simple);
+		rhi->BindVertexBuffer(basic_mesh.mesh_vb);
+		rhi->BindIndexBuffer(basic_mesh.mesh_ib);
+		for (auto& mesh : basic_mesh.meshes)
 		{
 			mesh.SetTranslation(3, 0, 0);
 			mesh.UpdateTransform();
-			gfx->UpdateBuffer<glm::mat4>(mesh.transformCB, &mesh.transform, 1);
+			rhi->UpdateBuffer<glm::mat4>(mesh.transform_cb, &mesh.transform, 1);
 
-			sceneData.view = view;
-			sceneData.viewProjection = projection * view;
+			scene_data.view = view;
+			scene_data.view_projection = projection * view;
 
-			directionalLight.direction = glm::vec4(lightDirection, 1.0f);
-			gfx->UpdateBuffer<DirectionalLight>(directionalLightCB, &directionalLight, 1);
-			pointLights[0].position = glm::vec4(lightPosition, 1.0f);
-			pointLights[1].position = glm::vec4(lightPosition, 1.0f);
-			gfx->UpdateBuffer<PointLight>(pointLightCB, pointLights.data(), pointLights.size());
+			directional_light.direction = glm::vec4(light_direction, 1.0f);
+			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light, 1);
+			point_lights[0].position = glm::vec4(light_position, 1.0f);
+			point_lights[1].position = glm::vec4(light_position, 1.0f);
+			rhi->UpdateBuffer<PointLight>(point_light_cb, point_lights.data(), point_lights.size());
 
-			gfx->UpdateBuffer<SceneData>(sceneDataCB, &sceneData, 1);
-			gfx->BindConstantBuffer("SceneData", sceneDataCB);
-			gfx->BindConstantBuffer("Transform", mesh.transformCB);
-			gfx->BindConstantBuffer("directionalLightCB", directionalLightCB);
-			gfx->BindShaderResource(pointLightCB);
+			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
+			rhi->BindConstantBuffer("SceneData", scene_data_cb);
+			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
+			rhi->BindConstantBuffer("directionalLightCB", directional_light_cb);
+			rhi->BindShaderResource(point_light_cb);
 		
 			for (auto& submesh : mesh.submeshes)
-				gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+				rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 		}
 
 		// Skybox
-		if (skyboxEnable)
+		if (skybox_enable)
 		{
-			if (!skyboxTexture.resource) // If the texture is not loaded yet, load it
+			if (!skybox_texture.resource) // If the texture is not loaded yet, load it
 			{
-				skyboxTexture = gfx->CreateTexture2D("assets/skyboxes/sky.hdr");
-				skyboxTexture.resource->SetName(L"Skybox texture");
+				skybox_texture = rhi->CreateTexture2D("assets/skyboxes/sky.hdr");
+				skybox_texture.resource->SetName(L"Skybox texture");
 			}
 
-			gfx->BindPipeline(skybox);
-			gfx->BindVertexBuffer(skyboxCube.meshVB);
-			gfx->BindIndexBuffer(skyboxCube.meshIB);
-			for (auto& mesh : skyboxCube.meshes)
+			rhi->BindPipeline(skybox);
+			rhi->BindVertexBuffer(skybox_cube.mesh_vb);
+			rhi->BindIndexBuffer(skybox_cube.mesh_ib);
+			for (auto& mesh : skybox_cube.meshes)
 			{
-				skyboxData.viewProjection = projection * glm::mat4(glm::mat3(view));
-				gfx->UpdateBuffer<SkyboxData>(skyboxDataCB, &skyboxData, 1);
-				gfx->BindConstantBuffer("SkyboxData", skyboxDataCB);
+				skybox_data.view_projection_ = projection * glm::mat4(glm::mat3(view));
+				rhi->UpdateBuffer<SkyboxData>(skybox_data_cb, &skybox_data, 1);
+				rhi->BindConstantBuffer("SkyboxData", skybox_data_cb);
 
 				for (auto& submesh : mesh.submeshes)
 				{
-					gfx->BindShaderResource(skyboxTexture);
-					gfx->DrawIndexed(submesh.indexCount, 1, submesh.indexStart);
+					rhi->BindShaderResource(skybox_texture);
+					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 				}
 			}
 		}
 
 		// This is where the "real" loop ends, do not write rendering stuff below this
-		gfx->Render();
+		rhi->Render();
 	}
 }
 
 void Destroy()
 {
-	pointLightCB.Release();
-	directionalLightCB.Release();
-	sceneDataCB.Release();
-	skyboxDataCB.Release();
-	skyboxCube.Destroy();
-	skyboxTexture.Release();
+	point_light_cb.Release();
+	directional_light_cb.Release();
+	scene_data_cb.Release();
+	skybox_data_cb.Release();
+	skybox_cube.Destroy();
+	skybox_texture.Release();
 	sponza.Destroy();
-	flightHelmet.Destroy();
-	basicMesh.Destroy();
+	flight_helmet.Destroy();
+	basic_mesh.Destroy();
 
-	edelete gfx;
+	edelete rhi;
 
 	edelete window;
 

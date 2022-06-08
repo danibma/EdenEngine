@@ -10,9 +10,9 @@ namespace Eden
 	{
 	public:
 		Camera() = default;
-		Camera(uint32_t screenWidth, uint32_t screenHeight);
+		Camera(uint32_t screen_width, uint32_t screen_height);
 
-		void Update(Window* window, float deltaTime);
+		void Update(Window* window, float delta_time);
 		void UpdateLookAt(Window* window);
 
 		glm::vec3 position;
