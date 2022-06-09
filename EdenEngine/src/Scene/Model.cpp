@@ -15,7 +15,7 @@
 namespace Eden
 {
 	// Based on Sascha Willems gltfloading.cpp
-	void Model::LoadGLTF(D3D12RHI* gfx, std::filesystem::path file)
+	void Model::LoadGLTF(D3D12RHI* rhi, std::filesystem::path file)
 	{
 		tinygltf::Model gltf_model;
 		tinygltf::TinyGLTF loader;
@@ -72,7 +72,7 @@ namespace Eden
 			}
 
 			mesh.transform *= mesh.gltf_matrix;
-			mesh.transform_cb = gfx->CreateBuffer<glm::mat4>(&mesh.transform, 1);
+			mesh.transform_cb = rhi->CreateBuffer<glm::mat4>(&mesh.transform, 1);
 
 			const auto& gltf_mesh = gltf_model.meshes[gltf_node.mesh];
 			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
@@ -193,7 +193,7 @@ namespace Eden
 
 					// This assumes every primitive that has a texture, has a diffuse
 					// so the diffuse is always the first texture of the "Material"
-					submesh.material_index = LoadImage(gfx, gltf_model, texture_index);
+					submesh.material_index = LoadImage(rhi, gltf_model, texture_index);
 				}
 
 				if (gltf_material.emissiveTexture.index > -1)
@@ -201,7 +201,7 @@ namespace Eden
 					auto material_index = gltf_material.emissiveTexture.index;
 					auto texture_index = gltf_model.textures[material_index].source;
 
-					LoadImage(gfx, gltf_model, texture_index);
+					LoadImage(rhi, gltf_model, texture_index);
 				}
 
 				mesh.submeshes.push_back(submesh);
@@ -210,8 +210,8 @@ namespace Eden
 			meshes.push_back(mesh);
 		}
 
-		mesh_vb = gfx->CreateBuffer<VertexData>(vertices.data(), (uint32_t)vertices.size());
-		mesh_ib = gfx->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
+		mesh_vb = rhi->CreateBuffer<VertexData>(vertices.data(), (uint32_t)vertices.size());
+		mesh_ib = rhi->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltf_model.nodes.size());
 		ED_LOG_INFO("	{} meshes were loaded!", gltf_model.meshes.size());

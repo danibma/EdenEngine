@@ -4,16 +4,17 @@
 struct PSInput
 {
     float4 position : SV_POSITION;
-    float4 positionModel : Position;
-    float2 uv : TEXCOORD;
-    float3 normal : NORMAL;
-    float4 color : COLOR;
+    float4 frag_pos : Position;
+    float2 uv       : TEXCOORD;
+    float3 normal   : NORMAL;
+    float4 color    : COLOR;
 };
 
 cbuffer SceneData : register(b0)
 {
     float4x4 view;
-    float4x4 viewProjection;
+    float4x4 view_projection;
+    float4   view_position;
 };
 
 cbuffer Transform : register(b1)
@@ -26,7 +27,7 @@ Texture2D g_textureEmissive : register(t1);
 SamplerState g_linearSampler : register(s0);
 
 // Lights
-ConstantBuffer<DirectionalLight> directionalLightCB : register(b2);
+ConstantBuffer<DirectionalLight> DirectionalLightCB : register(b2);
 StructuredBuffer<PointLight> PointLights;
 
 //=================
@@ -36,11 +37,10 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 {
     PSInput result;
 
-    float4x4 mvpMatrix = mul(viewProjection, transform);
-    float4x4 modelViewMatrix = mul(view, transform);
+    float4x4 mvp_matrix = mul(view_projection, transform);
     
-    result.position = mul(mvpMatrix, float4(position, 1.0f));
-    result.positionModel = mul(modelViewMatrix, float4(position, 1.0f));
+    result.position = mul(mvp_matrix, float4(position, 1.0f));
+    result.frag_pos = mul(transform, float4(position, 1.0f));
     result.normal = TransformDirection(transform, normal);
     result.uv = uv;
     result.color = color;
@@ -53,22 +53,23 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal :
 //=================
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 diffuseTexture = g_textureDiffuse.Sample(g_linearSampler, input.uv);
-    float4 objectColor = diffuseTexture;
+    float4 diffuse_texture = g_textureDiffuse.Sample(g_linearSampler, input.uv);
+    float4 object_color = diffuse_texture;
+    float3 view_dir = normalize(view_position.xyz - input.frag_pos.xyz);
     
-    if (diffuseTexture.x == 0.0f &&
-        diffuseTexture.y == 0.0f &&
-        diffuseTexture.z == 0.0f)
-        objectColor = input.color;
+    if (diffuse_texture.x == 0.0f &&
+        diffuse_texture.y == 0.0f &&
+        diffuse_texture.z == 0.0f)
+        object_color = input.color;
     
     // Emissive
     float4 emissive = g_textureEmissive.Sample(g_linearSampler, input.uv).rgba * 3.0f;
     
     // Calculate Directional Light
     DirectionalLight dl;
-    dl.direction = directionalLightCB.direction;
-    float4 pixelColor = CalculateDirectionLight(objectColor, input.positionModel, input.normal, dl);
-    
+    dl.direction = DirectionalLightCB.direction;
+    float4 pixel_color = CalculateDirectionLight(object_color, input.frag_pos, view_dir, input.normal, dl);
+
     // Calculate point lights
     uint num_structs, stride;
     PointLights.GetDimensions(num_structs, stride);
@@ -80,11 +81,11 @@ float4 PSMain(PSInput input) : SV_TARGET
         pl.constant_value = PointLights[i].constant_value;
         pl.linear_value = PointLights[i].linear_value;
         pl.quadratic_value = PointLights[i].quadratic_value;
-        pixelColor += CalculatePointLight(objectColor, input.positionModel, input.normal, pl);
+        pixel_color += CalculatePointLight(object_color, input.frag_pos, view_dir, input.normal, pl);
     }
     
-    pixelColor += emissive;
+    pixel_color += emissive;
     
     
-    return pixelColor;
+    return pixel_color;
 }

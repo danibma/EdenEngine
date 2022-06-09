@@ -31,6 +31,7 @@ struct SceneData
 {
 	glm::mat4 view;
 	glm::mat4 view_projection;
+	glm::vec4 view_position;
 };
 
 struct DirectionalLight
@@ -54,7 +55,6 @@ Buffer point_light_cb;
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 light_position(0.0f, 7.0f, 0.0f);
 glm::vec3 light_direction(-0.2f, -1.0f, -2.3f);
 SceneData scene_data;
 Buffer scene_data_cb;
@@ -112,6 +112,7 @@ void Init()
 	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 	scene_data.view = view;
 	scene_data.view_projection = projection * view;
+	scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
 	scene_data_cb = rhi->CreateBuffer<SceneData>(&scene_data, 1);
 
@@ -122,9 +123,10 @@ void Init()
 	directional_light.direction = glm::vec4(light_direction, 1.0f);
 	directional_light_cb = rhi->CreateBuffer<DirectionalLight>(&directional_light, 1);
 
-	point_light.position = glm::vec4(light_position, 1.0f);
+	point_light.position = glm::vec4(5.0f, 0.0f, 0.0f, 1.0f);
 	point_light.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
 	point_lights.emplace_back(point_light);
+	point_light.position = glm::vec4(-5.0f, 0.0f, 0.0f, 1.0f);
 	point_light.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
 	point_lights.emplace_back(point_light);
 	point_light_cb = rhi->CreateBuffer<PointLight>(point_lights.data(), point_lights.size(), D3D12RHI::BufferCreateSRV::kCreateSRV);
@@ -159,7 +161,6 @@ void Update()
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::DragFloat3("Point Light Position", (float*)&light_position, 1.0f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 				ImGui::DragFloat3("Ambient Light Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 				ImGui::Checkbox("Enable Skybox", &skybox_enable);
 			}
@@ -186,17 +187,15 @@ void Update()
 
 			scene_data.view = view;
 			scene_data.view_projection = projection * view;
+			scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
 			directional_light.direction = glm::vec4(light_direction, 1.0f);
 			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light, 1);
-			point_lights[0].position = glm::vec4(light_position, 1.0f);
-			point_lights[1].position = glm::vec4(light_position, 1.0f);
-			rhi->UpdateBuffer<PointLight>(point_light_cb, point_lights.data(), point_lights.size());
 
 			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
 			rhi->BindConstantBuffer("SceneData", scene_data_cb);
 			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
-			rhi->BindConstantBuffer("directionalLightCB", directional_light_cb);
+			rhi->BindConstantBuffer("DirectionalLightCB", directional_light_cb);
 			rhi->BindShaderResource(point_light_cb);
 
 			for (auto& submesh : mesh.submeshes)
@@ -218,17 +217,15 @@ void Update()
 
 			scene_data.view = view;
 			scene_data.view_projection = projection * view;
+			scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
 			directional_light.direction = glm::vec4(light_direction, 1.0f);
 			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light, 1);
-			point_lights[0].position = glm::vec4(light_position, 1.0f);
-			point_lights[1].position = glm::vec4(light_position, 1.0f);
-			rhi->UpdateBuffer<PointLight>(point_light_cb, point_lights.data(), point_lights.size());
 
 			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
 			rhi->BindConstantBuffer("SceneData", scene_data_cb);
 			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
-			rhi->BindConstantBuffer("directionalLightCB", directional_light_cb);
+			rhi->BindConstantBuffer("DirectionalLightCB", directional_light_cb);
 			rhi->BindShaderResource(point_light_cb);
 		
 			for (auto& submesh : mesh.submeshes)

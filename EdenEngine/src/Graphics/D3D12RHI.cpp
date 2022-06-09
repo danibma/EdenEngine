@@ -1081,7 +1081,7 @@ namespace Eden
 		CD3DX12_CPU_DESCRIPTOR_HANDLE dsv_handle(m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(m_RTVHeap->GetCPUDescriptorHandleForHeapStart(), m_FrameIndex, m_RTVDescriptorSize);
 
-		const float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
+		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
 		m_CommandList->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
 		m_CommandList->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	}

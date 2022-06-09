@@ -6,31 +6,28 @@ struct DirectionalLight
     float4 direction;
 };
 
-float4 CalculateDirectionLight(float4 objectColor, float4 positionModelMatrix, float3 normal, DirectionalLight directionalLight)
+float4 CalculateDirectionLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, DirectionalLight directional_light)
 {
     // Lighting
-    float3 lightColor = float3(1.0f, 1.0f, 1.0f);
-    float3 fragPos = float3(positionModelMatrix.xyz);
+    float3 light_color = float3(1.0f, 1.0f, 1.0f);
     
     // Ambient Light
-    float ambientStrength = 0.1f;
-    float4 ambient = float4(ambientStrength * lightColor, 1.0f) * objectColor;
+    float ambient_strength = 0.1f;
+    float4 ambient = float4(ambient_strength * light_color, 1.0f) * object_color;
     
     // Diffuse Light
     float3 norm = normalize(normal);
-    //float3 lightDirection = normalize(lightPos - fragPos);
-    float3 lightDir = normalize(directionalLight.direction.xyz);
-    float diffuseColor = max(dot(norm, lightDir), 0.0f);
-    float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * objectColor;
+    float3 light_dir = normalize(directional_light.direction.xyz);
+    float diffuse_color = max(dot(norm, light_dir), 0.0f);
+    float4 diffuse = float4(diffuse_color * light_color, 1.0f) * object_color;
     
     // Specular Light
-    float specularStrength = 0.1f;
-    float3 viewDirection = normalize(-fragPos);
-    float3 reflectDirection = reflect(-lightDir, norm);
+    float specular_strength = 0.1f;
+    float3 reflect_direction = reflect(-light_dir, norm);
     float shininess = 32.0f;
-    float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
-    float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
-    
+    float spec = pow(max(dot(view_dir, reflect_direction), 0.0f), shininess);
+    float4 specular = float4((specular_strength * spec * light_color), 1.0f);
+
     return ambient + diffuse + specular;
 }
 
@@ -47,34 +44,31 @@ struct PointLight
     float padding; // no use
 };
 
-float4 CalculatePointLight(float4 objectColor, float4 positionModelMatrix, float3 normal, PointLight pointLight)
+float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, PointLight point_light)
 {
      // Lighting
-    float3 lightColor = pointLight.color.rgb;
-    float3 fragPos = float3(positionModelMatrix.xyz);
+    float3 light_color = point_light.color.rgb;
     
     // Ambient Light
-    float ambientStrength = 0.1f;
-    float4 ambient = float4(ambientStrength * lightColor, 1.0f) * objectColor;
+    float ambient_strength = 0.1f;
+    float4 ambient = float4(ambient_strength * light_color, 1.0f) * object_color;
     
     // Diffuse Light
     float3 norm = normalize(normal);
-    float3 lightDir = normalize(pointLight.position.xyz - fragPos);
-    //float3 lightDir = normalize(lightDirection);
-    float diffuseColor = max(dot(norm, lightDir), 0.0f);
-    float4 diffuse = float4(diffuseColor * lightColor, 1.0f) * objectColor;
+    float3 light_dir = normalize(point_light.position.xyz - frag_pos.xyz);
+    float diffuse_color = max(dot(norm, light_dir), 0.0f);
+    float4 diffuse = float4(diffuse_color * light_color, 1.0f) * object_color;
     
     // Specular Light
-    float specularStrength = 0.1f;
-    float3 viewDirection = normalize(-fragPos);
-    float3 reflectDirection = reflect(-lightDir, norm);
+    float specular_strength = 0.1f;
+    float3 reflect_direction = reflect(-light_dir, norm);
     float shininess = 32.0f;
-    float spec = pow(max(dot(viewDirection, reflectDirection), 0.0f), shininess);
-    float4 specular = float4((specularStrength * spec * lightColor), 1.0f);
+    float spec = pow(max(dot(view_dir, reflect_direction), 0.0f), shininess);
+    float4 specular = float4((specular_strength * spec * light_color), 1.0f);
     
     // Calculate attenuation
-    float distance = length(pointLight.position.xyz - fragPos);
-    float attenuation = 1.0f / (pointLight.constant_value + pointLight.linear_value * distance + pointLight.quadratic_value * (distance * distance));
+    float distance = length(point_light.position.xyz - frag_pos.xyz);
+    float attenuation = 1.0f / (point_light.constant_value + point_light.linear_value * distance + point_light.quadratic_value * (distance * distance));
     ambient  *= attenuation;
     diffuse  *= attenuation;
     specular *= attenuation;
