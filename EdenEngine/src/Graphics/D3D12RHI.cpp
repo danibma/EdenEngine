@@ -873,7 +873,7 @@ namespace Eden
 		m_CommandList->SetGraphicsRootConstantBufferView(static_cast<uint32_t>(root_parameter_index), constant_buffer.resource->GetGPUVirtualAddress());
 	}
 
-	void D3D12RHI::BindShaderResource(Buffer buffer)
+	void D3D12RHI::BindShaderResource(const Buffer buffer)
 	{
 		ED_PROFILE_FUNCTION();
 		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
@@ -884,7 +884,7 @@ namespace Eden
 		m_CommandList->SetGraphicsRootDescriptorTable(0, srv_handle);
 	}
 
-	void D3D12RHI::BindShaderResource(Texture2D texture)
+	void D3D12RHI::BindShaderResource(const Texture2D texture)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -894,7 +894,7 @@ namespace Eden
 		m_CommandList->SetGraphicsRootDescriptorTable(0, srv_handle);
 	}
 
-	void D3D12RHI::BindShaderResource(uint32_t heap_offset)
+	void D3D12RHI::BindShaderResource(const uint32_t heap_offset)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);

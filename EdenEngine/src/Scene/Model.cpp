@@ -272,10 +272,10 @@ namespace Eden
 	// Transform
 	void Model::Mesh::UpdateTransform()
 	{
-		transform = m_Scale * m_Rotation * m_Translation * gltf_matrix;
+		transform = m_Translation * m_Rotation * m_Scale * gltf_matrix;
 	}
 
-	void Model::Mesh::SetTranslation(int32_t x, int32_t y, int32_t z)
+	void Model::Mesh::SetTranslation(const int32_t x, const int32_t y, const int32_t z)
 	{
 		glm::vec3 new_translation = glm::vec3(x, y, z);
 		if (m_LastTranslation != new_translation)
@@ -285,7 +285,7 @@ namespace Eden
 		}
 	}
 
-	void Model::Mesh::SetRotation(float angle, int32_t x, int32_t y, int32_t z)
+	void Model::Mesh::SetRotation(const float angle, const int32_t x, const int32_t y, const int32_t z)
 	{
 		glm::vec3 new_rotation = glm::vec3(x, y, z);
 		if (new_rotation != m_LastRotation && angle != m_LastAngle)
@@ -295,7 +295,7 @@ namespace Eden
 		}
 	}
 
-	void Model::Mesh::SetScale(int32_t x, int32_t y, int32_t z)
+	void Model::Mesh::SetScale(const float x, const float y, const float z)
 	{
 		glm::vec3 new_scale = glm::vec3(x, y, z);
 		if (new_scale != m_LastScale)

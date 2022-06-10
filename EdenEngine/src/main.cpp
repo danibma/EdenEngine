@@ -13,6 +13,7 @@
 
 #include <imgui/imgui.h>
 
+#include "Scene/LightCasters.h"
 #include "Scene/Model.h"
 
 using namespace Eden;
@@ -34,23 +35,10 @@ struct SceneData
 	glm::vec4 view_position;
 };
 
-struct DirectionalLight
-{
-	glm::vec4 direction;
-} directional_light;
+DirectionalLight directional_light;
 Buffer directional_light_cb;
-
-struct PointLight
-{
-	glm::vec4 color;
-	glm::vec4 position;
-	float constant_value	= 1.0f;
-	float linear_value		= 0.09f;
-	float quadratic_value	= 0.032f;
-	float padding; // no use
-} point_light;
 std::vector<PointLight> point_lights;
-Buffer point_light_cb;
+Buffer point_lights_cb;
 
 glm::mat4 model;
 glm::mat4 view;
@@ -62,6 +50,7 @@ Camera camera;
 
 Pipeline object_texture;
 Pipeline object_simple;
+Pipeline light_caster;
 Model sponza;
 Model flight_helmet;
 Model basic_mesh;
@@ -92,8 +81,8 @@ void Init()
 	PipelineState object_textureDS;
 	object_textureDS.enable_blending = true;
 	object_texture = rhi->CreateGraphicsPipeline("object_texture", object_textureDS);
-
 	object_simple = rhi->CreateGraphicsPipeline("object_simple");
+	light_caster = rhi->CreateGraphicsPipeline("light_caster");
 
 	PipelineState skybox_ds;
 	skybox_ds.cull_mode = D3D12_CULL_MODE_NONE;
@@ -120,16 +109,25 @@ void Init()
 	skybox_data_cb = rhi->CreateBuffer<SkyboxData>(&skybox_data, 1);
 
 	// Lights
-	directional_light.direction = glm::vec4(light_direction, 1.0f);
+	directional_light.data.direction = glm::vec4(light_direction, 1.0f);
 	directional_light_cb = rhi->CreateBuffer<DirectionalLight>(&directional_light, 1);
 
-	point_light.position = glm::vec4(5.0f, 0.0f, 0.0f, 1.0f);
-	point_light.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-	point_lights.emplace_back(point_light);
-	point_light.position = glm::vec4(-5.0f, 0.0f, 0.0f, 1.0f);
-	point_light.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-	point_lights.emplace_back(point_light);
-	point_light_cb = rhi->CreateBuffer<PointLight>(point_lights.data(), point_lights.size(), D3D12RHI::BufferCreateSRV::kCreateSRV);
+	point_lights.emplace_back();
+	point_lights.back().model.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
+	point_lights.back().data.position = glm::vec4(5.0f, 0.0f, 0.0f, 1.0f);
+	point_lights.back().data.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+	point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
+
+	point_lights.emplace_back();
+	point_lights.back().model.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
+	point_lights.back().data.position = glm::vec4(-5.0f, 0.0f, 0.0f, 1.0f);
+	point_lights.back().data.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
+
+	std::vector<PointLight::PointLightData> point_lights_data(point_lights.size());
+	point_lights_data.emplace_back(point_lights[0].data);
+	point_lights_data.emplace_back(point_lights[1].data);
+	point_lights_cb = rhi->CreateBuffer<PointLight::PointLightData>(point_lights_data.data(), point_lights_data.size(), D3D12RHI::BufferCreateSRV::kCreateSRV);
 }
 
 bool open_debug_window = true;
@@ -189,14 +187,14 @@ void Update()
 			scene_data.view_projection = projection * view;
 			scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
-			directional_light.direction = glm::vec4(light_direction, 1.0f);
-			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light, 1);
+			directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
 
 			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
 			rhi->BindConstantBuffer("SceneData", scene_data_cb);
 			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
 			rhi->BindConstantBuffer("DirectionalLightCB", directional_light_cb);
-			rhi->BindShaderResource(point_light_cb);
+			rhi->BindShaderResource(point_lights_cb);
 
 			for (auto& submesh : mesh.submeshes)
 			{
@@ -219,18 +217,50 @@ void Update()
 			scene_data.view_projection = projection * view;
 			scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
-			directional_light.direction = glm::vec4(light_direction, 1.0f);
-			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light, 1);
+			directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
 
 			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
 			rhi->BindConstantBuffer("SceneData", scene_data_cb);
 			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
 			rhi->BindConstantBuffer("DirectionalLightCB", directional_light_cb);
-			rhi->BindShaderResource(point_light_cb);
+			rhi->BindShaderResource(point_lights_cb);
 		
 			for (auto& submesh : mesh.submeshes)
 				rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 		}
+
+		// Draw point lights
+		rhi->BindPipeline(light_caster);
+		for (auto& point_light : point_lights)
+		{
+			rhi->BindVertexBuffer(point_light.model.mesh_vb);
+			rhi->BindIndexBuffer(point_light.model.mesh_ib);
+
+			for (auto& mesh : point_light.model.meshes)
+			{
+				mesh.SetTranslation(point_light.data.position.x, point_light.data.position.y, point_light.data.position.z);
+				mesh.SetScale(0.2f, 0.2f, 0.2f);
+				mesh.UpdateTransform();
+				rhi->UpdateBuffer<glm::mat4>(mesh.transform_cb, &mesh.transform, 1);
+
+				scene_data.view = view;
+				scene_data.view_projection = projection * view;
+				scene_data.view_position = glm::vec4(camera.position, 1.0f);
+
+				directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+				rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
+
+				rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
+				rhi->BindConstantBuffer("SceneData", scene_data_cb);
+				rhi->BindConstantBuffer("Transform", mesh.transform_cb);
+				rhi->BindConstantBuffer("LightColor", point_light.light_color_buffer);
+
+				for (auto& submesh : mesh.submeshes)
+					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
+			}
+		}
+		
 
 		// Skybox
 		if (skybox_enable)
@@ -265,7 +295,7 @@ void Update()
 
 void Destroy()
 {
-	point_light_cb.Release();
+	point_lights_cb.Release();
 	directional_light_cb.Release();
 	scene_data_cb.Release();
 	skybox_data_cb.Release();
@@ -274,6 +304,9 @@ void Destroy()
 	sponza.Destroy();
 	flight_helmet.Destroy();
 	basic_mesh.Destroy();
+
+	for (auto& point_light : point_lights)
+		point_light.Destroy();
 
 	edelete rhi;
 

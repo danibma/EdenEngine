@@ -56,7 +56,7 @@ namespace Eden
 			void UpdateTransform();
 			void SetTranslation(int32_t x, int32_t y, int32_t z);
 			void SetRotation(float angle, int32_t x, int32_t y, int32_t z);
-			void SetScale(int32_t x, int32_t y, int32_t z);
+			void SetScale(float x, float y, float z);
 
 		private:
 			glm::mat4 m_Scale = glm::mat4(1.0f);
