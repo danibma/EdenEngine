@@ -631,99 +631,17 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
-		Texture2D texture;
-
-		ComPtr<ID3D12Resource> texture_upload_heap;
-		D3D12MA::Allocation* upload_allocation;
-
-		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("GPU::CreateTexture2D");
-
-		// Create the texture
+		// Load texture from file
+		int width, height, nchannels;
+		unsigned char* texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
+		if (!texture_file)
 		{
-			// Load texture from file
-			int width, height, nchannels;
-			unsigned char* texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
-			if (!texture_file)
-			{
-				ED_LOG_ERROR("Could not load texture file: {}", file_path);
-				return Texture2D();
-			}
-				
-			texture.width = width;
-			texture.height = height;
-			texture.format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-			// Describe and create a texture2D
-			D3D12_RESOURCE_DESC texture_desc = {};
-			texture_desc.MipLevels = 1;
-			texture_desc.Format = texture.format;
-			texture_desc.Width = width;
-			texture_desc.Height = height;
-			texture_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-			texture_desc.DepthOrArraySize = 1;
-			texture_desc.SampleDesc.Count = 1;
-			texture_desc.SampleDesc.Quality = 0;
-			texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-			D3D12MA::ALLOCATION_DESC allocation_desc = {};
-			allocation_desc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-
-			m_Allocator->CreateResource(&allocation_desc,
-										&texture_desc,
-										D3D12_RESOURCE_STATE_COPY_DEST,
-										nullptr,
-										&texture.allocation,
-										IID_PPV_ARGS(&texture.resource));
-
-			const uint64_t upload_buffer_size = GetRequiredIntermediateSize(texture.resource.Get(), 0, 1);
-
-			// Create the GPU upload buffer
-			D3D12MA::ALLOCATION_DESC upload_allocation_desc = {};
-			upload_allocation_desc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-
-			m_Allocator->CreateResource(&upload_allocation_desc,
-												  &CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
-												  D3D12_RESOURCE_STATE_GENERIC_READ,
-												  nullptr,
-												  &upload_allocation,
-												  IID_PPV_ARGS(&texture_upload_heap));
-
-			// Copy data to the intermediate upload heap and then schedule a copy 
-			// from the upload heap to the Texture2D.
-			D3D12_SUBRESOURCE_DATA texture_data = {};
-			texture_data.pData = &texture_file[0];
-			texture_data.RowPitch = width * 4;
-			texture_data.SlicePitch = height * texture_data.RowPitch;
-
-			UpdateSubresources(m_CommandList.Get(), texture.resource.Get(), texture_upload_heap.Get(), 0, 0, 1, &texture_data);
-			m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
-			edelete texture_file;
+			ED_LOG_ERROR("Could not load texture file: {}", file_path);
+			return Texture2D();
 		}
 
-		m_CommandList->Close();
-		ID3D12CommandList* command_lists[] = { m_CommandList.Get() };
-		m_CommandQueue->ExecuteCommandLists(_countof(command_lists), command_lists);
-		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
-
-		// Describe and create a Shader resource view(SRV) for the texture
-		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srv_desc.Format = texture.format;
-		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Texture2D.MipLevels = 1;
-
-		texture.heap_offset = m_SRVHeapOffset;
-		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
-		m_Device->CreateShaderResourceView(texture.resource.Get(), &srv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
-
-		WaitForGPU();
-
-		upload_allocation->Release();
-
-		m_SRVHeapOffset++;
-
+		Texture2D texture = CreateTexture2D(texture_file, width, height);
+		
 		return texture;
 	}
 
@@ -869,8 +787,13 @@ namespace Eden
 	void D3D12RHI::BindConstantBuffer(std::string_view parameter_name, Buffer constant_buffer)
 	{
 		ED_PROFILE_FUNCTION();
-		auto root_parameter_index = m_BoundPipeline.root_parameter_indices.at(parameter_name.data());
-		m_CommandList->SetGraphicsRootConstantBufferView(static_cast<uint32_t>(root_parameter_index), constant_buffer.resource->GetGPUVirtualAddress());
+
+		auto root_parameter_index = m_BoundPipeline.root_parameter_indices.find(parameter_name.data());
+
+		bool root_parameter_found = root_parameter_index != m_BoundPipeline.root_parameter_indices.end();
+		ED_ASSERT_LOG(root_parameter_found, "Failed to find root parameter!");
+
+		m_CommandList->SetGraphicsRootConstantBufferView(static_cast<uint32_t>(root_parameter_index->second), constant_buffer.resource->GetGPUVirtualAddress());
 	}
 
 	void D3D12RHI::BindShaderResource(const Buffer buffer)

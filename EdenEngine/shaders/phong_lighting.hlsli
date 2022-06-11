@@ -4,6 +4,7 @@
 struct DirectionalLight
 {
     float4 direction;
+    float intensity;
 };
 
 float4 CalculateDirectionLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, DirectionalLight directional_light)
@@ -28,7 +29,7 @@ float4 CalculateDirectionLight(const float4 object_color, float4 frag_pos, const
     float spec = pow(max(dot(view_dir, reflect_direction), 0.0f), shininess);
     float4 specular = float4((specular_strength * spec * light_color), 1.0f);
 
-    return ambient + diffuse + specular;
+    return (ambient + diffuse + specular) * directional_light.intensity;
 }
 
 //=================

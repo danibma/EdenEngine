@@ -31,6 +31,7 @@ namespace Eden
 		struct DirectionalLightData
 		{
 			glm::vec4 direction;
+			float intensity = 1.0f;
 		} data;
 	};
 }

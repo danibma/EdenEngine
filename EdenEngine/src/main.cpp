@@ -37,13 +37,14 @@ struct SceneData
 
 DirectionalLight directional_light;
 Buffer directional_light_cb;
+float directional_light_intensity = 0.5f;
 std::vector<PointLight> point_lights;
 Buffer point_lights_cb;
 
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 light_direction(-0.2f, -1.0f, -2.3f);
+glm::vec3 light_direction(0.0f, 10.0f, 0.0f);
 SceneData scene_data;
 Buffer scene_data_cb;
 Camera camera;
@@ -54,6 +55,7 @@ Pipeline light_caster;
 Model sponza;
 Model flight_helmet;
 Model basic_mesh;
+Model floor_mesh;
 
 // Skybox
 Pipeline skybox;
@@ -93,6 +95,7 @@ void Init()
 	sponza.LoadGLTF(rhi, "assets/Models/DamagedHelmet/DamagedHelmet.glb");
 	basic_mesh.LoadGLTF(rhi, "assets/Models/basic/sphere.glb");
 	skybox_cube.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
+	floor_mesh.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
 
 	camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -110,17 +113,18 @@ void Init()
 
 	// Lights
 	directional_light.data.direction = glm::vec4(light_direction, 1.0f);
-	directional_light_cb = rhi->CreateBuffer<DirectionalLight>(&directional_light, 1);
+	directional_light.data.intensity = directional_light_intensity;
+	directional_light_cb = rhi->CreateBuffer<DirectionalLight::DirectionalLightData>(&directional_light.data, 1);
 
 	point_lights.emplace_back();
 	point_lights.back().model.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
-	point_lights.back().data.position = glm::vec4(5.0f, 0.0f, 0.0f, 1.0f);
+	point_lights.back().data.position = glm::vec4(3.0f, 0.0f, -5.0f, 1.0f);
 	point_lights.back().data.color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
 	point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
 
 	point_lights.emplace_back();
 	point_lights.back().model.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
-	point_lights.back().data.position = glm::vec4(-5.0f, 0.0f, 0.0f, 1.0f);
+	point_lights.back().data.position = glm::vec4(-3.0f, 0.0f, -5.0f, 1.0f);
 	point_lights.back().data.color = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
 	point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
 
@@ -159,7 +163,8 @@ void Update()
 			}
 			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ImGui::DragFloat3("Ambient Light Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::DragFloat3("Directional Light Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::DragFloat("Directional Light Intensity", &directional_light_intensity, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 				ImGui::Checkbox("Enable Skybox", &skybox_enable);
 			}
 			ImGui::End();
@@ -188,6 +193,7 @@ void Update()
 			scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
 			directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+			directional_light.data.intensity = directional_light_intensity;
 			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
 
 			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
@@ -218,6 +224,7 @@ void Update()
 			scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
 			directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+			directional_light.data.intensity = directional_light_intensity;
 			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
 
 			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
@@ -226,6 +233,34 @@ void Update()
 			rhi->BindConstantBuffer("DirectionalLightCB", directional_light_cb);
 			rhi->BindShaderResource(point_lights_cb);
 		
+			for (auto& submesh : mesh.submeshes)
+				rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
+		}
+
+		// Draw floor
+		rhi->BindVertexBuffer(floor_mesh.mesh_vb);
+		rhi->BindIndexBuffer(floor_mesh.mesh_ib);
+		for (auto& mesh : floor_mesh.meshes)
+		{
+			mesh.SetScale(10.0f, 0.2f, 10.0f);
+			mesh.SetTranslation(0.0f, -2.0f, 0.0f);
+			mesh.UpdateTransform();
+			rhi->UpdateBuffer<glm::mat4>(mesh.transform_cb, &mesh.transform, 1);
+
+			scene_data.view = view;
+			scene_data.view_projection = projection * view;
+			scene_data.view_position = glm::vec4(camera.position, 1.0f);
+
+			directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+			directional_light.data.intensity = directional_light_intensity;
+			rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
+
+			rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
+			rhi->BindConstantBuffer("SceneData", scene_data_cb);
+			rhi->BindConstantBuffer("Transform", mesh.transform_cb);
+			rhi->BindConstantBuffer("DirectionalLightCB", directional_light_cb);
+			rhi->BindShaderResource(point_lights_cb);
+
 			for (auto& submesh : mesh.submeshes)
 				rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 		}
@@ -249,6 +284,7 @@ void Update()
 				scene_data.view_position = glm::vec4(camera.position, 1.0f);
 
 				directional_light.data.direction = glm::vec4(light_direction, 1.0f);
+				directional_light.data.intensity = directional_light_intensity;
 				rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
 
 				rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
@@ -295,6 +331,7 @@ void Update()
 
 void Destroy()
 {
+	floor_mesh.Destroy();
 	point_lights_cb.Release();
 	directional_light_cb.Release();
 	scene_data_cb.Release();

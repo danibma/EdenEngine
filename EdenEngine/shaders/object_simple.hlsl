@@ -53,6 +53,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     // Calculate Directional Light
     DirectionalLight dl;
     dl.direction = DirectionalLightCB.direction;
+    dl.intensity = DirectionalLightCB.intensity;
     float4 pixel_color = CalculateDirectionLight(object_color, input.frag_pos, view_dir, input.normal, dl);
     
     // Calculate point lights
