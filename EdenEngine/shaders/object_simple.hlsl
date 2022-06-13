@@ -51,24 +51,13 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3 view_dir = normalize(view_position.xyz - input.frag_pos.xyz);
 
     // Calculate Directional Light
-    DirectionalLight dl;
-    dl.direction = DirectionalLightCB.direction;
-    dl.intensity = DirectionalLightCB.intensity;
-    float4 pixel_color = CalculateDirectionLight(object_color, input.frag_pos, view_dir, input.normal, dl);
+    float4 pixel_color = CalculateDirectionLight(object_color, input.frag_pos, view_dir, input.normal, DirectionalLightCB);
     
     // Calculate point lights
     uint num_structs, stride;
     PointLights.GetDimensions(num_structs, stride);
     for (int i = 0; i < num_structs; ++i)
-    {
-        PointLight pl;
-        pl.color = PointLights[i].color;
-        pl.position = PointLights[i].position;
-        pl.constant_value = PointLights[i].constant_value;
-        pl.linear_value = PointLights[i].linear_value;
-        pl.quadratic_value = PointLights[i].quadratic_value;
-        pixel_color += CalculatePointLight(object_color, input.frag_pos, view_dir, input.normal, pl);
-    }
+        pixel_color += CalculatePointLight(object_color, input.frag_pos, view_dir, input.normal, PointLights[i]);
     
     return pixel_color;
 }
