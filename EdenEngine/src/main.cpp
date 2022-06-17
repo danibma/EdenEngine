@@ -2,19 +2,20 @@
 #include "Core/Memory.h"
 #include "Core/Input.h"
 #include "Core/Log.h"
+#include "Core/Application.h"
+#include "Core/UI.h"
+#include "Core/Camera.h"
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
 #include "Graphics/D3D12RHI.h"
-#include "Core/Camera.h"
+#include "Scene/LightCasters.h"
+#include "Scene/Model.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "Scene/LightCasters.h"
-#include "Scene/Model.h"
-#include "Core/Application.h"
-#include "Core/UI.h"
+#include <entt/entt.hpp>
 
 using namespace Eden;
 
@@ -152,6 +153,7 @@ public:
 		ImGui::PopStyleVar();
 		ImGui::PopStyleVar();
 
+		ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.200f, 0.220f, 0.270f, 1.0f));
 		if (ImGui::BeginMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
@@ -162,7 +164,24 @@ public:
 			if (ImGui::BeginMenu("Windows"))
 			{
 				ImGui::MenuItem("Debug", NULL, &open_debug_window);
-				ImGui::MenuItem("Entity Properties", 0, &open_entity_properties);
+				ImGui::MenuItem("Entity Properties", NULL, &open_entity_properties);
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Options"))
+			{
+				ImGui::PushItemWidth(150.0f);
+				ImGui::Text("Theme:");
+				ImGui::SameLine();
+				if (ImGui::Combo("###theme", reinterpret_cast<int*>(&UI::g_SelectedTheme), "Cherry\0Hazel\0"))
+				{
+					switch (UI::g_SelectedTheme)
+					{
+						case UI::Themes::Cherry: UI::CherryTheme(); break;
+						case UI::Themes::Hazel: UI::HazelTheme(); break;
+					}
+				}
 
 				ImGui::EndMenu();
 			}
@@ -178,10 +197,12 @@ public:
 			ImGui::EndMenuBar();
 		}
 
+		ImGui::PopStyleColor();
+
 		// Help Popup
 		if (show_help_popup)
 			ImGui::OpenPopup("help_popup");
-		if (ImGui::BeginPopupModal("help_popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar))
+		if (ImGui::BeginPopupModal("help_popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
 		{
 			UI::CenterWindow();
 			ImGui::Dummy(ImVec2(0, 10));

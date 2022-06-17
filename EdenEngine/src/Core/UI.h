@@ -5,6 +5,13 @@
 
 namespace Eden::UI
 {
+	enum class Themes
+	{
+		Cherry = 0,
+		Hazel
+	};
+	inline Themes g_SelectedTheme = Themes::Hazel;
+
 	enum class Align
 	{
 		Left,
@@ -13,11 +20,15 @@ namespace Eden::UI
 	};
 	static float AlignToFloat(Align alignment);
 
+
 	bool Button(const char* label, Align alignment);
 	void Text(const char* text, Align alignment);
 	void TextDisabled(const char* text, Align alignment);
-
 	void CenterWindow();
 	
+	// Themes
+	static void Styles();
+	void CherryTheme();
+	void HazelTheme();
 }
 

@@ -9,11 +9,12 @@
 #include <imgui/backends/imgui_impl_dx12.h>
 #include <imgui/backends/imgui_impl_win32.h>
 
+#include <dxgidebug.h>
+#include <dxgi1_6.h>
+
 #include "Core/Memory.h"
 #include "Utilities/Utils.h"
 #include "Profiling/Profiler.h"
-#include <dxgidebug.h>
-#include <dxgi1_6.h>
 
 namespace Eden
 {
