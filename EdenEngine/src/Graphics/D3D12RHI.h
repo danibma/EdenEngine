@@ -113,6 +113,7 @@ namespace Eden
 		uint32_t m_RTVDescriptorSize;
 		ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
 		ComPtr<ID3D12DescriptorHeap> m_SRVHeap;
+		ComPtr<ID3D12DescriptorHeap> m_RenderTargetsSRVHeap;
 		ComPtr<ID3D12Resource> m_RenderTargets[s_FrameCount];
 		ComPtr<ID3D12Resource> m_DepthStencil;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
@@ -139,6 +140,7 @@ namespace Eden
 		Pipeline m_BoundPipeline;
 
 		uint32_t m_SRVHeapOffset = 1;
+		uint32_t m_RenderTargetSRVOffsets[2];
 
 		struct ShaderResult
 		{
@@ -205,6 +207,9 @@ namespace Eden
 		void BindShaderResource(Texture2D texture);
 		void BindShaderResource(uint32_t heap_offset);
 
+		void BeginRender();
+		void EndRender();
+
 		void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0);
 		void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t start_index_location = 0, uint32_t base_vertex_location = 0, uint32_t start_instance_location = 0);
 
@@ -212,6 +217,11 @@ namespace Eden
 		void Resize(uint32_t width, uint32_t height);
 
 		void ClearRenderTargets();
+
+		ID3D12Resource* GetCurrentRenderTarget();
+		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE GetTextureGPUHandle(Texture2D texture);
 
 	private:
 		void PrepareDraw();

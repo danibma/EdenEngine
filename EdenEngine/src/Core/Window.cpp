@@ -79,7 +79,7 @@ namespace Eden
 		auto& style = ImGui::GetStyle();
 		style.Colors[ImGuiCol_Text] = TEXT_COLOR(0.78f);
 		style.Colors[ImGuiCol_TextDisabled] = TEXT_COLOR(0.28f);
-		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.14f, 0.17f, 0.70f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.14f, 0.17f, 1.00f);
 		style.Colors[ImGuiCol_ChildBg] = BG(0.58f);
 		style.Colors[ImGuiCol_PopupBg] = BG(0.9f);
 		style.Colors[ImGuiCol_Border] = ImVec4(0.31f, 0.31f, 1.00f, 0.00f);
@@ -126,6 +126,7 @@ namespace Eden
 		style.ScrollbarRounding = 16.0f;
 		style.GrabMinSize = 20.0f;
 		style.GrabRounding = 2.0f;
+		style.WindowMinSize = ImVec2(1, 1);    // Minimum window size
 
 		style.WindowTitleAlign.x = 0.50f;
 
@@ -168,7 +169,7 @@ namespace Eden
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;    // Enable Keyboard Controls
-		//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;		 // Enable Multi Viewports
 
 		// Setup Dear ImGui style

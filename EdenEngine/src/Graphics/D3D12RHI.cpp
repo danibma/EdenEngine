@@ -132,6 +132,17 @@ namespace Eden
 
 			if (FAILED(m_Device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&m_SRVHeap))))
 				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
+
+			// Describe and create a shader resource view (SRV) heap for the render targets.
+			srv_heap_desc = {};
+			srv_heap_desc.NumDescriptors = 4;
+			srv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			srv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+			if (FAILED(m_Device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&m_RenderTargetsSRVHeap))))
+				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
+
+			m_RenderTargetsSRVHeap->SetName(L"Render Targets SRV Heap");
 		}
 
 		CreateBackBuffers(window->GetWidth(), window->GetHeight());
@@ -171,11 +182,6 @@ namespace Eden
 		ID3D12Device* pDevice = m_Device.Get();
 		ID3D12CommandQueue* pCommandQueue = m_CommandQueue.Get();
 		ED_PROFILE_GPU_INIT(pDevice, &pCommandQueue, 1);
-
-		// Indicate that the back buffer will be used as a render target
-		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_FrameIndex].Get(),
-																				D3D12_RESOURCE_STATE_PRESENT,
-																				D3D12_RESOURCE_STATE_RENDER_TARGET));
 	}
 
 	D3D12RHI::~D3D12RHI()
@@ -461,6 +467,7 @@ namespace Eden
 	{
 		// Create render targets
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_srv_handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
 
 		// Create a RTV for each frame
 		for (uint32_t i = 0; i < s_FrameCount; ++i)
@@ -470,6 +477,11 @@ namespace Eden
 
 			m_Device->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtv_handle);
 			rtv_handle.Offset(1, m_RTVDescriptorSize);
+
+			m_Device->CreateShaderResourceView(m_RenderTargets[i].Get(), nullptr, rtv_srv_handle);
+			rtv_srv_handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+			m_RenderTargetSRVOffsets[i] = m_SRVHeapOffset;
+			m_SRVHeapOffset++;
 
 			m_RenderTargets[i]->SetName(L"backbuffer");
 		}
@@ -705,7 +717,7 @@ namespace Eden
 			texture_data.SlicePitch = height * texture_data.RowPitch;
 
 			UpdateSubresources(m_CommandList.Get(), texture.resource.Get(), texture_upload_heap.Get(), 0, 0, 1, &texture_data);
-			m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			ChangeResourceState(texture.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
 		m_CommandList->Close();
@@ -746,13 +758,6 @@ namespace Eden
 
 	void D3D12RHI::ImGuiNewFrame()
 	{
-		// Update and Render additional Platform Windows
-		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-		}
-
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
@@ -825,6 +830,35 @@ namespace Eden
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 		srv_handle.Offset(heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		m_CommandList->SetGraphicsRootDescriptorTable(0, srv_handle);
+	}
+
+	void D3D12RHI::BeginRender()
+	{
+		// Indicate that the back buffer will be used as a render target
+		auto current_render_target = GetCurrentRenderTarget();
+		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	}
+
+	void D3D12RHI::EndRender()
+	{
+		if (m_ImguiInitialized)
+		{
+			ImGui::Render();
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_CommandList.Get());
+
+			// Update and Render additional Platform Windows
+			if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			{
+				ImGui::UpdatePlatformWindows();
+				ImGui::RenderPlatformWindowsDefault();
+			}
+		}
+
+		auto current_render_target = GetCurrentRenderTarget();
+		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+		if (m_ImguiInitialized)
+			ImGuiNewFrame();
 	}
 
 	void D3D12RHI::PrepareDraw()
@@ -906,16 +940,6 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
-		if (m_ImguiInitialized)
-		{
-			ImGui::Render();
-			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_CommandList.Get());
-		}
-
-		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_FrameIndex].Get(),
-																				D3D12_RESOURCE_STATE_RENDER_TARGET,
-																				D3D12_RESOURCE_STATE_PRESENT));
-
 		if (FAILED(m_CommandList->Close()))
 			ED_ASSERT_MB(false, "Failed to close command list");
 
@@ -952,14 +976,6 @@ namespace Eden
 		// list, that command list can then be reset at any time and must be before 
 		// re-recording.
 		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
-
-		// Indicate that the back buffer will be used as a render target
-		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_FrameIndex].Get(),
-																				D3D12_RESOURCE_STATE_PRESENT,
-																				D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-		if (m_ImguiInitialized)
-			ImGuiNewFrame();
 	}
 
 	void D3D12RHI::Resize(uint32_t width, uint32_t height)
@@ -993,9 +1009,8 @@ namespace Eden
 			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
 
 			// Indicate that the back buffer will be used as a render target
-			m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_FrameIndex].Get(),
-																					D3D12_RESOURCE_STATE_PRESENT,
-																					D3D12_RESOURCE_STATE_RENDER_TARGET));
+			auto current_render_target = GetCurrentRenderTarget();
+			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 	}
 
@@ -1007,6 +1022,24 @@ namespace Eden
 		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
 		m_CommandList->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
 		m_CommandList->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	}
+
+	ID3D12Resource* D3D12RHI::GetCurrentRenderTarget()
+	{
+		return m_RenderTargets[m_FrameIndex].Get();
+	}
+
+	void D3D12RHI::ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state)
+	{
+		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, current_state, desired_state));
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetTextureGPUHandle(Texture2D texture)
+	{
+		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+		handle.Offset(texture.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
+		return handle;
 	}
 
 	void D3D12RHI::WaitForGPU()

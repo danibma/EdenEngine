@@ -11,11 +11,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <imgui/imgui.h>
-
 #include "Scene/LightCasters.h"
 #include "Scene/Model.h"
 #include "Core/Application.h"
+#include "Core/UI.h"
 
 using namespace Eden;
 
@@ -63,9 +62,12 @@ class EdenApplication : public Application
 	} skybox_data;
 	Buffer skybox_data_cb;
 
-	bool open_debug_window = true;
-	bool skybox_enable = true;
+	bool skybox_enable = false;
 
+	// UI
+	bool open_debug_window = true;
+	bool open_entity_properties = true;
+	bool show_ui = true;
 public:
 	EdenApplication() = default;
 
@@ -125,32 +127,113 @@ public:
 		point_lights_cb = rhi->CreateBuffer<PointLight::PointLightData>(point_lights_data.data(), point_lights_data.size(), D3D12RHI::BufferCreateSRV::kCreateSRV);
 	}
 
+	void UI_Toolbar()
+	{
+		const float toolbar_size = 1.0f;
+		bool show_help_popup = false;
+
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y));
+		ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, toolbar_size));
+		ImGui::SetNextWindowViewport(viewport->ID);
+
+		ImGuiWindowFlags window_flags = 0
+			| ImGuiWindowFlags_NoDocking
+			| ImGuiWindowFlags_NoTitleBar
+			| ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove
+			| ImGuiWindowFlags_NoScrollbar
+			| ImGuiWindowFlags_NoSavedSettings
+			| ImGuiWindowFlags_MenuBar
+			;
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
+		ImGui::Begin("TOOLBAR", NULL, window_flags);
+		ImGui::PopStyleVar();
+		ImGui::PopStyleVar();
+
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Windows"))
+			{
+				ImGui::MenuItem("Debug", NULL, &open_debug_window);
+				ImGui::MenuItem("Entity Properties", 0, &open_entity_properties);
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Help"))
+			{
+				if (ImGui::MenuItem("Help"))
+					show_help_popup = !show_help_popup;
+
+				ImGui::EndMenu();
+			}
+
+			ImGui::EndMenuBar();
+		}
+
+		// Help Popup
+		if (show_help_popup)
+			ImGui::OpenPopup("help_popup");
+		if (ImGui::BeginPopupModal("help_popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar))
+		{
+			UI::CenterWindow();
+			ImGui::Dummy(ImVec2(0, 10));
+			const char* string = "Press F3 to Hide the UI";
+			UI::Text(string, UI::Align::Center);
+			ImGui::Dummy(ImVec2(0, 20));
+			if (UI::Button("Close", UI::Align::Center))
+				ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+		}
+
+		ImGui::End();
+	}
+
+	void UI_EntityProperties()
+	{
+		ImGui::Begin("Entity Properties", &open_entity_properties, ImGuiWindowFlags_NoCollapse);
+		ImGui::DragFloat3("Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Intensity", &directional_light_intensity, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::Checkbox("Enable Skybox", &skybox_enable);
+		ImGui::End();
+	}
+
+	void UI_DebugWindow()
+	{
+		ImGui::Begin("Debug", &open_debug_window, ImGuiWindowFlags_NoCollapse);
+
+		ImGui::Text("CPU frame time: %.3fms", delta_time * 1000.0f);
+
+		ImGui::End();
+	}
+
+	void UI_Render()
+	{
+		UI_Toolbar();
+		if (open_debug_window)
+			UI_DebugWindow();
+		if (open_entity_properties)
+			UI_EntityProperties();
+	}
 
 	void OnUpdate() override
 	{
 		ED_PROFILE_FUNCTION();
 
-		// Debug ImGui Window stuff
-		if (Input::GetKeyDown(KeyCode::F3))
-			open_debug_window = !open_debug_window;
+		rhi->BeginRender();
 
-		if (open_debug_window)
-		{
-			ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse);
-			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Press F3 to close this window!").x) * 0.5f); // center text
-			ImGui::TextDisabled("Press F3 to close this window!");
-			if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				ImGui::Text("CPU frame time: %.3fms", delta_time * 1000.0f);
-			}
-			if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				ImGui::DragFloat3("Directional Light Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-				ImGui::DragFloat("Directional Light Intensity", &directional_light_intensity, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-				ImGui::Checkbox("Enable Skybox", &skybox_enable);
-			}
-			ImGui::End();
-		}
+		// Show UI or not
+		if (Input::GetKeyDown(KeyCode::F3))
+			show_ui = !show_ui;
+		if (show_ui)
+			UI_Render();
 
 		// This is where the "real" loop begins
 		camera.Update(window, delta_time);
@@ -306,7 +389,7 @@ public:
 			}
 		}
 
-		// This is where the "real" loop ends, do not write rendering stuff below this
+		rhi->EndRender();
 		rhi->Render();
 	}
 
