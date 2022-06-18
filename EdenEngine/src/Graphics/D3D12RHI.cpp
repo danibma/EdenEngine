@@ -15,6 +15,7 @@
 #include "Core/Memory.h"
 #include "Utilities/Utils.h"
 #include "Profiling/Profiler.h"
+#include "UI/ImGuizmo.h"
 
 namespace Eden
 {
@@ -752,9 +753,7 @@ namespace Eden
 		ImGui_ImplDX12_Init(m_Device.Get(), s_FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_SRVHeap.Get(), m_SRVHeap->GetCPUDescriptorHandleForHeapStart(), m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 		m_ImguiInitialized = true;
 
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
+		ImGuiNewFrame();
 	}
 
 	void D3D12RHI::ImGuiNewFrame()
@@ -762,6 +761,7 @@ namespace Eden
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+		ImGuizmo::BeginFrame();
 	}
 
 	void D3D12RHI::BindPipeline(const Pipeline& pipeline)

@@ -3,7 +3,7 @@
 #include "Core/Input.h"
 #include "Core/Log.h"
 #include "Core/Application.h"
-#include "Core/UI.h"
+#include "UI/UI.h"
 #include "Core/Camera.h"
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
@@ -258,12 +258,10 @@ public:
 			char buffer[256];
 			memset(buffer, 0, 256);
 			memcpy(buffer, tag.c_str(), tag.length());
-			ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
 			if (ImGui::InputText("##Tag", buffer, 256))
 			{
 				tag = std::string(buffer);
 			}
-			ImGui::PopStyleColor();
 		}
 		ImGui::SameLine();
 		{
@@ -272,7 +270,18 @@ public:
 
 			}
 		}
-		end:
+
+		if (m_SelectedEntity.HasComponent<TransformComponent>())
+		{
+			if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				UI::DrawVec3("Translation", glm::vec3(1.0f));
+				UI::DrawVec3("Rotation", glm::vec3(1.0f));
+				UI::DrawVec3("Scale", glm::vec3(1.0f));
+			}
+			
+		}
+		end: // goto end
 		ImGui::End();
 	}
 
@@ -295,6 +304,18 @@ public:
 		ImGui::End();
 	}
 
+	void UI_DrawGuizmo()
+	{
+		ImGuizmo::SetOrthographic(false);
+		ImGuizmo::SetDrawlist();
+
+		float window_width = window->GetWidth();
+		float window_height = window->GetHeight();
+		ImGuizmo::SetRect(0.0f, 0.0f, window_width, window_height);
+
+		ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, glm::value_ptr(basic_mesh.meshes[0].transform));
+	}
+
 	void UI_Render()
 	{
 		//ImGui::ShowDemoWindow(nullptr);
@@ -308,6 +329,7 @@ public:
 			UI_SceneHierarchy();
 		if (m_OpenSceneProperties)
 			UI_SceneProperties();
+		UI_DrawGuizmo();
 	}
 
 	void OnUpdate() override
@@ -316,19 +338,17 @@ public:
 
 		rhi->BeginRender();
 
+		camera.Update(window, delta_time);
+		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
+		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
+
 		// Show UI or not
 		if (Input::GetKeyDown(KeyCode::F3))
 			m_ShowUI = !m_ShowUI;
 		if (m_ShowUI)
 			UI_Render();
 
-		// This is where the "real" loop begins
-		camera.Update(window, delta_time);
-
 		rhi->ClearRenderTargets();
-
-		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
-		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
 
 		// Sponza
 		rhi->BindPipeline(object_texture);
