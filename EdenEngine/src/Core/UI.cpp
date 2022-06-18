@@ -7,32 +7,32 @@ namespace Eden::UI
 		switch (alignment)
 		{
 		case Align::Left:
-			return 0.0f;
+			return 0.05f;
 			break;
 		case Align::Center:
 			return 0.5f;
 			break;
 		case Align::Right:
-			return 1.0f;
+			return 0.95f;
 			break;
 		}
 	}
 
-	bool Button(const char* label, Align alignment)
+	bool AlignedButton(const char* label, Align alignment)
 	{
 		float align = AlignToFloat(alignment);
 		ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(label).x) * align); // center text
 		return ImGui::Button(label);
 	}
 
-	void Text(const char* text, Align alignment)
+	void AlignedText(const char* text, Align alignment)
 	{
 		float align = AlignToFloat(alignment);
 		ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(text).x) * align); // center text
 		ImGui::Text(text);
 	}
 
-	void TextDisabled(const char* text, Align alignment)
+	void AlignedTextDisabled(const char* text, Align alignment)
 	{
 		float align = AlignToFloat(alignment);
 		ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(text).x) * align); // center text
@@ -228,7 +228,7 @@ namespace Eden::UI
 		colors[ImGuiCol_TableBorderLight] = ImGui::ColorConvertU32ToFloat4(backgroundDark);
 
 		// Menubar
-		colors[ImGuiCol_MenuBarBg] = ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f };
+		colors[ImGuiCol_MenuBarBg] = ImColor(21, 21, 21, 255);
 
 		// Dockspace
 		colors[ImGuiCol_DockingEmptyBg] = ImColor(255, 225, 135, 60);

@@ -21,9 +21,9 @@ namespace Eden::UI
 	static float AlignToFloat(Align alignment);
 
 
-	bool Button(const char* label, Align alignment);
-	void Text(const char* text, Align alignment);
-	void TextDisabled(const char* text, Align alignment);
+	bool AlignedButton(const char* label, Align alignment);
+	void AlignedText(const char* text, Align alignment);
+	void AlignedTextDisabled(const char* text, Align alignment);
 	void CenterWindow();
 	
 	// Themes

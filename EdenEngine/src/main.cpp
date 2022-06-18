@@ -10,12 +10,12 @@
 #include "Graphics/D3D12RHI.h"
 #include "Scene/LightCasters.h"
 #include "Scene/Model.h"
+#include "Scene/Entity.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
-#include <entt/entt.hpp>
+#include "Scene/Components.h"
 
 using namespace Eden;
 
@@ -66,9 +66,17 @@ class EdenApplication : public Application
 	bool skybox_enable = false;
 
 	// UI
-	bool open_debug_window = true;
-	bool open_entity_properties = true;
-	bool show_ui = true;
+	bool m_OpenDebugWindow = true;
+	bool m_OpenEntityProperties = true;
+	bool m_ShowUI = true;
+	bool m_CloseApp = false;
+	bool m_OpenSceneHierarchy = true;
+	bool m_OpenSceneProperties = false;
+
+	// Scene
+	Scene* m_CurrentScene = nullptr;
+	Entity m_SelectedEntity;
+	Entity m_Entity;
 public:
 	EdenApplication() = default;
 
@@ -126,6 +134,10 @@ public:
 		point_lights_data.emplace_back(point_lights[0].data);
 		point_lights_data.emplace_back(point_lights[1].data);
 		point_lights_cb = rhi->CreateBuffer<PointLight::PointLightData>(point_lights_data.data(), point_lights_data.size(), D3D12RHI::BufferCreateSRV::kCreateSRV);
+
+		m_CurrentScene = enew Scene();
+		m_Entity = m_CurrentScene->CreateEntity("Test entity");
+		m_CurrentScene->CreateEntity("sdasdas");
 	}
 
 	void UI_Toolbar()
@@ -158,13 +170,18 @@ public:
 		{
 			if (ImGui::BeginMenu("File"))
 			{
+				if (ImGui::MenuItem("Exit"))
+					window->CloseWasRequested();
+
 				ImGui::EndMenu();
 			}
 
 			if (ImGui::BeginMenu("Windows"))
 			{
-				ImGui::MenuItem("Debug", NULL, &open_debug_window);
-				ImGui::MenuItem("Entity Properties", NULL, &open_entity_properties);
+				ImGui::MenuItem("Debug", NULL, &m_OpenDebugWindow);
+				ImGui::MenuItem("Entity Properties", NULL, &m_OpenEntityProperties);
+				ImGui::MenuItem("Scene Hierarchy", NULL, &m_OpenSceneHierarchy);
+				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
 
 				ImGui::EndMenu();
 			}
@@ -207,9 +224,9 @@ public:
 			UI::CenterWindow();
 			ImGui::Dummy(ImVec2(0, 10));
 			const char* string = "Press F3 to Hide the UI";
-			UI::Text(string, UI::Align::Center);
+			UI::AlignedText(string, UI::Align::Center);
 			ImGui::Dummy(ImVec2(0, 20));
-			if (UI::Button("Close", UI::Align::Center))
+			if (UI::AlignedButton("Close", UI::Align::Center))
 				ImGui::CloseCurrentPopup();
 			ImGui::EndPopup();
 		}
@@ -217,9 +234,52 @@ public:
 		ImGui::End();
 	}
 
+	void UI_SceneHierarchy()
+	{
+		ImGui::Begin("Scene Hierarchy", &m_OpenSceneHierarchy, ImGuiWindowFlags_NoCollapse);
+		auto& entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
+		for (auto entity : entities)
+		{
+			Entity e = { entity, m_CurrentScene };
+			auto& tag = e.GetComponent<TagComponent>();
+			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
+				m_SelectedEntity = e;
+		}
+		ImGui::End();
+	}
+
 	void UI_EntityProperties()
 	{
-		ImGui::Begin("Entity Properties", &open_entity_properties, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin("Entity Properties", &m_OpenEntityProperties, ImGuiWindowFlags_NoCollapse);
+		if (!m_SelectedEntity) goto end;
+		if (m_SelectedEntity.HasComponent<TagComponent>())
+		{
+			auto& tag = m_SelectedEntity.GetComponent<TagComponent>().tag;
+			char buffer[256];
+			memset(buffer, 0, 256);
+			memcpy(buffer, tag.c_str(), tag.length());
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
+			if (ImGui::InputText("##Tag", buffer, 256))
+			{
+				tag = std::string(buffer);
+			}
+			ImGui::PopStyleColor();
+		}
+		ImGui::SameLine();
+		{
+			if (UI::AlignedButton("Add", UI::Align::Right))
+			{
+
+			}
+		}
+		end:
+		ImGui::End();
+	}
+
+	void UI_SceneProperties()
+	{
+		// TEMP
+		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
 		ImGui::DragFloat3("Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::DragFloat("Intensity", &directional_light_intensity, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::Checkbox("Enable Skybox", &skybox_enable);
@@ -228,20 +288,26 @@ public:
 
 	void UI_DebugWindow()
 	{
-		ImGui::Begin("Debug", &open_debug_window, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin("Debug", &m_OpenDebugWindow, ImGuiWindowFlags_NoCollapse);
 
-		ImGui::Text("CPU frame time: %.3fms", delta_time * 1000.0f);
+		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
 
 		ImGui::End();
 	}
 
 	void UI_Render()
 	{
+		//ImGui::ShowDemoWindow(nullptr);
+
 		UI_Toolbar();
-		if (open_debug_window)
+		if (m_OpenDebugWindow)
 			UI_DebugWindow();
-		if (open_entity_properties)
+		if (m_OpenEntityProperties)
 			UI_EntityProperties();
+		if (m_OpenSceneHierarchy)
+			UI_SceneHierarchy();
+		if (m_OpenSceneProperties)
+			UI_SceneProperties();
 	}
 
 	void OnUpdate() override
@@ -252,8 +318,8 @@ public:
 
 		// Show UI or not
 		if (Input::GetKeyDown(KeyCode::F3))
-			show_ui = !show_ui;
-		if (show_ui)
+			m_ShowUI = !m_ShowUI;
+		if (m_ShowUI)
 			UI_Render();
 
 		// This is where the "real" loop begins
