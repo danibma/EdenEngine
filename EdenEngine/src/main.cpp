@@ -11,6 +11,7 @@
 #include "Scene/LightCasters.h"
 #include "Scene/Model.h"
 #include "Scene/Entity.h"
+#include "Math/Math.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -72,6 +73,7 @@ class EdenApplication : public Application
 	bool m_CloseApp = false;
 	bool m_OpenSceneHierarchy = true;
 	bool m_OpenSceneProperties = false;
+	int m_GuizmoType = -1;
 
 	// Scene
 	Scene* m_CurrentScene = nullptr;
@@ -255,19 +257,30 @@ public:
 		if (m_SelectedEntity.HasComponent<TagComponent>())
 		{
 			auto& tag = m_SelectedEntity.GetComponent<TagComponent>().tag;
-			char buffer[256];
-			memset(buffer, 0, 256);
+			constexpr size_t num_chars = 256;
+			char buffer[num_chars];
+			memset(buffer, 0, num_chars);
 			memcpy(buffer, tag.c_str(), tag.length());
-			if (ImGui::InputText("##Tag", buffer, 256))
+			ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.55f);
+			if (ImGui::InputText("##Tag", buffer, num_chars))
 			{
 				tag = std::string(buffer);
 			}
+			ImGui::PopItemWidth();
 		}
 		ImGui::SameLine();
 		{
-			if (UI::AlignedButton("Add", UI::Align::Right))
-			{
+			if (UI::AlignedButton("Add Component", UI::Align::Right))
+				ImGui::OpenPopup("addc_popup");
 
+			if (ImGui::BeginPopup("addc_popup"))
+			{
+				if (ImGui::MenuItem("Not Done - Test Item"))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
 			}
 		}
 
@@ -275,9 +288,12 @@ public:
 		{
 			if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				UI::DrawVec3("Translation", glm::vec3(1.0f));
-				UI::DrawVec3("Rotation", glm::vec3(1.0f));
-				UI::DrawVec3("Scale", glm::vec3(1.0f));
+				auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
+				UI::DrawVec3("Translation", transform.translation);
+				glm::vec3 rotation = glm::degrees(transform.rotation);
+				UI::DrawVec3("Rotation", rotation);
+				transform.rotation = glm::radians(rotation);
+				UI::DrawVec3("Scale", transform.scale);
 			}
 			
 		}
@@ -313,7 +329,21 @@ public:
 		float window_height = window->GetHeight();
 		ImGuizmo::SetRect(0.0f, 0.0f, window_width, window_height);
 
-		ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, glm::value_ptr(basic_mesh.meshes[0].transform));
+		auto& transform_component = m_SelectedEntity.GetComponent<TransformComponent>();
+		glm::mat4 transform = transform_component.GetTransform();
+
+		ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), static_cast<ImGuizmo::OPERATION>(m_GuizmoType), ImGuizmo::LOCAL, glm::value_ptr(transform));
+
+		if (ImGuizmo::IsUsing())
+		{
+			glm::vec3 translation, rotation, scale;
+			Math::DecomposeTransform(transform, translation, rotation, scale);
+
+			glm::vec3 delta_rotation = rotation - transform_component.rotation;
+			transform_component.translation = translation;
+			transform_component.rotation = rotation;
+			transform_component.scale = scale;
+		}
 	}
 
 	void UI_Render()
@@ -329,7 +359,30 @@ public:
 			UI_SceneHierarchy();
 		if (m_OpenSceneProperties)
 			UI_SceneProperties();
-		UI_DrawGuizmo();
+		if (m_SelectedEntity)
+			UI_DrawGuizmo();
+	}
+
+	void EditorInput()
+	{
+		if (!Input::GetMouseButton(MouseButton::RightButton))
+		{
+			if (Input::GetKey(KeyCode::Q))
+				m_GuizmoType = -1;
+			if (Input::GetKey(KeyCode::W))
+				m_GuizmoType = ImGuizmo::TRANSLATE;
+			if (Input::GetKey(KeyCode::E))
+				m_GuizmoType = ImGuizmo::ROTATE;
+			if (Input::GetKey(KeyCode::R))
+				m_GuizmoType = ImGuizmo::SCALE;
+		}
+
+		// Show UI or not
+		if (Input::GetKeyDown(KeyCode::F3))
+			m_ShowUI = !m_ShowUI;
+		if (m_ShowUI)
+			UI_Render();
+
 	}
 
 	void OnUpdate() override
@@ -342,11 +395,7 @@ public:
 		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
 		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
 
-		// Show UI or not
-		if (Input::GetKeyDown(KeyCode::F3))
-			m_ShowUI = !m_ShowUI;
-		if (m_ShowUI)
-			UI_Render();
+		EditorInput();
 
 		rhi->ClearRenderTargets();
 
