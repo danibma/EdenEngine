@@ -9,7 +9,7 @@ namespace Eden
 	{
 		Entity entity = { m_Registry.create(), this };
 		auto& tag = entity.AddComponent<TagComponent>();
-		tag.tag = name.empty() ? "Unnamed Entity" : name;
+		tag.tag = name.empty() ? "Empty Entity" : name;
 		entity.AddComponent<TransformComponent>();
 
 		return entity;

@@ -1,0 +1,234 @@
+#pragma once
+
+namespace Eden
+{
+	enum class KeyCode
+	{
+		// Keyboard
+		Backspace = 0x08,
+		Tab = 0x09,
+		Enter = 0x0D,
+		LeftShift = 0xA0,
+		RightShift = 0xA1,
+		Shift = 0x10,
+		LeftControl = 0xA2,
+		RightControl = 0xA3,
+		Control = 0x11,
+		CapsLock = 0x14,
+		Escape = 0x1B,
+		Space = 0x20,
+		PageDown = 0x21,
+		PageUp = 0x22,
+		End = 0x23,
+		Home = 0x24,
+		LeftArrow = 0x25,
+		UpArrow = 0x26,
+		RightArrow = 0x27,
+		DownArrow = 0x28,
+		Print = 0x2A,
+		PrintScreen = 0x2C,
+		Insert = 0x2D,
+		Delete = 0x2E,
+		LeftWindows = 0x5B,
+		RightWindows = 0x5C,
+		Multiply = 0x6A,
+		Add = 0x6B,
+		Subtract = 0x6D,
+		Divide = 0x6F,
+		NumLock = 0x90,
+		ScrollLock = 0x91,
+
+
+		// Numbers
+		Zero = 0x30,
+		One = 0x31,
+		Two = 0x32,
+		Three = 0x33,
+		Four = 0x34,
+		Five = 0x35,
+		Six = 0x36,
+		Seven = 0x37,
+		Eight = 0x38,
+		Nine = 0x39,
+
+		// KeyPad
+		KeyPad0 = 0x60,
+		KeyPad1 = 0x61,
+		KeyPad2 = 0x62,
+		KeyPad3 = 0x63,
+		KeyPad4 = 0x64,
+		KeyPad5 = 0x65,
+		KeyPad6 = 0x66,
+		KeyPad7 = 0x67,
+		KeyPad8 = 0x68,
+		KeyPad9 = 0x69,
+
+		// Letters
+		A = 0x41,
+		B = 0x42,
+		C = 0x43,
+		D = 0x44,
+		E = 0x45,
+		F = 0x46,
+		G = 0x47,
+		H = 0x48,
+		I = 0x49,
+		J = 0x4A,
+		K = 0x4B,
+		L = 0x4C,
+		M = 0x4D,
+		N = 0x4E,
+		O = 0x4F,
+		P = 0x50,
+		Q = 0x51,
+		R = 0x52,
+		S = 0x53,
+		T = 0x54,
+		U = 0x55,
+		V = 0x56,
+		W = 0x57,
+		X = 0x58,
+		Y = 0x59,
+		Z = 0x5A,
+
+		// Function keys
+		F1 = 0x70,
+		F2 = 0x71,
+		F3 = 0x72,
+		F4 = 0x73,
+		F5 = 0x74,
+		F6 = 0x75,
+		F7 = 0x76,
+		F8 = 0x77,
+		F9 = 0x78,
+		F10 = 0x79,
+		F11 = 0x7A,
+		F12 = 0x7B,
+		F13 = 0x7C,
+		F14 = 0x7D,
+		F15 = 0x7E,
+		F16 = 0x7F,
+		F17 = 0x80,
+		F18 = 0x81,
+		F19 = 0x82,
+		F20 = 0x83,
+		F21 = 0x84,
+		F22 = 0x85,
+		F23 = 0x86,
+		F24 = 0x87,
+	};
+
+	enum class MouseButton
+	{
+		// Mouse Buttons
+		LeftButton = 0x01,
+		RightButton = 0x02,
+		MiddleButton = 0x04,
+	};
+}
+
+#define ED_KEY_BACKSPACE		::Eden::KeyCode::Backspace
+#define ED_KEY_TAB				::Eden::KeyCode::Tab
+#define ED_KEY_ENTER			::Eden::KeyCode::Enter
+#define ED_KEY_LEFT_SHIFT		::Eden::KeyCode::LeftShift
+#define ED_KEY_RIGHT_SHIFT		::Eden::KeyCode::RightShift
+#define ED_KEY_SHIFT			::Eden::KeyCode::Shift
+#define ED_KEY_LEFT_CONTROL		::Eden::KeyCode::LeftControl
+#define ED_KEY_RIGHT_CONTROL	::Eden::KeyCode::RightControl
+#define ED_KEY_CONTROL			::Eden::KeyCode::Control
+#define ED_KEY_CAPS_LOCK		::Eden::KeyCode::CapsLock
+#define ED_KEY_ESCAPE			::Eden::KeyCode::Escape
+#define ED_KEY_SPACE			::Eden::KeyCode::Space
+#define ED_KEY_PAGE_DOWN		::Eden::KeyCode::PageDown
+#define ED_KEY_PAGE_UP			::Eden::KeyCode::PageUp
+#define ED_KEY_END				::Eden::KeyCode::End
+#define ED_KEY_HOME				::Eden::KeyCode::Home
+#define ED_KEY_LEFT_ARROW		::Eden::KeyCode::LeftArrow
+#define ED_KEY_UP_ARROW			::Eden::KeyCode::UpArrow
+#define ED_KEY_RIGHT_ARROW		::Eden::KeyCode::RightArrow
+#define ED_KEY_DOWN_ARROW		::Eden::KeyCode::DownArrow
+#define ED_KEY_PRINT			::Eden::KeyCode::Print
+#define ED_KEY_PRINT_SCREEN		::Eden::KeyCode::PrintScreen
+#define ED_KEY_INSERT			::Eden::KeyCode::Insert
+#define ED_KEY_DELETE			::Eden::KeyCode::Delete
+#define ED_KEY_LEFT_WINDOWS		::Eden::KeyCode::LeftWindows
+#define ED_KEY_RIGHT_WINDOWS	::Eden::KeyCode::RightWindows
+#define ED_KEY_MULTIPLY			::Eden::KeyCode::Multiply
+#define ED_KEY_ADD				::Eden::KeyCode::Add
+#define ED_KEY_SUBTRACT			::Eden::KeyCode::Subtract
+#define ED_KEY_DIVIDE			::Eden::KeyCode::Divide
+#define ED_KEY_NUM_LOCK			::Eden::KeyCode::NumLock
+#define ED_KEY_SCROLL_LOCK		::Eden::KeyCode::ScrollLock
+#define ED_KEY_ZERO				::Eden::KeyCode::Zero
+#define ED_KEY_ONE				::Eden::KeyCode::One
+#define ED_KEY_TWO				::Eden::KeyCode::Two
+#define ED_KEY_THREE			::Eden::KeyCode::Three
+#define ED_KEY_FOUR				::Eden::KeyCode::Four
+#define ED_KEY_FIVE				::Eden::KeyCode::Five
+#define ED_KEY_SIX				::Eden::KeyCode::Six
+#define ED_KEY_SEVEN			::Eden::KeyCode::Seven
+#define ED_KEY_EIGHT			::Eden::KeyCode::Eight
+#define ED_KEY_NINE				::Eden::KeyCode::Nine
+#define ED_KEY_KEYPAD_0			::Eden::KeyCode::KeyPad0
+#define ED_KEY_KEYPAD_1			::Eden::KeyCode::KeyPad1
+#define ED_KEY_KEYPAD_2			::Eden::KeyCode::KeyPad2
+#define ED_KEY_KEYPAD_3			::Eden::KeyCode::KeyPad3
+#define ED_KEY_KEYPAD_4			::Eden::KeyCode::KeyPad4
+#define ED_KEY_KEYPAD_5			::Eden::KeyCode::KeyPad5
+#define ED_KEY_KEYPAD_6			::Eden::KeyCode::KeyPad6
+#define ED_KEY_KEYPAD_7			::Eden::KeyCode::KeyPad7
+#define ED_KEY_KEYPAD_8			::Eden::KeyCode::KeyPad8
+#define ED_KEY_KEYPAD_9			::Eden::KeyCode::KeyPad9
+#define ED_KEY_A				::Eden::KeyCode::A
+#define ED_KEY_B				::Eden::KeyCode::B
+#define ED_KEY_C				::Eden::KeyCode::C
+#define ED_KEY_D				::Eden::KeyCode::D
+#define ED_KEY_E				::Eden::KeyCode::E
+#define ED_KEY_F				::Eden::KeyCode::F
+#define ED_KEY_G				::Eden::KeyCode::G
+#define ED_KEY_H				::Eden::KeyCode::H
+#define ED_KEY_I				::Eden::KeyCode::I
+#define ED_KEY_J				::Eden::KeyCode::J
+#define ED_KEY_K				::Eden::KeyCode::K
+#define ED_KEY_L				::Eden::KeyCode::L
+#define ED_KEY_M				::Eden::KeyCode::M
+#define ED_KEY_N				::Eden::KeyCode::N
+#define ED_KEY_O				::Eden::KeyCode::O
+#define ED_KEY_P				::Eden::KeyCode::P
+#define ED_KEY_Q				::Eden::KeyCode::Q
+#define ED_KEY_R				::Eden::KeyCode::R
+#define ED_KEY_S				::Eden::KeyCode::S
+#define ED_KEY_T				::Eden::KeyCode::T
+#define ED_KEY_U				::Eden::KeyCode::U
+#define ED_KEY_V				::Eden::KeyCode::V
+#define ED_KEY_W				::Eden::KeyCode::W
+#define ED_KEY_X				::Eden::KeyCode::X
+#define ED_KEY_Y				::Eden::KeyCode::Y
+#define ED_KEY_Z				::Eden::KeyCode::Z
+#define ED_KEY_F1				::Eden::KeyCode::F1
+#define ED_KEY_F2				::Eden::KeyCode::F2
+#define ED_KEY_F3				::Eden::KeyCode::F3
+#define ED_KEY_F4				::Eden::KeyCode::F4
+#define ED_KEY_F5				::Eden::KeyCode::F5
+#define ED_KEY_F6				::Eden::KeyCode::F6
+#define ED_KEY_F7				::Eden::KeyCode::F7
+#define ED_KEY_F8				::Eden::KeyCode::F8
+#define ED_KEY_F9				::Eden::KeyCode::F9
+#define ED_KEY_F10				::Eden::KeyCode::F10
+#define ED_KEY_F11				::Eden::KeyCode::F11
+#define ED_KEY_F12				::Eden::KeyCode::F12
+#define ED_KEY_F13				::Eden::KeyCode::F13
+#define ED_KEY_F14				::Eden::KeyCode::F14
+#define ED_KEY_F15				::Eden::KeyCode::F15
+#define ED_KEY_F16				::Eden::KeyCode::F16
+#define ED_KEY_F17				::Eden::KeyCode::F17
+#define ED_KEY_F18				::Eden::KeyCode::F18
+#define ED_KEY_F19				::Eden::KeyCode::F19
+#define ED_KEY_F20				::Eden::KeyCode::F20
+#define ED_KEY_F21				::Eden::KeyCode::F21
+#define ED_KEY_F22				::Eden::KeyCode::F22
+#define ED_KEY_F23				::Eden::KeyCode::F23
+#define ED_KEY_F24				::Eden::KeyCode::F24
+#define ED_MOUSE_LEFT			::Eden::MouseButton::LeftButton
+#define ED_MOUSE_MIDDLE			::Eden::MouseButton::MiddleButton
+#define ED_MOUSE_RIGHT			::Eden::MouseButton::RightButton

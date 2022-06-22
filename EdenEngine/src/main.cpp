@@ -146,6 +146,16 @@ public:
 		point_lights_cb = rhi->CreateBuffer<PointLight::PointLightData>(point_lights_data.data(), point_lights_data.size(), D3D12RHI::BufferType::kCreateSRV);
 	}
 
+	void EntityMenu()
+	{
+		if (ImGui::MenuItem("Create Empty Entity"))
+		{
+			m_CurrentScene->CreateEntity();
+
+			ImGui::CloseCurrentPopup();
+		}
+	}
+
 	void UI_Toolbar()
 	{
 		const float toolbar_size = 1.0f;
@@ -189,6 +199,12 @@ public:
 				ImGui::MenuItem("Scene Hierarchy", NULL, &m_OpenSceneHierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
 
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Entity"))
+			{
+				EntityMenu();
 				ImGui::EndMenu();
 			}
 
@@ -253,18 +269,12 @@ public:
 		}
 
 		// Scene hierarchy popup to create new entities
-		if (Input::GetMouseButton(MouseButton::RightButton) && ImGui::IsWindowHovered())
+		if (Input::GetMouseButton(ED_MOUSE_RIGHT) && ImGui::IsWindowHovered())
 			ImGui::OpenPopup("hierarchy_popup");
 
 		if (ImGui::BeginPopup("hierarchy_popup"))
 		{
-			if (ImGui::MenuItem("Create Empty Entity"))
-			{
-				m_CurrentScene->CreateEntity();
-				
-				ImGui::CloseCurrentPopup();
-			}
-
+			EntityMenu();
 			ImGui::EndPopup();
 		}
 
