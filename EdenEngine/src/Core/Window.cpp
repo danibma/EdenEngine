@@ -134,10 +134,7 @@ namespace Eden
 		// find mouse movement
 		POINT currentPos;
 		GetCursorPos(&currentPos);
-
-		// force the mouse to the center, so there's room to move
 		SetCursorPos(m_Width / 2, m_Height / 2);
-
 		Input::SetMousePos(currentPos.x - (m_Width / 2), currentPos.y - (m_Height / 2));
 	}
 
@@ -149,16 +146,13 @@ namespace Eden
 	{
 		// Run the message loop.
 		MSG msg = {};
+
 		Input::UpdateInput();
+
 		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-		}
-
-		if (!IsMinimized())
-		{
-			
 		}
 	}
 

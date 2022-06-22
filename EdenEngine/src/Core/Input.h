@@ -135,6 +135,12 @@ namespace Eden
 		Visible	= 1
 	};
 
+	enum class InputMode
+	{
+		Game = 0,
+		UI
+	};
+
 	class Input
 	{
 		static bool s_KeyDown[VK_OEM_CLEAR];
@@ -142,6 +148,7 @@ namespace Eden
 		static std::pair<int64_t, int64_t> s_MousePos;
 		static std::pair<int64_t, int64_t> s_RelativeMousePos;
 		static float s_MouseScrollDelta;
+		static InputMode s_InputMode;
 
 	public:
 		static void UpdateInput();
@@ -149,9 +156,10 @@ namespace Eden
 
 		static void SetCursorMode(CursorMode mode);
 		static void SetMousePos(int64_t x, int64_t y);
+		static void SetInputMode(InputMode mode);
 
 		/*
-		* Returns whether the given key is held down.
+		* Returns true while the user holds down the key.
 		*/
 		static bool GetKey(KeyCode keycode);
 
@@ -161,12 +169,12 @@ namespace Eden
 		static bool GetKeyUp(KeyCode keycode);
 
 		/*
-		* Returns true while the user holds down the key.
+		* Returns true during the frame the user starts pressing down the key.
 		*/
 		static bool GetKeyDown(KeyCode keycode);
 
 		/*
-		* Returns whether the given mouse button is held down.
+		* Returns true while the user holds down the mouse button.
 		*/
 		static bool GetMouseButton(MouseButton button);
 
@@ -176,7 +184,7 @@ namespace Eden
 		static bool GetMouseButtonUp(MouseButton button);
 
 		/*
-		* Returns true while the user holds down the mouse button.
+		* Returns true during the frame the user starts pressing down the mouse button.
 		*/
 		static bool GetMouseButtonDown(MouseButton button);
 
@@ -194,5 +202,7 @@ namespace Eden
 		* Returns wether the cursor is being shown or is hidden
 		*/
 		static CursorMode GetCursorMode();
+
+		static InputMode GetInputMode();
 	};
 }

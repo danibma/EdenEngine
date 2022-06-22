@@ -23,6 +23,9 @@ namespace Eden
 
 	void Camera::Update(Window* window, const float delta_time)
 	{
+		if (Input::GetInputMode() == InputMode::UI)
+			return;
+
 		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
 			Input::SetCursorMode(CursorMode::Hidden);

@@ -11,12 +11,12 @@
 #include "Scene/LightCasters.h"
 #include "Scene/MeshSource.h"
 #include "Scene/Entity.h"
+#include "Scene/Components.h"
 #include "Math/Math.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "Scene/Components.h"
 
 using namespace Eden;
 
@@ -251,7 +251,67 @@ public:
 			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
 				m_SelectedEntity = e;
 		}
+
+		// Scene hierarchy popup to create new entities
+		if (Input::GetMouseButton(MouseButton::RightButton) && ImGui::IsWindowHovered())
+			ImGui::OpenPopup("hierarchy_popup");
+
+		if (ImGui::BeginPopup("hierarchy_popup"))
+		{
+			if (ImGui::MenuItem("Create Empty Entity"))
+			{
+				m_CurrentScene->CreateEntity();
+				
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+
+
 		ImGui::End();
+	}
+
+	template <typename T>
+	void DrawComponentProperty(const char* title, std::function<void()> func)
+	{
+		if (m_SelectedEntity.HasComponent<T>())
+		{
+			ImGui::PushID((void*)typeid(T).hash_code());
+
+			bool open = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap);
+			ImGui::SameLine(ImGui::GetWindowWidth() - 25.0f);
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+			if (ImGui::Button("...", ImVec2(20, 19)))
+			{
+				ImGui::OpenPopup("component_settings");
+			}
+			ImGui::PopStyleColor();
+
+			if (ImGui::BeginPopup("component_settings"))
+			{
+				bool remove_component = true;
+				if (std::is_same<T, TransformComponent>::value)
+					remove_component = false;
+
+				if (ImGui::MenuItem("Remove Component", nullptr, false, remove_component))
+				{
+					if (std::is_same<T, MeshComponent>::value)
+						m_SelectedEntity.GetComponent<MeshComponent>().mesh_source->Destroy();
+					m_SelectedEntity.RemoveComponent<T>();
+					open = false;
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
+			ImGui::PopID();
+
+			if (open)
+				func();
+
+		}
 	}
 
 	void UI_EntityProperties()
@@ -280,56 +340,50 @@ public:
 
 			if (ImGui::BeginPopup("addc_popup"))
 			{
-				if (ImGui::MenuItem("Not Done - Test Item"))
+				bool mesh_component = !m_SelectedEntity.HasComponent<MeshComponent>();
+
+				if (ImGui::MenuItem("Mesh Component", 0, false, mesh_component))
 				{
+					m_SelectedEntity.AddComponent<MeshComponent>();
 					ImGui::CloseCurrentPopup();
 				}
-
 				ImGui::EndPopup();
 			}
 		}
 
-		if (m_SelectedEntity.HasComponent<TransformComponent>())
-		{
-			if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
-				UI::DrawVec3("Translation", transform.translation);
-				glm::vec3 rotation = glm::degrees(transform.rotation);
-				UI::DrawVec3("Rotation", rotation);
-				transform.rotation = glm::radians(rotation);
-				UI::DrawVec3("Scale", transform.scale);
-			}
-			
-		}
+		DrawComponentProperty<TransformComponent>("Transform", [&]() {
+			auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
+			UI::DrawVec3("Translation", transform.translation);
+			glm::vec3 rotation = glm::degrees(transform.rotation);
+			UI::DrawVec3("Rotation", rotation);
+			transform.rotation = glm::radians(rotation);
+			UI::DrawVec3("Scale", transform.scale);
+		});
 
 		ImGui::Spacing();
 		ImGui::Spacing();
 
-		if (m_SelectedEntity.HasComponent<MeshComponent>())
-		{
-			if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen))
+		DrawComponentProperty<MeshComponent>("Mesh", [&]() {
+			auto& mc = m_SelectedEntity.GetComponent<MeshComponent>();
+
+			ImGui::Text("File Path");
+			ImGui::SameLine();
+			constexpr size_t num_chars = 256;
+			char buffer[num_chars];
+			memset(buffer, 0, num_chars);
+			memcpy(buffer, mc.mesh_path.c_str(), mc.mesh_path.length());
+			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.9f);
+			ImGui::InputText("###meshpath", buffer, num_chars, ImGuiInputTextFlags_ReadOnly);
+			ImGui::PopItemWidth();
+			ImGui::SameLine();
+			if (UI::AlignedButton("...", UI::Align::Right))
 			{
-				auto& mc = m_SelectedEntity.GetComponent<MeshComponent>();
-				
-				ImGui::Text("File Path");
-				ImGui::SameLine();
-				constexpr size_t num_chars = 256;
-				char buffer[num_chars];
-				memset(buffer, 0, num_chars);
-				memcpy(buffer, mc.mesh_path.c_str(), mc.mesh_path.length());
-				ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.9f);
-				ImGui::InputText("###meshpath", buffer, num_chars, ImGuiInputTextFlags_ReadOnly);
-				ImGui::PopItemWidth();
-				ImGui::SameLine();
-				if (UI::AlignedButton("...", UI::Align::Right))
-				{
-					std::string new_path = OpenFileDialog("Model formats (.gltf, .glb)\0*.gltf;*.glb\0");
-					if (!new_path.empty())
-						mc.LoadMeshSource(rhi, new_path);
-				}
+				std::string new_path = OpenFileDialog("Model formats (.gltf, .glb)\0*.gltf;*.glb\0");
+				if (!new_path.empty())
+					mc.LoadMeshSource(rhi, new_path);
 			}
-		}
+		});
+		
 		end: // goto end
 		ImGui::End();
 	}
@@ -447,6 +501,7 @@ public:
 		{
 			Entity e = { entity, m_CurrentScene };
 			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
+			if (!ms->transform_cb.resource) continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 			bool textured = ms->textures.size() > 0;
 			if (textured)

@@ -3,6 +3,7 @@
 #include <windowsx.h>
 
 #include "Log.h"
+#include "imgui_internal.h"
 
 namespace Eden
 {
@@ -11,6 +12,7 @@ namespace Eden
 	std::pair<int64_t, int64_t> Input::s_MousePos;
 	std::pair<int64_t, int64_t> Input::s_RelativeMousePos;
 	float Input::s_MouseScrollDelta;
+	InputMode Input::s_InputMode;
 
 	void Input::UpdateInput()
 	{
@@ -19,6 +21,15 @@ namespace Eden
 
 	void Input::HandleInput(const uint32_t message, const uint32_t code, const uint32_t lParam)
 	{
+		if (GImGui)
+		{
+			ImGuiIO& io = ImGui::GetIO();
+			if (io.WantCaptureMouse)
+				SetInputMode(InputMode::UI);
+			else
+				SetInputMode(InputMode::Game);
+		}
+
 		switch (message)
 		{
 		case WM_KEYUP: case WM_SYSKEYUP:
@@ -38,6 +49,12 @@ namespace Eden
 			break;
 		case WM_RBUTTONUP:
 			s_KeyDown[VK_RBUTTON] = false;
+			break;
+		case WM_MBUTTONDOWN:
+			s_KeyDown[VK_MBUTTON] = true;
+			break;
+		case WM_MBUTTONUP:
+			s_KeyDown[VK_MBUTTON] = false;
 			break;
 		case WM_INPUT:
 			if (GetCursorMode() == CursorMode::Hidden)
@@ -103,14 +120,9 @@ namespace Eden
 	std::pair<int64_t, int64_t> Input::GetMousePos(Window* window)
 	{
 		if (GetCursorMode() == CursorMode::Hidden)
-		{
-			SetCursorPos(window->GetWidth() / 2, window->GetHeight() / 2);
 			return s_RelativeMousePos;
-		}
 		else
-		{
 			return s_MousePos;
-		}
 	}
 
 	CursorMode Input::GetCursorMode()
@@ -121,12 +133,22 @@ namespace Eden
 			return CursorMode::Visible;
 	}
 
+	InputMode Input::GetInputMode()
+	{
+		return s_InputMode;
+	}
+
 	void Input::SetCursorMode(CursorMode mode)
 	{
 		if (mode == CursorMode::Visible)
+		{
 			SetCursor(LoadCursor(GetModuleHandle(0), IDC_ARROW));
+			SetCursorPos(s_MousePos.first, s_MousePos.second + 25.0f);
+		}
 		else
+		{
 			SetCursor(0);
+		}
 	}
 
 	void Input::SetMousePos(int64_t x, int64_t y)
@@ -136,6 +158,11 @@ namespace Eden
 		else
 			s_MousePos = { x, y };
 		
+	}
+
+	void Input::SetInputMode(InputMode mode)
+	{
+		s_InputMode = mode;
 	}
 
 }
