@@ -134,17 +134,6 @@ namespace Eden
 
 			if (FAILED(m_Device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&m_SRVHeap))))
 				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
-
-			// Describe and create a shader resource view (SRV) heap for the render targets.
-			srv_heap_desc = {};
-			srv_heap_desc.NumDescriptors = 4;
-			srv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			srv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-			if (FAILED(m_Device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&m_RenderTargetsSRVHeap))))
-				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
-
-			m_RenderTargetsSRVHeap->SetName(L"Render Targets SRV Heap");
 		}
 
 		CreateBackBuffers(window->GetWidth(), window->GetHeight());
@@ -322,14 +311,15 @@ namespace Eden
 		}
 
 		uint32_t srv_count = 0;
-		std::vector<CD3DX12_ROOT_PARAMETER1> root_parameters;
+		std::vector<D3D12_ROOT_PARAMETER1> root_parameters;
+		std::vector<D3D12_DESCRIPTOR_RANGE1> descriptor_ranges;
 		std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
 		
 		uint32_t shader_count = 2; // For now this is always two because its only compiling vertex and pixel shader, in the future add a way to check this dynamically
 		for (uint32_t i = 0; i < shader_count; ++i)
 		{
 			ComPtr<ID3D12ShaderReflection> reflection;
-			D3D12_SHADER_VISIBILITY shader_visibility = D3D12_SHADER_VISIBILITY_ALL; // use All because the shaders are always in one file, so most parameters will be accessed by both
+			D3D12_SHADER_VISIBILITY shader_visibility;
 
 			// Get shader stage
 			switch (i)
@@ -361,29 +351,49 @@ namespace Eden
 				{
 				case D3D_SIT_STRUCTURED:
 				case D3D_SIT_TEXTURE:
-					srv_count++;
+					{
+						auto root_parameter_index = pipeline.root_parameter_indices.find(desc.Name);
+						bool root_parameter_found = root_parameter_index != pipeline.root_parameter_indices.end();
+						if (root_parameter_found) continue;
+
+						D3D12_DESCRIPTOR_RANGE1 descriptor_range = {};
+						descriptor_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+						descriptor_range.NumDescriptors = desc.BindCount;
+						descriptor_range.BaseShaderRegister = desc.BindPoint;
+						descriptor_range.RegisterSpace = desc.Space;
+						descriptor_range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE; // check if this is needed
+						descriptor_range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+						descriptor_ranges.emplace_back(descriptor_range);
+
+						D3D12_ROOT_PARAMETER1 root_parameter = {};
+						root_parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+						root_parameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+						pipeline.root_parameter_indices[desc.Name] = root_parameters.size(); // get the root parameter index
+						root_parameters.emplace_back(root_parameter);
+					}
 					break;
 				case D3D_SIT_CBUFFER:
 					{
-						CD3DX12_ROOT_PARAMETER1 parameter = {};
+						auto root_parameter_index = pipeline.root_parameter_indices.find(desc.Name);
+						bool root_parameter_found = root_parameter_index != pipeline.root_parameter_indices.end();
+						if (root_parameter_found) continue;
 
-						// check if the parameter was already found in another shader stage, if it is just skip it
-						bool found_parameter = false;
-						for (auto& p : root_parameters)
-						{
-							if (desc.BindPoint == p.Descriptor.ShaderRegister &&
-								desc.Space == p.Descriptor.RegisterSpace)
-							{
-								p.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-								found_parameter = true;
-								break;
-							}
-						}
-						if (found_parameter) continue;
+						D3D12_DESCRIPTOR_RANGE1 descriptor_range = {};
+						descriptor_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+						descriptor_range.NumDescriptors = desc.BindCount;
+						descriptor_range.BaseShaderRegister = desc.BindPoint;
+						descriptor_range.RegisterSpace = desc.Space;
+						descriptor_range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
+						descriptor_range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+						descriptor_ranges.emplace_back(descriptor_range);
 
-						parameter.InitAsConstantBufferView(desc.BindPoint, desc.Space, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, shader_visibility);
+						D3D12_ROOT_PARAMETER1 root_parameter = {};
+						root_parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+						root_parameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
 						pipeline.root_parameter_indices[desc.Name] = root_parameters.size(); // get the root parameter index
-						root_parameters.emplace_back(parameter);
+						root_parameters.emplace_back(root_parameter);
 					}
 					break;
 				case D3D_SIT_SAMPLER:
@@ -413,25 +423,31 @@ namespace Eden
 			}
 		}
 
-		if (srv_count > 0)
+		for (size_t i = 0; i < root_parameters.size(); ++i)
 		{
-			CD3DX12_DESCRIPTOR_RANGE1 ranges[1] = {};
-			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, srv_count, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+			auto& parameter = root_parameters[i];
 
-			// put the srv descriptor table at the first index
-			CD3DX12_ROOT_PARAMETER1 srv_parameter = {};
-			srv_parameter.InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-			root_parameters.emplace(root_parameters.begin(), srv_parameter);
-
-			for (auto& parameter : pipeline.root_parameter_indices)
+			// check if the parameter was already found in another shader stage, if it is just skip it
+			/*bool found_parameter = false;
+			for (auto& p : root_parameters)
 			{
-				auto& [name, index] = parameter;
-				index++;
+				if (p.ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) continue;
+				if (parameter.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister == p.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister &&
+					parameter.DescriptorTable.pDescriptorRanges[0].RegisterSpace == p.DescriptorTable.pDescriptorRanges[0].RegisterSpace)
+				{
+					p.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+					found_parameter = true;
+					break;
+				}
 			}
+			if (found_parameter) continue;*/
+
+			parameter.DescriptorTable.pDescriptorRanges = &descriptor_ranges[i];
+			parameter.DescriptorTable.NumDescriptorRanges = 1;
 		}
 
 		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC root_signature_desc = {};
-		root_signature_desc.Init_1_1(static_cast<uint32_t>(root_parameters.size()), root_parameters.data(), static_cast<uint32_t>(samplers.size()), samplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		root_signature_desc.Init_1_1(root_parameters.size(), root_parameters.data(), samplers.size(), samplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
@@ -479,11 +495,6 @@ namespace Eden
 
 			m_Device->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtv_handle);
 			rtv_handle.Offset(1, m_RTVDescriptorSize);
-
-			m_Device->CreateShaderResourceView(m_RenderTargets[i].Get(), nullptr, rtv_srv_handle);
-			rtv_srv_handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-			m_RenderTargetSRVOffsets[i] = m_SRVHeapOffset;
-			m_SRVHeapOffset++;
 
 			m_RenderTargets[i]->SetName(L"backbuffer");
 		}
@@ -744,6 +755,13 @@ namespace Eden
 
 		m_SRVHeapOffset++;
 
+		// Enable the srv heap again
+		if (m_SRVHeapEnabled)
+		{
+			ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
+			m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+		}
+
 		return texture;
 	}
 
@@ -766,7 +784,6 @@ namespace Eden
 
 	void D3D12RHI::BindPipeline(const Pipeline& pipeline)
 	{
-		ED_PROFILE_FUNCTION();
 		m_CommandList->SetPipelineState(pipeline.pipeline_state.Get());
 		m_CommandList->SetGraphicsRootSignature(pipeline.root_signature.Get());
 		m_BoundPipeline = pipeline;
@@ -774,7 +791,6 @@ namespace Eden
 
 	void D3D12RHI::BindVertexBuffer(Buffer vertex_buffer)
 	{
-		ED_PROFILE_FUNCTION();
 		ED_ASSERT_LOG(vertex_buffer.resource != nullptr, "Can't bind a empty vertex buffer!");
 		m_BoundVertexBuffer.BufferLocation = vertex_buffer.resource->GetGPUVirtualAddress();
 		m_BoundVertexBuffer.SizeInBytes	 = vertex_buffer.size;
@@ -783,54 +799,36 @@ namespace Eden
 
 	void D3D12RHI::BindIndexBuffer(Buffer index_buffer)
 	{
-		ED_PROFILE_FUNCTION();
 		ED_ASSERT_LOG(index_buffer.resource != nullptr, "Can't bind a empty index buffer!");
 		m_BoundIndexBuffer.BufferLocation = index_buffer.resource->GetGPUVirtualAddress();
 		m_BoundIndexBuffer.SizeInBytes	= index_buffer.size;
-		m_BoundIndexBuffer.Format			= DXGI_FORMAT_R32_UINT;
+		m_BoundIndexBuffer.Format = DXGI_FORMAT_R32_UINT;
 	}
 
-	void D3D12RHI::BindConstantBuffer(std::string_view parameter_name, Buffer constant_buffer)
+	void D3D12RHI::BindParameter(std::string_view parameter_name, const Buffer buffer)
 	{
-		ED_PROFILE_FUNCTION();
-
-		auto root_parameter_index = m_BoundPipeline.root_parameter_indices.find(parameter_name.data());
-
-		bool root_parameter_found = root_parameter_index != m_BoundPipeline.root_parameter_indices.end();
-		ED_ASSERT_LOG(root_parameter_found, "Failed to find root parameter!");
-
-		m_CommandList->SetGraphicsRootConstantBufferView(static_cast<uint32_t>(root_parameter_index->second), constant_buffer.resource->GetGPUVirtualAddress());
-	}
-
-	void D3D12RHI::BindShaderResource(const Buffer buffer)
-	{
-		ED_PROFILE_FUNCTION();
-		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
-		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
+		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 		srv_handle.Offset(buffer.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_CommandList->SetGraphicsRootDescriptorTable(0, srv_handle);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, srv_handle);
 	}
 
-	void D3D12RHI::BindShaderResource(const Texture2D texture)
+	void D3D12RHI::BindParameter(std::string_view parameter_name, const Texture2D texture)
 	{
-		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
-		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
+		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
+		
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 		srv_handle.Offset(texture.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_CommandList->SetGraphicsRootDescriptorTable(0, srv_handle);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, srv_handle);
 	}
 
-	void D3D12RHI::BindShaderResource(const uint32_t heap_offset)
+	void D3D12RHI::BindParameter(std::string_view parameter_name, const uint32_t heap_offset)
 	{
-		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
-		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
 		srv_handle.Offset(heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_CommandList->SetGraphicsRootDescriptorTable(0, srv_handle);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, srv_handle);
 	}
 
 	void D3D12RHI::BeginRender()
@@ -838,6 +836,11 @@ namespace Eden
 		// Indicate that the back buffer will be used as a render target
 		auto current_render_target = GetCurrentRenderTarget();
 		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		// Set SRV Descriptor heap
+		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
+		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+		m_SRVHeapEnabled = true;
 	}
 
 	void D3D12RHI::EndRender()
@@ -1008,10 +1011,6 @@ namespace Eden
 
 			m_CommandAllocator->Reset();
 			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
-
-			// Indicate that the back buffer will be used as a render target
-			auto current_render_target = GetCurrentRenderTarget();
-			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 	}
 
@@ -1054,5 +1053,15 @@ namespace Eden
 
 		// Increment the fence value for the current frame
 		m_FenceValues[m_FrameIndex]++;
+	}
+
+	size_t D3D12RHI::GetRootParameterIndex(std::string_view parameter_name)
+	{
+		auto root_parameter_index = m_BoundPipeline.root_parameter_indices.find(parameter_name.data());
+
+		bool root_parameter_found = root_parameter_index != m_BoundPipeline.root_parameter_indices.end();
+		ED_ASSERT_LOG(root_parameter_found, "Failed to find root parameter!");
+
+		return root_parameter_index->second;
 	}
 }

@@ -1,4 +1,4 @@
-#include "Model.h"
+#include "MeshSource.h"
 
 #include <stb/stb_image.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -15,8 +15,14 @@
 namespace Eden
 {
 	// Based on Sascha Willems gltfloading.cpp
-	void Model::LoadGLTF(D3D12RHI* rhi, std::filesystem::path file)
+	void MeshSource::LoadGLTF(D3D12RHI* rhi, std::filesystem::path file)
 	{
+		// Reset the mesh source
+		Destroy();
+
+		glm::mat4 identity = glm::mat4(1.0f);
+		transform_cb = rhi->CreateBuffer<glm::mat4>(&identity, 1);
+
 		tinygltf::Model gltf_model;
 		tinygltf::TinyGLTF loader;
 		std::string err;
@@ -40,6 +46,8 @@ namespace Eden
 
 		std::string parent_path = file.parent_path().string() + "/";
 
+		std::vector<VertexData> vertices;
+		std::vector<uint32_t> indices;
 		for (const auto& gltf_node : gltf_model.nodes)
 		{
 			if (gltf_node.mesh < 0)
@@ -70,9 +78,6 @@ namespace Eden
 			{
 				mesh.gltf_matrix = glm::make_mat4x4(gltf_node.matrix.data());
 			}
-
-			mesh.transform *= mesh.gltf_matrix;
-			mesh.transform_cb = rhi->CreateBuffer<glm::mat4>(&mesh.transform, 1);
 
 			const auto& gltf_mesh = gltf_model.meshes[gltf_node.mesh];
 			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
@@ -210,30 +215,33 @@ namespace Eden
 			meshes.push_back(mesh);
 		}
 
-		mesh_vb = rhi->CreateBuffer<VertexData>(vertices.data(), (uint32_t)vertices.size());
-		mesh_ib = rhi->CreateBuffer<uint32_t>(indices.data(), (uint32_t)indices.size());
+		vertex_count = static_cast<uint32_t>(vertices.size());
+		index_count = static_cast<uint32_t>(indices.size());
+		mesh_vb = rhi->CreateBuffer<VertexData>(vertices.data(), vertex_count, D3D12RHI::BufferType::kDontCreateView);
+		mesh_ib = rhi->CreateBuffer<uint32_t>(indices.data(), index_count, D3D12RHI::BufferType::kDontCreateView);
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltf_model.nodes.size());
 		ED_LOG_INFO("	{} meshes were loaded!", gltf_model.meshes.size());
 		ED_LOG_INFO("	{} textures were loaded!", gltf_model.textures.size());
 		ED_LOG_INFO("	{} materials were loaded!", gltf_model.materials.size());
+		ED_LOG_INFO("   {} vertices were loaded!", vertex_count);
 	}
 
-	void Model::Destroy()
+	void MeshSource::Destroy()
 	{
 		mesh_vb.Release();
 		mesh_ib.Release();
+		transform_cb.Release();
 
 		for (auto& texture : textures)
 			texture.Release();
 
 		textures.clear();
+		meshes.clear();
 
-		for (auto& mesh : meshes)
-			mesh.transform_cb.Release();
 	}
 
-	uint32_t Model::LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index)
+	uint32_t MeshSource::LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index)
 	{
 		tinygltf::Image& gltf_image = gltf_model.images[image_index];
 
@@ -268,41 +276,4 @@ namespace Eden
 
 		return texture_id;
 	}
-
-	// Transform
-	void Model::Mesh::UpdateTransform()
-	{
-		transform = m_Translation * m_Rotation * m_Scale * gltf_matrix;
-	}
-
-	void Model::Mesh::SetTranslation(const int32_t x, const int32_t y, const int32_t z)
-	{
-		glm::vec3 new_translation = glm::vec3(x, y, z);
-		if (m_LastTranslation != new_translation)
-		{
-			m_Translation = glm::translate(m_Translation, new_translation);
-			m_LastTranslation = new_translation;
-		}
-	}
-
-	void Model::Mesh::SetRotation(const float angle, const int32_t x, const int32_t y, const int32_t z)
-	{
-		glm::vec3 new_rotation = glm::vec3(x, y, z);
-		if (new_rotation != m_LastRotation && angle != m_LastAngle)
-		{
-			m_Rotation = glm::rotate(m_Rotation, glm::radians(angle), new_rotation);
-			m_LastRotation = new_rotation;
-		}
-	}
-
-	void Model::Mesh::SetScale(const float x, const float y, const float z)
-	{
-		glm::vec3 new_scale = glm::vec3(x, y, z);
-		if (new_scale != m_LastScale)
-		{
-			m_Scale = glm::scale(m_Scale, glm::vec3(x, y, z));;
-			m_LastScale = new_scale;
-		}
-	}
-
 }

@@ -14,6 +14,10 @@
 
 using namespace Microsoft::WRL;
 
+// From Guillaume Boissé "gfx" https://github.com/gboisse/gfx/blob/b83878e562c2c205000b19c99cf24b13973dedb2/gfx_core.h#L77
+#define ALIGN(VAL, ALIGN)   \
+    (((VAL) + (static_cast<decltype(VAL)>(ALIGN) - 1)) & ~(static_cast<decltype(VAL)>(ALIGN) - 1))
+
 namespace Eden
 {
 	constexpr uint32_t s_FrameCount = 2;
@@ -113,7 +117,7 @@ namespace Eden
 		uint32_t m_RTVDescriptorSize;
 		ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
 		ComPtr<ID3D12DescriptorHeap> m_SRVHeap;
-		ComPtr<ID3D12DescriptorHeap> m_RenderTargetsSRVHeap;
+		bool m_SRVHeapEnabled = false; // TODO: make a descriptor heap struct
 		ComPtr<ID3D12Resource> m_RenderTargets[s_FrameCount];
 		ComPtr<ID3D12Resource> m_DepthStencil;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
@@ -152,35 +156,55 @@ namespace Eden
 		D3D12RHI(Window* window);
 		~D3D12RHI();
 
-		enum class BufferCreateSRV
+		enum class BufferType
 		{
+			kDontCreateView,
 			kCreateSRV,
-			kDontCreateSRV
+			kCreateCBV
 		};
 
 		// Template Helpers
 		template<typename TYPE>
-		Buffer CreateBuffer(void* data, uint32_t element_count, BufferCreateSRV create_srv = BufferCreateSRV::kDontCreateSRV)
+		Buffer CreateBuffer(void* data, uint32_t element_count, BufferType create_srv = BufferType::kCreateCBV)
 		{
-			Buffer buffer = CreateBuffer(element_count * sizeof(TYPE), data);
+			uint32_t size = ALIGN(element_count * sizeof(TYPE), 256);
+			Buffer buffer = CreateBuffer(size, data);
 			buffer.stride = (uint32_t)sizeof(TYPE);
 			buffer.count = element_count;
 
-			if (create_srv == BufferCreateSRV::kCreateSRV)
+			switch (create_srv)
 			{
-				D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-				srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-				srv_desc.Format = DXGI_FORMAT_UNKNOWN;
-				srv_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-				srv_desc.Buffer.FirstElement = 0;
-				srv_desc.Buffer.NumElements = element_count;
-				srv_desc.Buffer.StructureByteStride = sizeof(TYPE);
-				srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+			case BufferType::kCreateSRV:
+				{
+					D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+					srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+					srv_desc.Format = DXGI_FORMAT_UNKNOWN;
+					srv_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+					srv_desc.Buffer.FirstElement = 0;
+					srv_desc.Buffer.NumElements = element_count;
+					srv_desc.Buffer.StructureByteStride = sizeof(TYPE);
+					srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-				buffer.heap_offset = m_SRVHeapOffset;
-				CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
-				m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
-				m_SRVHeapOffset++;
+					buffer.heap_offset = m_SRVHeapOffset;
+					CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+					m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+					m_SRVHeapOffset++;
+				}
+				break;
+			case BufferType::kCreateCBV:
+				{
+					D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
+					cbv_desc.BufferLocation = buffer.resource->GetGPUVirtualAddress();
+					cbv_desc.SizeInBytes = size;
+
+					buffer.heap_offset = m_SRVHeapOffset;
+					CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+					m_Device->CreateConstantBufferView(&cbv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+					m_SRVHeapOffset++;
+				}
+				break;
+			default:
+				break;
 			}
 
 			return buffer;
@@ -202,10 +226,9 @@ namespace Eden
 		void BindPipeline(const Pipeline& pipeline);
 		void BindVertexBuffer(Buffer vertex_buffer);
 		void BindIndexBuffer(Buffer index_buffer);
-		void BindConstantBuffer(std::string_view parameter_name, Buffer constant_buffer);
-		void BindShaderResource(Buffer buffer);
-		void BindShaderResource(Texture2D texture);
-		void BindShaderResource(uint32_t heap_offset);
+		void BindParameter(std::string_view parameter_name,Buffer buffer);
+		void BindParameter(std::string_view parameter_name,Texture2D texture);
+		void BindParameter(std::string_view parameter_name,uint32_t heap_offset);
 
 		void BeginRender();
 		void EndRender();
@@ -227,6 +250,7 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
+		size_t GetRootParameterIndex(std::string_view parameter_name);
 		void CreateBackBuffers(uint32_t width, uint32_t height);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint32_t size, const void* data);

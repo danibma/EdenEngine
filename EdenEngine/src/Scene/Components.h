@@ -7,6 +7,8 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
+#include "MeshSource.h"
+
 namespace Eden
 {
 	struct TagComponent
@@ -27,6 +29,18 @@ namespace Eden
 			glm::mat4 s = glm::scale(glm::mat4(1.0f), scale);
 
 			return t * r * s;
+		}
+	};
+
+	struct MeshComponent
+	{
+		std::shared_ptr<MeshSource> mesh_source = std::make_shared<MeshSource>();
+		std::string mesh_path;
+
+		void LoadMeshSource(D3D12RHI* rhi, std::filesystem::path path)
+		{
+			mesh_path = path.string();
+			mesh_source->LoadGLTF(rhi, path);
 		}
 	};
 }

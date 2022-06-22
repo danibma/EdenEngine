@@ -74,7 +74,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     for (int i = 0; i < num_structs; ++i)
         pixel_color += CalculatePointLight(object_color, input.frag_pos, view_dir, input.normal, PointLights[i]);
     
-    pixel_color += emissive;
+    // Emissive texture not working at the moment
+    //pixel_color += emissive;
     
     
     return pixel_color;

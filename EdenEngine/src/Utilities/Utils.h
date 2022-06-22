@@ -3,6 +3,7 @@
 #include <string>
 #include <windows.h>
 #include <stringapiset.h>
+#include <commdlg.h>
 
 namespace Eden::Utils
 {
@@ -62,5 +63,23 @@ namespace Eden::Utils
 		{
 			WideCharToMultiByte(CP_UTF8, 0, from, -1, &to[0], num, NULL, NULL);
 		}
+	}
+
+	inline std::string OpenFileDialog(HWND hwnd, const char* filter)
+	{
+		OPENFILENAMEA ofn;
+		CHAR szFile[260] = { 0 };
+		ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+		ofn.lStructSize = sizeof(OPENFILENAMEA);
+		ofn.hwndOwner = hwnd;
+		ofn.lpstrFile = szFile;
+		ofn.nMaxFile = sizeof(szFile);
+		ofn.lpstrFilter = filter;
+		ofn.nFilterIndex = 1;
+		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+		if (GetOpenFileNameA(&ofn) == true)
+			return ofn.lpstrFile;
+
+		return std::string();
 	}
 }

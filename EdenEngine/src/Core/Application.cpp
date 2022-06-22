@@ -4,6 +4,7 @@
 #include "Graphics/D3D12RHI.h"
 #include "Memory.h"
 #include "Profiling/Profiler.h"
+#include "Utilities/Utils.h"
 
 namespace Eden
 {
@@ -50,6 +51,11 @@ namespace Eden
 		}
 
 		OnDestroy();
+	}
+
+	std::string Application::OpenFileDialog(const char* filter /*= ""*/)
+	{
+		return Utils::OpenFileDialog(window->GetHandle(), filter);
 	}
 
 	void Application::OnInit()

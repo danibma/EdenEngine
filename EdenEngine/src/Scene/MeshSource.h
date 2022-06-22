@@ -14,9 +14,6 @@
 
 namespace Eden
 {
-	//==================
-	// kVertex
-	//==================
 	struct VertexData
 	{
 		glm::vec3 position;
@@ -30,10 +27,7 @@ namespace Eden
 		}
 	};
 
-	//==================
-	// Model
-	//==================
-	struct Model
+	struct MeshSource
 	{
 		struct Mesh
 		{
@@ -46,36 +40,15 @@ namespace Eden
 			};
 
 			std::vector<SubMesh> submeshes;
-
-			// Transform
-			// NOTE(Daniel): I don't think this needs to be inside Mesh, I think it can be inside Model, but currently I'm not going to worry about this
-			glm::mat4 transform = glm::mat4(1.0f);
-			glm::mat4 gltf_matrix = glm::mat4(1.0f); // Do not use this for outside of this struct
-			Buffer transform_cb;
-
-			void UpdateTransform();
-			void SetTranslation(int32_t x, int32_t y, int32_t z);
-			void SetRotation(float angle, int32_t x, int32_t y, int32_t z);
-			void SetScale(float x, float y, float z);
-
-		private:
-			glm::mat4 m_Scale = glm::mat4(1.0f);
-			glm::mat4 m_Rotation = glm::mat4(1.0f);
-			glm::mat4 m_Translation = glm::mat4(1.0f);
-
-			glm::vec3 m_LastScale = glm::vec3(1.0f);
-			glm::vec3 m_LastRotation = glm::vec3(0.0f);
-			float m_LastAngle = 0.0f;
-			glm::vec3 m_LastTranslation = glm::vec3(0.0f);
+			glm::mat4 gltf_matrix = glm::mat4(1.0f);
 		};
 
-		std::vector<VertexData> vertices;
+		uint32_t vertex_count;
+		uint32_t index_count;
 		Buffer mesh_vb;
-		std::vector<uint32_t> indices;
 		Buffer mesh_ib;
-
+		Buffer transform_cb;
 		std::vector<Mesh> meshes;
-
 		std::vector<Texture2D> textures;
 
 		void LoadGLTF(D3D12RHI* gfx, std::filesystem::path file);

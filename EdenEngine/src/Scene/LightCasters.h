@@ -1,5 +1,5 @@
 #pragma once
-#include "Scene/Model.h"
+#include "Scene/MeshSource.h"
 
 namespace Eden
 {
@@ -16,7 +16,7 @@ namespace Eden
 		} data;
 
 		// This data is used to draw the point light
-		Model model;
+		MeshSource model;
 		Buffer light_color_buffer;
 
 		void Destroy()
