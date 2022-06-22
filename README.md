@@ -7,3 +7,6 @@
 
 ### Multiple Lights support
 ![Multiple Lights](multiple_lights.png)
+
+### Basic Editor UI working with ECS
+![ECS UI](ecs_ui.png)
