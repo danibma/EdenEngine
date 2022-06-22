@@ -154,6 +154,51 @@ public:
 
 			ImGui::CloseCurrentPopup();
 		}
+
+		if (ImGui::BeginMenu("3D Object"))
+		{
+			if (ImGui::MenuItem("Cube"))
+			{
+				auto e = m_CurrentScene->CreateEntity("Cube");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cube.glb");
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (ImGui::MenuItem("Plane"))
+			{
+				auto e = m_CurrentScene->CreateEntity("Plane");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/plane.glb");
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (ImGui::MenuItem("Sphere"))
+			{
+				auto e = m_CurrentScene->CreateEntity("Sphere");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/sphere.glb");
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (ImGui::MenuItem("Cone"))
+			{
+				auto e = m_CurrentScene->CreateEntity("Cone");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cone.glb");
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			if (ImGui::MenuItem("Cylinder"))
+			{
+				auto e = m_CurrentScene->CreateEntity("Cylinder");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cylinder.glb");
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndMenu();
+		}
 	}
 
 	void UI_Toolbar()
@@ -260,8 +305,9 @@ public:
 	{
 		ImGui::Begin("Scene Hierarchy", &m_OpenSceneHierarchy, ImGuiWindowFlags_NoCollapse);
 		auto& entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
-		for (auto entity : entities)
+		for (int i = entities.size() - 1; i >= 0; --i)
 		{
+			entt::entity entity = entities[i];
 			Entity e = { entity, m_CurrentScene };
 			auto& tag = e.GetComponent<TagComponent>();
 			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
@@ -367,7 +413,7 @@ public:
 			glm::vec3 rotation = glm::degrees(transform.rotation);
 			UI::DrawVec3("Rotation", rotation);
 			transform.rotation = glm::radians(rotation);
-			UI::DrawVec3("Scale", transform.scale);
+			UI::DrawVec3("Scale", transform.scale, 1.0f);
 		});
 
 		ImGui::Spacing();
