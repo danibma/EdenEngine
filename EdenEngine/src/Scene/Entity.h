@@ -60,5 +60,7 @@ namespace Eden
 		{
 			return Valid();
 		}
+
+		operator entt::entity() { return m_EntityHandler; }
 	};
 }

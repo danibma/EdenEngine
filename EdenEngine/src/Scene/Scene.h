@@ -14,6 +14,7 @@ namespace Eden
 		Scene() = default;
 
 		Entity CreateEntity(const std::string_view name = "");
+		void DeleteEntity(Entity& entity);
 
 		template<typename... Components>
 		auto GetAllEntitiesWith()

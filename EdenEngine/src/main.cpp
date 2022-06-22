@@ -312,10 +312,23 @@ public:
 			auto& tag = e.GetComponent<TagComponent>();
 			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
 				m_SelectedEntity = e;
+
+			if (ImGui::BeginPopupContextItem())
+			{
+				m_SelectedEntity = e;
+				if (ImGui::MenuItem("Delete"))
+				{
+					m_CurrentScene->DeleteEntity(m_SelectedEntity);
+				}
+				ImGui::Separator();
+				EntityMenu();
+
+				ImGui::EndPopup();
+			}
 		}
 
 		// Scene hierarchy popup to create new entities
-		if (Input::GetMouseButton(ED_MOUSE_RIGHT) && ImGui::IsWindowHovered())
+		if (Input::GetMouseButton(ED_MOUSE_RIGHT))
 			ImGui::OpenPopup("hierarchy_popup");
 
 		if (ImGui::BeginPopup("hierarchy_popup"))
@@ -324,6 +337,8 @@ public:
 			ImGui::EndPopup();
 		}
 
+		if (Input::GetKeyDown(ED_KEY_DELETE))
+			m_CurrentScene->DeleteEntity(m_SelectedEntity);
 
 		ImGui::End();
 	}
@@ -669,6 +684,8 @@ public:
 			Entity e = { entity, m_CurrentScene };
 			e.GetComponent<MeshComponent>().mesh_source->Destroy();
 		}
+
+		edelete m_CurrentScene;
 
 		point_lights_cb.Release();
 		directional_light_cb.Release();
