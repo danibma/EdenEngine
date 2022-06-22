@@ -109,31 +109,13 @@ namespace Eden
 		// Create descriptor heaps
 		{
 			// Describe and create the render target view(RTV) descriptor heap
-			D3D12_DESCRIPTOR_HEAP_DESC rtv_heap_desc = {};
-			rtv_heap_desc.NumDescriptors = s_FrameCount;
-			rtv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-
-			if (FAILED(m_Device->CreateDescriptorHeap(&rtv_heap_desc, IID_PPV_ARGS(&m_RTVHeap))))
-				ED_ASSERT_MB(false, "Failed to create Render Target View descriptor heap!");
-
-			m_RTVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			m_RTVHeap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 			// Describe and create the depth stencil view(DSV) descriptor heap
-			D3D12_DESCRIPTOR_HEAP_DESC dsv_heap_desc = {};
-			dsv_heap_desc.NumDescriptors = 1;
-			dsv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-
-			if (FAILED(m_Device->CreateDescriptorHeap(&dsv_heap_desc, IID_PPV_ARGS(&m_DSVHeap))))
-				ED_ASSERT_MB(false, "Failed to create Depth Stencil View descriptor heap!");
+			m_DSVHeap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 			// Describe and create a shader resource view (SRV) heap for the texture.
-			D3D12_DESCRIPTOR_HEAP_DESC srv_heap_desc = {};
-			srv_heap_desc.NumDescriptors = 128;
-			srv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			srv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-			if (FAILED(m_Device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&m_SRVHeap))))
-				ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
+			m_SRVHeap = CreateDescriptorHeap(128, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 		}
 
 		CreateBackBuffers(window->GetWidth(), window->GetHeight());
@@ -484,8 +466,7 @@ namespace Eden
 	void D3D12RHI::CreateBackBuffers(const uint32_t width, const uint32_t height)
 	{
 		// Create render targets
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(m_RTVHeap->GetCPUDescriptorHandleForHeapStart());
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_srv_handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_RTVHeap));
 
 		// Create a RTV for each frame
 		for (uint32_t i = 0; i < s_FrameCount; ++i)
@@ -494,7 +475,7 @@ namespace Eden
 				ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
 
 			m_Device->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtv_handle);
-			rtv_handle.Offset(1, m_RTVDescriptorSize);
+			rtv_handle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 
 			m_RenderTargets[i]->SetName(L"backbuffer");
 		}
@@ -522,7 +503,8 @@ namespace Eden
 			ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
 		}
 
-		m_Device->CreateDepthStencilView(m_DepthStencil.Get(), &depth_stencil_desc, m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+		auto dsv_handle = GetCPUHandle(m_DSVHeap);
+		m_Device->CreateDepthStencilView(m_DepthStencil.Get(), &depth_stencil_desc, dsv_handle);
 	}
 
 	Pipeline D3D12RHI::CreateGraphicsPipeline(std::string program_name, PipelineState draw_state)
@@ -746,8 +728,8 @@ namespace Eden
 		srv_desc.Texture2D.MipLevels = 1;
 
 		texture.heap_offset = m_SRVHeapOffset;
-		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
-		m_Device->CreateShaderResourceView(texture.resource.Get(), &srv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+		m_Device->CreateShaderResourceView(texture.resource.Get(), &srv_desc, handle);
 
 		WaitForGPU();
 
@@ -756,10 +738,9 @@ namespace Eden
 		m_SRVHeapOffset++;
 
 		// Enable the srv heap again
-		if (m_SRVHeapEnabled)
+		if (m_SRVHeap->is_set)
 		{
-			ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
-			m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+			SetDescriptorHeap(m_SRVHeap);
 		}
 
 		return texture;
@@ -768,7 +749,7 @@ namespace Eden
 	void D3D12RHI::EnableImGui()
 	{
 		// Setup imgui
-		ImGui_ImplDX12_Init(m_Device.Get(), s_FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_SRVHeap.Get(), m_SRVHeap->GetCPUDescriptorHandleForHeapStart(), m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+		ImGui_ImplDX12_Init(m_Device.Get(), s_FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_SRVHeap->heap.Get(), m_SRVHeap->heap->GetCPUDescriptorHandleForHeapStart(), m_SRVHeap->heap->GetGPUDescriptorHandleForHeapStart());
 		m_ImguiInitialized = true;
 
 		ImGuiNewFrame();
@@ -808,27 +789,24 @@ namespace Eden
 	void D3D12RHI::BindParameter(std::string_view parameter_name, const Buffer buffer)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
-		srv_handle.Offset(buffer.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, srv_handle);
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, buffer);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
 	}
 
 	void D3D12RHI::BindParameter(std::string_view parameter_name, const Texture2D texture)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 		
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
-		srv_handle.Offset(texture.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, srv_handle);
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, texture);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
 	}
 
 	void D3D12RHI::BindParameter(std::string_view parameter_name, const uint32_t heap_offset)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srv_handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
-		srv_handle.Offset(heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, srv_handle);
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, heap_offset);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
 	}
 
 	void D3D12RHI::BeginRender()
@@ -838,9 +816,7 @@ namespace Eden
 		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		// Set SRV Descriptor heap
-		ID3D12DescriptorHeap* heaps[] = { m_SRVHeap.Get() };
-		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-		m_SRVHeapEnabled = true;
+		SetDescriptorHeap(m_SRVHeap);
 	}
 
 	void D3D12RHI::EndRender()
@@ -875,9 +851,7 @@ namespace Eden
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
 		ED_PROFILE_GPU_FUNCTION("GPU::Draw");
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE dsv_handle(m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(m_RTVHeap->GetCPUDescriptorHandleForHeapStart(), m_FrameIndex, m_RTVDescriptorSize);
-		m_CommandList->OMSetRenderTargets(1, &rtv_handle, false, &dsv_handle);
+		SetRenderTargets(m_RTVHeap, m_DSVHeap);
 
 		m_Viewport.MinDepth = m_BoundPipeline.draw_state.min_depth;
 		m_CommandList->RSSetViewports(1, &m_Viewport);
@@ -1016,8 +990,8 @@ namespace Eden
 
 	void D3D12RHI::ClearRenderTargets()
 	{
-		CD3DX12_CPU_DESCRIPTOR_HANDLE dsv_handle(m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(m_RTVHeap->GetCPUDescriptorHandleForHeapStart(), m_FrameIndex, m_RTVDescriptorSize);
+		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
+		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
 
 		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
 		m_CommandList->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
@@ -1034,12 +1008,66 @@ namespace Eden
 		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, current_state, desired_state));
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetTextureGPUHandle(Texture2D texture)
+	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Texture2D texture)
 	{
-		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetGPUDescriptorHandleForHeapStart());
 		handle.Offset(texture.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 		return handle;
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Buffer buffer)
+	{
+		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetGPUDescriptorHandleForHeapStart());
+		handle.Offset(buffer.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
+		return handle;
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset /*= 0*/)
+	{
+		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetGPUDescriptorHandleForHeapStart());
+		handle.Offset(offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
+		return handle;
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE D3D12RHI::GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type /*= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV*/, int32_t offset /*= 0*/)
+	{
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetCPUDescriptorHandleForHeapStart());
+		handle.Offset(offset, m_Device->GetDescriptorHandleIncrementSize(heap_type));
+
+		return handle;
+	}
+
+	std::shared_ptr<DescriptorHeap> D3D12RHI::CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags /*= D3D12_DESCRIPTOR_HEAP_FLAG_NONE*/)
+	{
+		std::shared_ptr<DescriptorHeap> descriptor_heap = std::make_shared<DescriptorHeap>();
+
+		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
+		heap_desc.NumDescriptors = num_descriptors;
+		heap_desc.Type = descriptor_type;
+		heap_desc.Flags = flags;
+
+		if (FAILED(m_Device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&descriptor_heap->heap))))
+			ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
+
+		return descriptor_heap;
+	}
+
+	void D3D12RHI::SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap)
+	{
+		// Right now this is ok to use because we are not using more than one desriptor heap
+		ID3D12DescriptorHeap* heaps[] = { descriptor_heap->heap.Get() };
+		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+		descriptor_heap->is_set = true;
+	}
+
+	void D3D12RHI::SetRenderTargets(std::shared_ptr<DescriptorHeap> rtv_heap, std::shared_ptr<DescriptorHeap> dsv_heap)
+	{
+		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
+		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+		m_CommandList->OMSetRenderTargets(1, &rtv_handle, false, &dsv_handle);
 	}
 
 	void D3D12RHI::WaitForGPU()
@@ -1065,3 +1093,4 @@ namespace Eden
 		return root_parameter_index->second;
 	}
 }
+;

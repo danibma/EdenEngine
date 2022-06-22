@@ -196,9 +196,7 @@ namespace Eden
 					auto material_index = gltf_material.values["baseColorTexture"].TextureIndex();
 					auto texture_index = gltf_model.textures[material_index].source;
 
-					// This assumes every primitive that has a texture, has a diffuse
-					// so the diffuse is always the first texture of the "Material"
-					submesh.material_index = LoadImage(rhi, gltf_model, texture_index);
+					submesh.diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
 				}
 
 				if (gltf_material.emissiveTexture.index > -1)
@@ -206,7 +204,7 @@ namespace Eden
 					auto material_index = gltf_material.emissiveTexture.index;
 					auto texture_index = gltf_model.textures[material_index].source;
 
-					LoadImage(rhi, gltf_model, texture_index);
+					submesh.emissive_texture = LoadImage(rhi, gltf_model, texture_index);
 				}
 
 				mesh.submeshes.push_back(submesh);

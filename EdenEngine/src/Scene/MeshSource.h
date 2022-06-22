@@ -33,7 +33,8 @@ namespace Eden
 		{
 			struct SubMesh
 			{
-				uint32_t material_index;
+				uint32_t diffuse_texture;
+				uint32_t emissive_texture;
 				uint32_t vertex_start;
 				uint32_t index_start;
 				uint32_t index_count;

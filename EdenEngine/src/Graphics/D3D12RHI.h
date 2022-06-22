@@ -106,6 +106,12 @@ namespace Eden
 		std::unordered_map<std::string, size_t> root_parameter_indices;
 	};
 
+	struct DescriptorHeap
+	{
+		ComPtr<ID3D12DescriptorHeap> heap;
+		bool is_set = false;
+	};
+
 	class D3D12RHI
 	{
 		ComPtr<ID3D12Device> m_Device;
@@ -113,11 +119,9 @@ namespace Eden
 		ComPtr<IDXGIAdapter1> m_Adapter;
 		ComPtr<ID3D12CommandQueue> m_CommandQueue;
 		ComPtr<IDXGISwapChain3> m_Swapchain;
-		ComPtr<ID3D12DescriptorHeap> m_RTVHeap;
-		uint32_t m_RTVDescriptorSize;
-		ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
-		ComPtr<ID3D12DescriptorHeap> m_SRVHeap;
-		bool m_SRVHeapEnabled = false; // TODO: make a descriptor heap struct
+		std::shared_ptr<DescriptorHeap> m_RTVHeap;
+		std::shared_ptr<DescriptorHeap> m_DSVHeap;
+		std::shared_ptr<DescriptorHeap> m_SRVHeap;
 		ComPtr<ID3D12Resource> m_RenderTargets[s_FrameCount];
 		ComPtr<ID3D12Resource> m_DepthStencil;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
@@ -144,7 +148,6 @@ namespace Eden
 		Pipeline m_BoundPipeline;
 
 		uint32_t m_SRVHeapOffset = 1;
-		uint32_t m_RenderTargetSRVOffsets[2];
 
 		struct ShaderResult
 		{
@@ -186,8 +189,8 @@ namespace Eden
 					srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
 					buffer.heap_offset = m_SRVHeapOffset;
-					CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
-					m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+					auto handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, handle);
 					m_SRVHeapOffset++;
 				}
 				break;
@@ -198,8 +201,8 @@ namespace Eden
 					cbv_desc.SizeInBytes = size;
 
 					buffer.heap_offset = m_SRVHeapOffset;
-					CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
-					m_Device->CreateConstantBufferView(&cbv_desc, handle.Offset(m_SRVHeapOffset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)));
+					auto handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					m_Device->CreateConstantBufferView(&cbv_desc, handle);
 					m_SRVHeapOffset++;
 				}
 				break;
@@ -244,7 +247,15 @@ namespace Eden
 		ID3D12Resource* GetCurrentRenderTarget();
 		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE GetTextureGPUHandle(Texture2D texture);
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Texture2D texture);
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Buffer buffer);
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset = 0);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
+
+		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
+		void SetRenderTargets(std::shared_ptr<DescriptorHeap> rtv_heap, std::shared_ptr<DescriptorHeap> dsv_heap);
 
 	private:
 		void PrepareDraw();

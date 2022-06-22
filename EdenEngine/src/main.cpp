@@ -474,9 +474,11 @@ public:
 
 				for (auto& submesh : mesh.submeshes)
 				{
-					// TODO: add emissive texture, add the index of each texture to the submesh, instead of only the diffuse
 					if (textured)
-						rhi->BindParameter("g_textureDiffuse", submesh.material_index);
+					{
+						rhi->BindParameter("g_textureDiffuse", submesh.diffuse_texture);
+						rhi->BindParameter("g_textureEmissive", submesh.emissive_texture);
+					}
 					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 				}
 			}
