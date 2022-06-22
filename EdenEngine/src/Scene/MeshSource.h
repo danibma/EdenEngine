@@ -55,6 +55,11 @@ namespace Eden
 		void LoadGLTF(D3D12RHI* gfx, std::filesystem::path file);
 		void Destroy();
 
+		~MeshSource()
+		{
+			Destroy();
+		}
+
 	private:
 		uint32_t LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index);
 	};

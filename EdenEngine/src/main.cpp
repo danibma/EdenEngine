@@ -129,13 +129,11 @@ public:
 		directional_light_cb = rhi->CreateBuffer<DirectionalLight::DirectionalLightData>(&directional_light.data, 1);
 
 		point_lights.emplace_back();
-		point_lights.back().model.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
 		point_lights.back().data.position = glm::vec4(3.0f, 3.0f, -5.0f, 1.0f);
 		point_lights.back().data.color = glm::vec4(0.0f, 1.0f, 1.0f, 0.0f);
 		point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
 
 		point_lights.emplace_back();
-		point_lights.back().model.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
 		point_lights.back().data.position = glm::vec4(-3.0f, 3.0f, -5.0f, 1.0f);
 		point_lights.back().data.color = glm::vec4(1.0f, 1.0f, 0.0f, 0.0f);
 		point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
@@ -367,8 +365,6 @@ public:
 
 				if (ImGui::MenuItem("Remove Component", nullptr, false, remove_component))
 				{
-					if (std::is_same<T, MeshComponent>::value)
-						m_SelectedEntity.GetComponent<MeshComponent>().mesh_source->Destroy();
 					m_SelectedEntity.RemoveComponent<T>();
 					open = false;
 

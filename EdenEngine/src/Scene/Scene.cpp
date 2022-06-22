@@ -17,9 +17,6 @@ namespace Eden
 
 	void Scene::DeleteEntity(Entity& entity)
 	{
-		if (entity.HasComponent<MeshComponent>())
-			entity.GetComponent<MeshComponent>().mesh_source->Destroy();
-
 		m_Registry.destroy(entity);
 	}
 

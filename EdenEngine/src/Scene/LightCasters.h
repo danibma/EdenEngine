@@ -16,12 +16,11 @@ namespace Eden
 		} data;
 
 		// This data is used to draw the point light
-		MeshSource model;
 		Buffer light_color_buffer;
 
 		void Destroy()
 		{
-			model.Destroy();
+			//model.Destroy();
 			light_color_buffer.Release();
 		}
 	};
