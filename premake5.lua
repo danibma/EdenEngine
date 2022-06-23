@@ -43,6 +43,7 @@ project "EdenEngine"
 		"%{prj.name}/src/**.hpp", 
 		"%{prj.name}/src/**.cpp",
         "%{prj.name}/shaders/**.hlsl",
+        "%{prj.name}/shaders/**.hlsli"
 	}
 
     includedirs
@@ -78,7 +79,7 @@ project "EdenEngine"
         '{COPY} "%{wks.location}/external/dxc/dxil.dll" "%{cfg.targetdir}"',
     }
 
-    filter { "files:**.hlsl" }
+    filter { "files:**.hlsl or files:**.hlsli" }
         flags {"ExcludeFromBuild"}
 
     filter "system:windows"
