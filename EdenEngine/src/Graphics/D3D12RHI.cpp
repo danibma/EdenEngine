@@ -456,10 +456,13 @@ namespace Eden
 									&buffer.allocation,
 									IID_PPV_ARGS(&buffer.resource));
 
-		buffer.resource->Map(0, nullptr, &buffer.data);
-		memcpy(buffer.data, data, size);
-		buffer.resource->Unmap(0, nullptr);
-
+		// if the data is nullptr dont map the memory
+		if (data)
+		{
+			buffer.resource->Map(0, nullptr, &buffer.data);
+			memcpy(buffer.data, data, size);
+			buffer.initialized_data = true;
+		}
 		return buffer;
 	}
 

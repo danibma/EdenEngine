@@ -42,12 +42,18 @@ struct PointLight
     float constant_value;
     float linear_value;
     float quadratic_value;
-    float padding; // no use
 };
 
 float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, PointLight point_light)
 {
-     // Lighting
+    // If the color is black just discard it
+    if (point_light.color.r == 0.0f &&
+        point_light.color.g == 0.0f &&
+        point_light.color.b == 0.0f &&
+        point_light.color.a)
+        return 0;
+    
+    // Lighting
     float3 light_color = point_light.color.rgb;
     
     // Ambient Light

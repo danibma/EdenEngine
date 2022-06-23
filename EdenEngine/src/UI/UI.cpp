@@ -1,4 +1,5 @@
 #include "UI.h"
+#include "glm\gtc\type_ptr.hpp"
 
 namespace Eden::UI
 {
@@ -251,7 +252,7 @@ namespace Eden::UI
 		ImGui::NextColumn();
 
 		ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 5 });
 
 		float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
 		ImVec2 buttonSize = { lineHeight + 3.0f, lineHeight };
@@ -301,6 +302,34 @@ namespace Eden::UI
 
 		ImGui::Columns(1);
 
+		ImGui::PopID();
+	}
+
+	void DrawProperty(const std::string& label, float& value, float column_width /* = 100.0f*/)
+	{
+		ImGui::PushID(label.c_str());
+		ImGui::Columns(2);
+		ImGui::SetColumnWidth(0, column_width);
+		ImGui::Text(label.c_str());
+		ImGui::NextColumn();
+		ImGui::PushItemWidth(-1);
+		ImGui::DragFloat("###X", &value);
+		ImGui::PopItemWidth();
+		ImGui::Columns(1);
+		ImGui::PopID();
+	}
+
+	void DrawColor(const std::string& label, glm::vec4& values, float column_width /* = 100.0f*/)
+	{
+		ImGui::PushID(label.c_str());
+		ImGui::Columns(2);
+		ImGui::SetColumnWidth(0, column_width);
+		ImGui::Text(label.c_str());
+		ImGui::NextColumn();
+		ImGui::PushItemWidth(-1);
+		ImGui::ColorEdit4("###Color", glm::value_ptr(values));
+		ImGui::PopItemWidth();
+		ImGui::Columns(1);
 		ImGui::PopID();
 	}
 

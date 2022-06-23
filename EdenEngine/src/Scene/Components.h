@@ -11,6 +11,11 @@
 
 namespace Eden
 {
+	// Steps to create a new component:
+	// 1- Create the struct here
+	// 2- Draw the component property by calling DrawComponentProperty inside UI_EntityProperties
+	// 3- Add a new menu item inside the "addc_popup"
+
 	struct TagComponent
 	{
 		std::string tag;
@@ -42,5 +47,20 @@ namespace Eden
 			mesh_path = path.string();
 			mesh_source->LoadGLTF(rhi, path);
 		}
+	};
+
+	struct PointLightComponent
+	{
+		glm::vec4 color = glm::vec4(1.0f);
+		glm::vec4 position;
+		float constant_value = 1.0f;
+		float linear_value = 0.09f;
+		float quadratic_value = 0.032f;
+	};
+
+	struct DirectionalLightComponent
+	{
+		glm::vec4 direction;
+		float intensity = 1.0f;
 	};
 }

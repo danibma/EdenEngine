@@ -67,6 +67,12 @@ namespace Eden
 		uint32_t stride;
 		uint32_t count;
 		uint32_t heap_offset; // Used for srv's, like structured buffer
+		bool initialized_data = false;
+
+		operator bool()
+		{
+			return resource;
+		}
 	};
 
 	struct Texture2D : Resource
@@ -168,14 +174,17 @@ namespace Eden
 
 		// Template Helpers
 		template<typename TYPE>
-		Buffer CreateBuffer(void* data, uint32_t element_count, BufferType create_srv = BufferType::kCreateCBV)
+		Buffer CreateBuffer(void* data, uint32_t element_count, BufferType view_creation = BufferType::kCreateCBV)
 		{
-			uint32_t size = ALIGN(element_count * sizeof(TYPE), 256);
+			uint32_t size = element_count * sizeof(TYPE);
+			if (view_creation == BufferType::kCreateCBV)
+				size = ALIGN(size, 256);
+			 
 			Buffer buffer = CreateBuffer(size, data);
 			buffer.stride = (uint32_t)sizeof(TYPE);
 			buffer.count = element_count;
 
-			switch (create_srv)
+			switch (view_creation)
 			{
 			case BufferType::kCreateSRV:
 				{
@@ -216,6 +225,8 @@ namespace Eden
 		template<typename TYPE>
 		void UpdateBuffer(Buffer& buffer, void* data, const uint32_t element_count)
 		{
+			if (!buffer.initialized_data)
+				buffer.resource->Map(0, nullptr, &buffer.data);
 			memcpy(buffer.data, data, sizeof(TYPE) * element_count);
 		}
 

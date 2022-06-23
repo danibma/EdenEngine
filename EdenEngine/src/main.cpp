@@ -17,6 +17,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <array>
 
 using namespace Eden;
 
@@ -32,11 +33,11 @@ class EdenApplication : public Application
 		glm::vec4 view_position;
 	};
 
+	static const int MAX_POINT_LIGHTS = 32;
 	DirectionalLight directional_light;
 	Buffer directional_light_cb;
 	float directional_light_intensity = 0.5f;
-	std::vector<PointLight> point_lights;
-	Buffer point_lights_cb;
+	Buffer point_light_components_buffer;
 
 	glm::mat4 model;
 	glm::mat4 view;
@@ -73,7 +74,7 @@ class EdenApplication : public Application
 	bool m_CloseApp = false;
 	bool m_OpenSceneHierarchy = true;
 	bool m_OpenSceneProperties = false;
-	int m_GuizmoType = ImGuizmo::OPERATION::TRANSLATE;
+	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 
 	// Scene
 	Scene* m_CurrentScene = nullptr;
@@ -128,20 +129,7 @@ public:
 		directional_light.data.intensity = directional_light_intensity;
 		directional_light_cb = rhi->CreateBuffer<DirectionalLight::DirectionalLightData>(&directional_light.data, 1);
 
-		point_lights.emplace_back();
-		point_lights.back().data.position = glm::vec4(3.0f, 3.0f, -5.0f, 1.0f);
-		point_lights.back().data.color = glm::vec4(0.0f, 1.0f, 1.0f, 0.0f);
-		point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
-
-		point_lights.emplace_back();
-		point_lights.back().data.position = glm::vec4(-3.0f, 3.0f, -5.0f, 1.0f);
-		point_lights.back().data.color = glm::vec4(1.0f, 1.0f, 0.0f, 0.0f);
-		point_lights.back().light_color_buffer = rhi->CreateBuffer<glm::vec4>(&point_lights.back().data.color, 1);
-
-		std::vector<PointLight::PointLightData> point_lights_data(point_lights.size());
-		point_lights_data.emplace_back(point_lights[0].data);
-		point_lights_data.emplace_back(point_lights[1].data);
-		point_lights_cb = rhi->CreateBuffer<PointLight::PointLightData>(point_lights_data.data(), point_lights_data.size(), D3D12RHI::BufferType::kCreateSRV);
+		point_light_components_buffer = rhi->CreateBuffer<PointLightComponent>(nullptr, MAX_POINT_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
 	}
 
 	void EntityMenu()
@@ -308,13 +296,14 @@ public:
 			entt::entity entity = entities[i];
 			Entity e = { entity, m_CurrentScene };
 			auto& tag = e.GetComponent<TagComponent>();
+			if (tag.tag.length() == 0) tag.tag = " "; // If the tag is empty add a space to it doesnt crash
 			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
 				m_SelectedEntity = e;
 
 			if (ImGui::BeginPopupContextItem())
 			{
 				m_SelectedEntity = e;
-				if (ImGui::MenuItem("Delete"))
+				if (ImGui::MenuItem("Delete", "Del"))
 				{
 					m_CurrentScene->DeleteEntity(m_SelectedEntity);
 				}
@@ -326,7 +315,7 @@ public:
 		}
 
 		// Scene hierarchy popup to create new entities
-		if (Input::GetMouseButton(ED_MOUSE_RIGHT))
+		if (Input::GetMouseButton(ED_MOUSE_RIGHT) && ImGui::IsWindowHovered())
 			ImGui::OpenPopup("hierarchy_popup");
 
 		if (ImGui::BeginPopup("hierarchy_popup"))
@@ -335,7 +324,7 @@ public:
 			ImGui::EndPopup();
 		}
 
-		if (Input::GetKeyDown(ED_KEY_DELETE))
+		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
 			m_CurrentScene->DeleteEntity(m_SelectedEntity);
 
 		ImGui::End();
@@ -391,13 +380,10 @@ public:
 			auto& tag = m_SelectedEntity.GetComponent<TagComponent>().tag;
 			constexpr size_t num_chars = 256;
 			char buffer[num_chars];
-			memset(buffer, 0, num_chars);
-			memcpy(buffer, tag.c_str(), tag.length());
+			strcpy_s(buffer, tag.c_str());
 			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
 			if (ImGui::InputText("##Tag", buffer, num_chars))
-			{
 				tag = std::string(buffer);
-			}
 			ImGui::PopItemWidth();
 		}
 		ImGui::SameLine();
@@ -408,12 +394,20 @@ public:
 			if (ImGui::BeginPopup("addc_popup"))
 			{
 				bool mesh_component = !m_SelectedEntity.HasComponent<MeshComponent>();
+				bool point_light_component = !m_SelectedEntity.HasComponent<PointLightComponent>();
 
 				if (ImGui::MenuItem("Mesh Component", 0, false, mesh_component))
 				{
 					m_SelectedEntity.AddComponent<MeshComponent>();
 					ImGui::CloseCurrentPopup();
 				}
+
+				if (ImGui::MenuItem("Point Light Component", 0, false, point_light_component))
+				{
+					m_SelectedEntity.AddComponent<PointLightComponent>();
+					ImGui::CloseCurrentPopup();
+				}
+
 				ImGui::EndPopup();
 			}
 		}
@@ -450,7 +444,22 @@ public:
 					mc.LoadMeshSource(rhi, new_path);
 			}
 		});
-		
+
+		ImGui::Spacing();
+		ImGui::Spacing();
+
+		DrawComponentProperty<PointLightComponent>("Point Light", [&]() {
+			auto& pl = m_SelectedEntity.GetComponent<PointLightComponent>();
+			auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
+			
+			pl.position = glm::vec4(transform.translation, 1.0f);
+
+			UI::DrawColor("Color", pl.color);
+			UI::DrawProperty("Constant", pl.constant_value);
+			UI::DrawProperty("Linear", pl.linear_value);
+			UI::DrawProperty("Quadratic", pl.quadratic_value);
+		});
+
 		end: // goto end
 		ImGui::End();
 	}
@@ -486,7 +495,7 @@ public:
 		auto& transform_component = m_SelectedEntity.GetComponent<TransformComponent>();
 		glm::mat4 transform = transform_component.GetTransform();
 
-		ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), static_cast<ImGuizmo::OPERATION>(m_GuizmoType), ImGuizmo::LOCAL, glm::value_ptr(transform));
+		ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), static_cast<ImGuizmo::OPERATION>(m_GizmoType), ImGuizmo::LOCAL, glm::value_ptr(transform));
 
 		if (ImGuizmo::IsUsing())
 		{
@@ -502,7 +511,7 @@ public:
 
 	void UI_Render()
 	{
-		//ImGui::ShowDemoWindow(nullptr);
+		// ImGui::ShowDemoWindow(nullptr);
 
 		UI_Toolbar();
 		if (m_OpenDebugWindow)
@@ -519,16 +528,18 @@ public:
 
 	void EditorInput()
 	{
+		// BUG: if we are writing inside a textbox it will switch the gizmos too
+		//		find a way to detect if any window is focused, if there is any, dont do these actions
 		if (!Input::GetMouseButton(MouseButton::RightButton))
 		{
 			if (Input::GetKey(KeyCode::Q))
-				m_GuizmoType = -1;
+				m_GizmoType = -1;
 			if (Input::GetKey(KeyCode::W))
-				m_GuizmoType = ImGuizmo::TRANSLATE;
+				m_GizmoType = ImGuizmo::TRANSLATE;
 			if (Input::GetKey(KeyCode::E))
-				m_GuizmoType = ImGuizmo::ROTATE;
+				m_GizmoType = ImGuizmo::ROTATE;
 			if (Input::GetKey(KeyCode::R))
-				m_GuizmoType = ImGuizmo::SCALE;
+				m_GizmoType = ImGuizmo::SCALE;
 		}
 
 		// Show UI or not
@@ -537,6 +548,25 @@ public:
 		if (m_ShowUI)
 			UI_Render();
 
+	}
+
+	void UpdatePointLights()
+	{
+		PointLightComponent empty_pl;
+		empty_pl.color = glm::vec4(0);
+
+		std::array<PointLightComponent, MAX_POINT_LIGHTS> point_light_components;
+		point_light_components.fill(empty_pl);
+
+		auto point_lights = m_CurrentScene->GetAllEntitiesWith<PointLightComponent>();
+		for (int i = 0; i < point_lights.size(); ++i)
+		{
+			Entity e = { point_lights[i], m_CurrentScene};
+			PointLightComponent& pl = e.GetComponent<PointLightComponent>();
+			point_light_components[i] = pl;
+		}
+
+		rhi->UpdateBuffer<PointLightComponent>(point_light_components_buffer, point_light_components.data(), point_light_components.size());
 	}
 
 	void OnUpdate() override
@@ -563,12 +593,14 @@ public:
 
 		rhi->ClearRenderTargets();
 
+		UpdatePointLights();
+
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
 		for (auto entity : entities_to_render)
 		{
 			Entity e = { entity, m_CurrentScene };
 			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
-			if (!ms->transform_cb.resource) continue;
+			if (!ms->transform_cb) continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 			bool textured = ms->textures.size() > 0;
 			if (textured)
@@ -592,7 +624,8 @@ public:
 				rhi->BindParameter("SceneData", scene_data_cb);
 				rhi->BindParameter("Transform", ms->transform_cb);
 				rhi->BindParameter("DirectionalLightCB", directional_light_cb);
-				rhi->BindParameter("PointLights", point_lights_cb);
+				if (point_light_components_buffer)
+					rhi->BindParameter("PointLights", point_light_components_buffer);
 
 				for (auto& submesh : mesh.submeshes)
 				{
@@ -683,15 +716,12 @@ public:
 
 		edelete m_CurrentScene;
 
-		point_lights_cb.Release();
+		point_light_components_buffer.Release();
 		directional_light_cb.Release();
 		scene_data_cb.Release();
 		skybox_data_cb.Release();
 		m_SkyboxCube.Destroy();
 		skybox_texture.Release();
-
-		for (auto& point_light : point_lights)
-			point_light.Destroy();
 	}
 
 };
