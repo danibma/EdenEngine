@@ -8,7 +8,6 @@
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
 #include "Graphics/D3D12RHI.h"
-#include "Scene/LightCasters.h"
 #include "Scene/MeshSource.h"
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
@@ -33,27 +32,25 @@ class EdenApplication : public Application
 		glm::vec4 view_position;
 	};
 
+	static const int MAX_DIRECTIONAL_LIGHTS = 16;
+	Buffer directional_lights_buffer;
 	static const int MAX_POINT_LIGHTS = 32;
-	DirectionalLight directional_light;
-	Buffer directional_light_cb;
-	float directional_light_intensity = 0.5f;
 	Buffer point_light_components_buffer;
 
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 projection;
-	glm::vec3 light_direction = glm::vec3(0.0f, 10.0f, 0.0f);
 	SceneData scene_data;
 	Buffer scene_data_cb;
 	Camera camera;
 
 	Pipeline object_texture;
 	Pipeline object_simple;
-	Pipeline light_caster;
 	Entity m_Helmet;
 	Entity flight_helmet;
 	Entity m_BasicMesh;
 	Entity m_FloorMesh;
+	Entity m_DirectionalLight;
 
 	// Skybox
 	Pipeline skybox;
@@ -88,7 +85,6 @@ public:
 		object_textureDS.enable_blending = true;
 		object_texture = rhi->CreateGraphicsPipeline("object_texture", object_textureDS);
 		object_simple = rhi->CreateGraphicsPipeline("object_simple");
-		light_caster = rhi->CreateGraphicsPipeline("light_caster");
 
 		PipelineState skybox_ds;
 		skybox_ds.cull_mode = D3D12_CULL_MODE_NONE;
@@ -111,6 +107,9 @@ public:
 		skybox_data_cb = rhi->CreateBuffer<SkyboxData>(&skybox_data, 1);
 
 		m_CurrentScene = enew Scene();
+		m_DirectionalLight = m_CurrentScene->CreateEntity("Directional Light");
+		auto dl_direction = m_DirectionalLight.GetComponent<TransformComponent>().rotation = glm::vec3(glm::radians(-11.0f), glm::radians(73.0f), glm::radians(3.0f));
+		m_DirectionalLight.AddComponent<DirectionalLightComponent>().direction = glm::vec4(dl_direction, 1.0f);
 		m_Helmet = m_CurrentScene->CreateEntity("Helmet");
 		m_Helmet.GetComponent<TransformComponent>().translation = glm::vec3(-3, 0, 0);
 		m_BasicMesh = m_CurrentScene->CreateEntity("Sphere");
@@ -125,11 +124,10 @@ public:
 		m_SkyboxCube.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
 
 		// Lights
-		directional_light.data.direction = glm::vec4(light_direction, 1.0f);
-		directional_light.data.intensity = directional_light_intensity;
-		directional_light_cb = rhi->CreateBuffer<DirectionalLight::DirectionalLightData>(&directional_light.data, 1);
-
+		directional_lights_buffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
+		UpdateDirectionalLights();
 		point_light_components_buffer = rhi->CreateBuffer<PointLightComponent>(nullptr, MAX_POINT_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
+		UpdatePointLights();
 	}
 
 	void EntityMenu()
@@ -395,6 +393,7 @@ public:
 			{
 				bool mesh_component = !m_SelectedEntity.HasComponent<MeshComponent>();
 				bool point_light_component = !m_SelectedEntity.HasComponent<PointLightComponent>();
+				bool directional_light_component = !m_SelectedEntity.HasComponent<DirectionalLightComponent>();
 
 				if (ImGui::MenuItem("Mesh Component", 0, false, mesh_component))
 				{
@@ -405,6 +404,12 @@ public:
 				if (ImGui::MenuItem("Point Light Component", 0, false, point_light_component))
 				{
 					m_SelectedEntity.AddComponent<PointLightComponent>();
+					ImGui::CloseCurrentPopup();
+				}
+
+				if (ImGui::MenuItem("Directional Light Component", 0, false, directional_light_component))
+				{
+					m_SelectedEntity.AddComponent<DirectionalLightComponent>();
 					ImGui::CloseCurrentPopup();
 				}
 
@@ -455,9 +460,21 @@ public:
 			pl.position = glm::vec4(transform.translation, 1.0f);
 
 			UI::DrawColor("Color", pl.color);
-			UI::DrawProperty("Constant", pl.constant_value);
-			UI::DrawProperty("Linear", pl.linear_value);
-			UI::DrawProperty("Quadratic", pl.quadratic_value);
+			UI::DrawProperty("Constant", pl.constant_value, 0.05f, 0.0f, 1.0f);
+			UI::DrawProperty("Linear", pl.linear_value, 0.05f, 0.0f, 1.0f);
+			UI::DrawProperty("Quadratic", pl.quadratic_value, 0.05f, 0.0f, 1.0f);
+		});
+
+		ImGui::Spacing();
+		ImGui::Spacing();
+
+		DrawComponentProperty<DirectionalLightComponent>("Directional Light", [&]() {
+			auto& dl = m_SelectedEntity.GetComponent<DirectionalLightComponent>();
+			auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
+
+			dl.direction = glm::vec4(transform.rotation, 1.0f);
+			
+			UI::DrawProperty("Intensity", dl.intensity, 0.05f, 0.0f, 1.0f);
 		});
 
 		end: // goto end
@@ -466,10 +483,7 @@ public:
 
 	void UI_SceneProperties()
 	{
-		// TEMP
 		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
-		ImGui::DragFloat3("Direction", (float*)&light_direction, 0.10f, 0.0f, 0.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-		ImGui::DragFloat("Intensity", &directional_light_intensity, 0.1f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::Checkbox("Enable Skybox", &skybox_enable);
 		ImGui::End();
 	}
@@ -569,6 +583,25 @@ public:
 		rhi->UpdateBuffer<PointLightComponent>(point_light_components_buffer, point_light_components.data(), point_light_components.size());
 	}
 
+	void UpdateDirectionalLights()
+	{
+		DirectionalLightComponent empty_dl;
+		empty_dl.intensity = 0;
+
+		std::array<DirectionalLightComponent, MAX_DIRECTIONAL_LIGHTS> directional_light_components;
+		directional_light_components.fill(empty_dl);
+
+		auto directional_lights = m_CurrentScene->GetAllEntitiesWith<DirectionalLightComponent>();
+		for (int i = 0; i < directional_lights.size(); ++i)
+		{
+			Entity e = { directional_lights[i], m_CurrentScene };
+			DirectionalLightComponent& pl = e.GetComponent<DirectionalLightComponent>();
+			directional_light_components[i] = pl;
+		}
+
+		rhi->UpdateBuffer<DirectionalLightComponent>(directional_lights_buffer, directional_light_components.data(), directional_light_components.size());
+	}
+
 	void OnUpdate() override
 	{
 		ED_PROFILE_FUNCTION();
@@ -584,15 +617,11 @@ public:
 		scene_data.view_position = glm::vec4(camera.position, 1.0f);
 		rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
 
-		// Update directional light
-		directional_light.data.direction = glm::vec4(light_direction, 1.0f);
-		directional_light.data.intensity = directional_light_intensity;
-		rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
-
 		EditorInput();
 
 		rhi->ClearRenderTargets();
 
+		UpdateDirectionalLights();
 		UpdatePointLights();
 
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
@@ -623,9 +652,8 @@ public:
 
 				rhi->BindParameter("SceneData", scene_data_cb);
 				rhi->BindParameter("Transform", ms->transform_cb);
-				rhi->BindParameter("DirectionalLightCB", directional_light_cb);
-				if (point_light_components_buffer)
-					rhi->BindParameter("PointLights", point_light_components_buffer);
+				rhi->BindParameter("DirectionalLights", directional_lights_buffer);
+				rhi->BindParameter("PointLights", point_light_components_buffer);
 
 				for (auto& submesh : mesh.submeshes)
 				{
@@ -717,7 +745,7 @@ public:
 		edelete m_CurrentScene;
 
 		point_light_components_buffer.Release();
-		directional_light_cb.Release();
+		directional_lights_buffer.Release();
 		scene_data_cb.Release();
 		skybox_data_cb.Release();
 		m_SkyboxCube.Destroy();

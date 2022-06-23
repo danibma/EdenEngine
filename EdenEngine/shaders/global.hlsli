@@ -1,3 +1,27 @@
+#pragma once
+
+struct Vertex
+{
+    float4 position : SV_POSITION;
+    float4 pixel_pos : POSITION;
+    float2 uv : TEXCOORD;
+    float3 normal : NORMAL;
+    float4 color : COLOR;
+    float3 view_dir : VIEW_DIR;
+};
+
+cbuffer SceneData
+{
+    float4x4 view;
+    float4x4 view_projection;
+    float4 view_position;
+};
+
+cbuffer Transform
+{
+    float4x4 transform;
+};
+
 // https://github.com/graphitemaster/normals_revisited
 float3 TransformDirection(in float4x4 transform, in float3 direction)
 {

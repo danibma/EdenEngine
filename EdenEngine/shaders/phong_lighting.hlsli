@@ -1,3 +1,6 @@
+#pragma once
+#include "global.hlsli"
+
 //=================
 // Directional Light
 //=================
@@ -46,13 +49,6 @@ struct PointLight
 
 float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, PointLight point_light)
 {
-    // If the color is black just discard it
-    if (point_light.color.r == 0.0f &&
-        point_light.color.g == 0.0f &&
-        point_light.color.b == 0.0f &&
-        point_light.color.a)
-        return 0;
-    
     // Lighting
     float3 light_color = point_light.color.rgb;
     
@@ -81,4 +77,31 @@ float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const flo
     specular *= attenuation;
     
     return ambient + diffuse + specular;
+}
+
+float4 CalculateAllLights(Vertex vertex, StructuredBuffer<DirectionalLight> DirectionalLights, StructuredBuffer<PointLight> PointLights)
+{
+    float4 pixel_color = 0.0f;
+    
+    // Calculate Directional Lights
+    uint num_directional_lights, stride;
+    DirectionalLights.GetDimensions(num_directional_lights, stride);
+    for (int i = 0; i < num_directional_lights; ++i)
+    {
+        if (DirectionalLights[i].intensity == 0.0f)
+            continue;
+        pixel_color += CalculateDirectionLight(vertex.color, vertex.pixel_pos, vertex.view_dir, vertex.normal, DirectionalLights[i]);
+    }
+
+    // Calculate point lights
+    uint num_point_lights;
+    PointLights.GetDimensions(num_point_lights, stride);
+    for (int j = 0; j < num_point_lights; ++j)
+    {
+        if (PointLights[j].color.w == 0.0f)
+            continue;
+        pixel_color += CalculatePointLight(vertex.color, vertex.pixel_pos, vertex.view_dir, vertex.normal, PointLights[j]);
+    }
+    
+    return pixel_color;
 }

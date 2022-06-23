@@ -305,7 +305,7 @@ namespace Eden::UI
 		ImGui::PopID();
 	}
 
-	void DrawProperty(const std::string& label, float& value, float column_width /* = 100.0f*/)
+	void DrawProperty(const std::string& label, float& value, float speed /*= 1.0f*/, float min /*= 0.0f*/, float max /*= 0.0f*/, float column_width /*= 100.0f*/)
 	{
 		ImGui::PushID(label.c_str());
 		ImGui::Columns(2);
@@ -313,7 +313,7 @@ namespace Eden::UI
 		ImGui::Text(label.c_str());
 		ImGui::NextColumn();
 		ImGui::PushItemWidth(-1);
-		ImGui::DragFloat("###X", &value);
+		ImGui::DragFloat("###X", &value, speed, min, max);
 		ImGui::PopItemWidth();
 		ImGui::Columns(1);
 		ImGui::PopID();
@@ -332,5 +332,4 @@ namespace Eden::UI
 		ImGui::Columns(1);
 		ImGui::PopID();
 	}
-
 }
