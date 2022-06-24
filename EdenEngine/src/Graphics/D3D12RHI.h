@@ -234,6 +234,8 @@ namespace Eden
 		[[nodiscard]] Texture2D CreateTexture2D(std::string file_path);
 		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* texture_data, uint64_t width, uint32_t height);
 
+		void ReloadPipeline(Pipeline& pipeline);
+
 		void EnableImGui();
 		void ImGuiNewFrame();
 

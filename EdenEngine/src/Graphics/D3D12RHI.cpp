@@ -749,6 +749,11 @@ namespace Eden
 		return texture;
 	}
 
+	void D3D12RHI::ReloadPipeline(Pipeline& pipeline)
+	{
+		pipeline = CreateGraphicsPipeline(pipeline.name, pipeline.draw_state);
+	}
+
 	void D3D12RHI::EnableImGui()
 	{
 		// Setup imgui

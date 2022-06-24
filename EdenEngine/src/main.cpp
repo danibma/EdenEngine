@@ -37,6 +37,8 @@ class EdenApplication : public Application
 	static const int MAX_POINT_LIGHTS = 32;
 	Buffer point_light_components_buffer;
 
+	std::unordered_map<const char*, Pipeline> m_Pipelines;
+
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 projection;
@@ -44,8 +46,8 @@ class EdenApplication : public Application
 	Buffer scene_data_cb;
 	Camera camera;
 
-	Pipeline object_texture;
-	Pipeline object_simple;
+	//Pipeline m_ObjectTexture;
+	//Pipeline m_ObjectSimple;
 	Entity m_Helmet;
 	Entity flight_helmet;
 	Entity m_BasicMesh;
@@ -53,7 +55,7 @@ class EdenApplication : public Application
 	Entity m_DirectionalLight;
 
 	// Skybox
-	Pipeline skybox;
+	//Pipeline skybox;
 	MeshSource m_SkyboxCube; // Temp: In the future create a skybox class
 	Texture2D skybox_texture;
 	struct SkyboxData
@@ -71,6 +73,7 @@ class EdenApplication : public Application
 	bool m_CloseApp = false;
 	bool m_OpenSceneHierarchy = true;
 	bool m_OpenSceneProperties = false;
+	bool m_OpenShadersPanel = false;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 
 	// Scene
@@ -83,14 +86,14 @@ public:
 	{
 		PipelineState object_textureDS;
 		object_textureDS.enable_blending = true;
-		object_texture = rhi->CreateGraphicsPipeline("object_texture", object_textureDS);
-		object_simple = rhi->CreateGraphicsPipeline("object_simple");
+		m_Pipelines["Object Texture"] = rhi->CreateGraphicsPipeline("object_texture", object_textureDS);
+		m_Pipelines["Object Simple"] = rhi->CreateGraphicsPipeline("object_simple");
 
 		PipelineState skybox_ds;
 		skybox_ds.cull_mode = D3D12_CULL_MODE_NONE;
 		skybox_ds.depth_func = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		skybox_ds.min_depth = 1.0f;
-		skybox = rhi->CreateGraphicsPipeline("skybox", skybox_ds);
+		m_Pipelines["Skybox"] = rhi->CreateGraphicsPipeline("skybox", skybox_ds);
 
 		camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -227,6 +230,7 @@ public:
 				ImGui::MenuItem("Entity Properties", NULL, &m_OpenEntityProperties);
 				ImGui::MenuItem("Scene Hierarchy", NULL, &m_OpenSceneHierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
+				ImGui::MenuItem("Shaders Panel", NULL, &m_OpenShadersPanel);
 
 				ImGui::EndMenu();
 			}
@@ -523,6 +527,31 @@ public:
 		}
 	}
 
+	void UI_PipelinesPanel()
+	{
+		ImGui::Begin("Pipelines");
+		ImGui::Columns(2);
+		ImGui::NextColumn();
+		if (ImGui::Button("Reload all pipelines"))
+		{
+			for (auto& pipeline : m_Pipelines)
+				rhi->ReloadPipeline(pipeline.second);
+		}
+		ImGui::Columns(1);
+		for (auto& pipeline : m_Pipelines)
+		{
+			ImGui::PushID(pipeline.second.name.c_str());
+			ImGui::Columns(2);
+			ImGui::Text(pipeline.first);
+			ImGui::NextColumn();
+			if (ImGui::Button("Reload pipeline"))
+				rhi->ReloadPipeline(pipeline.second);
+			ImGui::Columns(1);
+			ImGui::PopID();
+		}
+		ImGui::End();
+	}
+
 	void UI_Render()
 	{
 		// ImGui::ShowDemoWindow(nullptr);
@@ -538,6 +567,8 @@ public:
 			UI_SceneProperties();
 		if (m_SelectedEntity)
 			UI_DrawGuizmo();
+		if (m_OpenShadersPanel)
+			UI_PipelinesPanel();
 	}
 
 	void EditorInput()
@@ -633,9 +664,9 @@ public:
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 			bool textured = ms->textures.size() > 0;
 			if (textured)
-				rhi->BindPipeline(object_texture);
+				rhi->BindPipeline(m_Pipelines["Object Texture"]);
 			else
-				rhi->BindPipeline(object_simple);
+				rhi->BindPipeline(m_Pipelines["Object Simple"]);
 
 			rhi->UpdateBuffer<glm::mat4>(ms->transform_cb, &tc.GetTransform(), 1);
 
@@ -667,40 +698,6 @@ public:
 			}
 		}
 
-	#if 0
-		// Draw point lights
-		rhi->BindPipeline(light_caster);
-		for (auto& point_light : point_lights)
-		{
-			rhi->BindVertexBuffer(point_light.model.mesh_vb);
-			rhi->BindIndexBuffer(point_light.model.mesh_ib);
-
-			for (auto& mesh : point_light.model.meshes)
-			{
-				mesh.SetTranslation(point_light.data.position.x, point_light.data.position.y, point_light.data.position.z);
-				mesh.SetScale(0.2f, 0.2f, 0.2f);
-				mesh.UpdateTransform();
-				rhi->UpdateBuffer<glm::mat4>(mesh.transform_cb, &mesh.transform, 1);
-
-				scene_data.view = view;
-				scene_data.view_projection = projection * view;
-				scene_data.view_position = glm::vec4(camera.position, 1.0f);
-
-				directional_light.data.direction = glm::vec4(light_direction, 1.0f);
-				directional_light.data.intensity = directional_light_intensity;
-				rhi->UpdateBuffer<DirectionalLight>(directional_light_cb, &directional_light.data, 1);
-
-				rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
-				rhi->BindConstantBuffer("SceneData", scene_data_cb);
-				rhi->BindConstantBuffer("Transform", mesh.transform_cb);
-				rhi->BindConstantBuffer("LightColor", point_light.light_color_buffer);
-
-				for (auto& submesh : mesh.submeshes)
-					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
-			}
-		}
-	#endif
-
 		// Skybox
 		if (skybox_enable)
 		{
@@ -711,7 +708,7 @@ public:
 				skybox_texture.resource->SetName(L"Skybox texture");
 			}
 
-			rhi->BindPipeline(skybox);
+			rhi->BindPipeline(m_Pipelines["Skybox"]);
 			rhi->BindVertexBuffer(m_SkyboxCube.mesh_vb);
 			rhi->BindIndexBuffer(m_SkyboxCube.mesh_ib);
 			for (auto& mesh : m_SkyboxCube.meshes)
@@ -763,4 +760,3 @@ int EdenMain()
 
 	return 0;
 }
-
