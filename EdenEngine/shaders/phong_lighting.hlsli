@@ -1,6 +1,9 @@
 #pragma once
 #include "global.hlsli"
 
+// blinn-phong define
+#define BLINN 1
+
 //=================
 // Directional Light
 //=================
@@ -27,9 +30,14 @@ float4 CalculateDirectionLight(const float4 object_color, float4 frag_pos, const
     
     // Specular Light
     float specular_strength = 0.1f;
-    float3 reflect_direction = reflect(-light_dir, norm);
     float shininess = 32.0f;
+#if BLINN
+    float3 halfway_dir = normalize(light_dir + view_dir);
+    float spec = pow(max(dot(view_dir, halfway_dir), 0.0f), shininess);
+#else
+    float3 reflect_direction = reflect(-light_dir, norm);
     float spec = pow(max(dot(view_dir, reflect_direction), 0.0f), shininess);
+#endif
     float4 specular = float4((specular_strength * spec * light_color), 1.0f);
 
     return (ambient + diffuse + specular) * directional_light.intensity;
@@ -62,11 +70,18 @@ float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const flo
     float diffuse_color = max(dot(norm, light_dir), 0.0f);
     float4 diffuse = float4(diffuse_color * light_color, 1.0f) * object_color;
     
+    
+    
     // Specular Light
     float specular_strength = 0.1f;
-    float3 reflect_direction = reflect(-light_dir, norm);
     float shininess = 32.0f;
+#if BLINN
+    float3 halfway_dir = normalize(light_dir + view_dir);
+    float spec = pow(max(dot(view_dir, halfway_dir), 0.0f), shininess);
+#else
+    float3 reflect_direction = reflect(-light_dir, norm);
     float spec = pow(max(dot(view_dir, reflect_direction), 0.0f), shininess);
+#endif
     float4 specular = float4((specular_strength * spec * light_color), 1.0f);
     
     // Calculate attenuation
