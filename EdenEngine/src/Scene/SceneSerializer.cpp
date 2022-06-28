@@ -67,14 +67,14 @@ namespace Eden
 		{
 			for (auto entity : entities)
 			{
-				uint64_t uuid = entity["Entity"].as<uint64_t>(); // TODO
+				uint32_t id = entity["Entity"].as<uint32_t>();
 
 				std::string name;
 				auto tag_component = entity["TagComponent"];
 				if (tag_component)
 					name = tag_component["Tag"].as<std::string>();
 
-				ED_LOG_INFO("Deserialized entity with ID = {}, name = {}", uuid, name);
+				ED_LOG_INFO("Deserialized entity with ID = {}, name = {}", id, name);
 
 				Entity deserialized_entity = m_Scene->CreateEntity(name);
 
@@ -126,7 +126,7 @@ namespace Eden
 	void SceneSerializer::SerializeEntity(YAML::Emitter& out, Entity entity)
 	{
 		out << YAML::BeginMap; // Entity
-		out << YAML::Key << "Entity" << YAML::Value << "1789203719283"; // TODO: Generate Entity UUID
+		out << YAML::Key << "Entity" << YAML::Value << entity.GetID();
 
 		if (entity.HasComponent<TagComponent>())
 		{

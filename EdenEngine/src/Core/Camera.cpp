@@ -8,7 +8,7 @@ namespace Eden
 
 	Camera::Camera(const uint32_t screen_width, const uint32_t screen_height)
 	{
-		position = { 0, 0, -10 };
+		position = { 0, 3, -10 };
 		front = { 0, 0, 1 };
 		up = { 0, 1, 0 };
 		m_LastX = (float)screen_width / 2;

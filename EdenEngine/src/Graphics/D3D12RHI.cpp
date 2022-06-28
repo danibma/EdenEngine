@@ -328,7 +328,7 @@ namespace Eden
 				D3D12_SHADER_INPUT_BIND_DESC desc = {};
 				reflection->GetResourceBindingDesc(j, &desc);
 
-				// TODO(Daniel): Add more as needed
+				// NOTE(Daniel): Add more as needed
 				switch (desc.Type)
 				{
 				case D3D_SIT_STRUCTURED:

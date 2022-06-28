@@ -33,7 +33,6 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 //=================
 float4 PSMain(Vertex vertex) : SV_TARGET
 {
-    // TODO: Check if uv values are zero when it loads the mesh, so we can create only one pipeline
     float4 diffuse_texture = g_textureDiffuse.Sample(g_linearSampler, vertex.uv);
     
     if (diffuse_texture.a > 0.0f)

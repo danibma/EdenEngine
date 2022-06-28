@@ -65,7 +65,7 @@ namespace Eden
 
 	void Application::ChangeWindowTitle(const std::string& title)
 	{
-		std::string new_title = title + " - " + window->GetDefaultTitle() + " <D3D12>"; // TODO: in case of adding more API's make this dynamic
+		std::string new_title = title + " - " + window->GetDefaultTitle() + " <D3D12>"; // NOTE(Daniel): in case of adding more API's make this dynamic
 		SetWindowTextA(window->GetHandle(), new_title.c_str());
 	}
 

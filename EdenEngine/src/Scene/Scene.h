@@ -22,6 +22,8 @@ namespace Eden
 		Entity CreateEntity(const std::string_view name = "");
 		void DeleteEntity(Entity& entity);
 
+		uint32_t GetID(Entity& entity);
+
 		void Clear();
 		size_t Size();
 

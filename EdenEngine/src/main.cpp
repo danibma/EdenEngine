@@ -47,8 +47,6 @@ class EdenApplication : public Application
 	Buffer scene_data_cb;
 	Camera camera;
 
-	//Pipeline m_ObjectTexture;
-	//Pipeline m_ObjectSimple;
 	Entity m_Helmet;
 	Entity flight_helmet;
 	Entity m_BasicMesh;
@@ -56,8 +54,7 @@ class EdenApplication : public Application
 	Entity m_DirectionalLight;
 
 	// Skybox
-	//Pipeline skybox;
-	MeshSource m_SkyboxCube; // Temp: In the future create a skybox class
+	MeshSource m_SkyboxCube;
 	Texture2D skybox_texture;
 	struct SkyboxData
 	{
@@ -114,7 +111,7 @@ public:
 		m_CurrentScene = enew Scene();
 		std::string default_scene = "assets/scenes/demo.escene";
 		OpenScene(default_scene);
-		m_SkyboxCube.LoadGLTF(rhi, "assets/models/basic/cube.glb"); // TODO: Create skybox class
+		m_SkyboxCube.LoadGLTF(rhi, "assets/models/basic/cube.glb"); // TODO(Daniel): Create skybox class
 
 		// Lights
 		directional_lights_buffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);

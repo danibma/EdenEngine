@@ -51,6 +51,11 @@ namespace Eden
 			return m_Scene->m_Registry.valid(m_EntityHandler);
 		}
 
+		uint32_t GetID() const
+		{
+			return static_cast<uint32_t>(m_EntityHandler);
+		}
+
 		bool operator==(const Entity& other) const
 		{
 			return m_EntityHandler == other.m_EntityHandler && m_Scene == other.m_Scene;
