@@ -80,6 +80,7 @@ class EdenApplication : public Application
 	// Scene
 	Scene* m_CurrentScene = nullptr;
 	Entity m_SelectedEntity;
+	std::filesystem::path m_CurrentScenePath = "";
 public:
 	EdenApplication() = default;
 
@@ -111,21 +112,9 @@ public:
 		skybox_data_cb = rhi->CreateBuffer<SkyboxData>(&skybox_data, 1);
 
 		m_CurrentScene = enew Scene();
-		m_DirectionalLight = m_CurrentScene->CreateEntity("Directional Light");
-		auto dl_direction = m_DirectionalLight.GetComponent<TransformComponent>().rotation = glm::vec3(glm::radians(-11.0f), glm::radians(73.0f), glm::radians(3.0f));
-		m_DirectionalLight.AddComponent<DirectionalLightComponent>().direction = glm::vec4(dl_direction, 1.0f);
-		m_Helmet = m_CurrentScene->CreateEntity("Helmet");
-		m_Helmet.GetComponent<TransformComponent>().translation = glm::vec3(-3, 0, 0);
-		m_BasicMesh = m_CurrentScene->CreateEntity("Sphere");
-		m_BasicMesh.GetComponent<TransformComponent>().translation = glm::vec3(3, 0, 0);
-		m_FloorMesh = m_CurrentScene->CreateEntity("Floor");
-		m_FloorMesh.GetComponent<TransformComponent>().translation = glm::vec3(0, -2, 0);
-		m_FloorMesh.GetComponent<TransformComponent>().scale = glm::vec3(10.0f, 0.2f, 10.0f);
-		m_Helmet.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/DamagedHelmet/DamagedHelmet.glb");
-		m_BasicMesh.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/sphere.glb");
-		m_FloorMesh.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cube.glb");
-
-		m_SkyboxCube.LoadGLTF(rhi, "assets/Models/basic/cube.glb");
+		std::string default_scene = "assets/scenes/demo.escene";
+		OpenScene(default_scene);
+		m_SkyboxCube.LoadGLTF(rhi, "assets/models/basic/cube.glb"); // TODO: Create skybox class
 
 		// Lights
 		directional_lights_buffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
@@ -138,25 +127,39 @@ public:
 	{
 		delete m_CurrentScene;
 		m_CurrentScene = enew Scene();
+		ChangeWindowTitle(m_CurrentScene->GetName());
 	}
 
-	void OpenScene()
+	void OpenScene(const std::filesystem::path& path)
+	{
+		delete m_CurrentScene;
+		m_CurrentScene = enew Scene();
+		SceneSerializer serializer(m_CurrentScene);
+		serializer.Deserialize(path);
+		m_CurrentScenePath = path;
+
+		ChangeWindowTitle(m_CurrentScene->GetName());
+
+		auto entities = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+		for (auto& entity : entities)
+		{
+			Entity e = { entity, m_CurrentScene };
+			e.GetComponent<MeshComponent>().LoadMeshSource(rhi);
+		}
+	}
+
+	void OpenSceneDialog()
 	{
 		std::string path = OpenFileDialog("Eden Scene (.escene)\0*.escene;\0");
 		if (!path.empty())
-		{
-			delete m_CurrentScene;
-			m_CurrentScene = enew Scene();
-			SceneSerializer serializer(m_CurrentScene);
-			serializer.Deserialize(path);
+			OpenScene(path);
+	}
 
-			auto entities = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
-			for (auto& entity : entities)
-			{
-				Entity e = { entity, m_CurrentScene };
-				e.GetComponent<MeshComponent>().LoadMeshSource(rhi);
-			}
-		}
+	void SaveScene()
+	{
+		ED_LOG_INFO("Saved scene: {}", m_CurrentScenePath);
+		SceneSerializer serializer(m_CurrentScene);
+		serializer.Serialize(m_CurrentScenePath);
 	}
 
 	void SaveSceneAs()
@@ -183,7 +186,7 @@ public:
 			if (ImGui::MenuItem("Cube"))
 			{
 				auto e = m_CurrentScene->CreateEntity("Cube");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cube.glb");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/cube.glb");
 
 				ImGui::CloseCurrentPopup();
 			}
@@ -191,7 +194,7 @@ public:
 			if (ImGui::MenuItem("Plane"))
 			{
 				auto e = m_CurrentScene->CreateEntity("Plane");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/plane.glb");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/plane.glb");
 
 				ImGui::CloseCurrentPopup();
 			}
@@ -199,7 +202,7 @@ public:
 			if (ImGui::MenuItem("Sphere"))
 			{
 				auto e = m_CurrentScene->CreateEntity("Sphere");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/sphere.glb");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/sphere.glb");
 
 				ImGui::CloseCurrentPopup();
 			}
@@ -207,7 +210,7 @@ public:
 			if (ImGui::MenuItem("Cone"))
 			{
 				auto e = m_CurrentScene->CreateEntity("Cone");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cone.glb");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/cone.glb");
 
 				ImGui::CloseCurrentPopup();
 			}
@@ -215,7 +218,7 @@ public:
 			if (ImGui::MenuItem("Cylinder"))
 			{
 				auto e = m_CurrentScene->CreateEntity("Cylinder");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/Models/basic/cylinder.glb");
+				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/cylinder.glb");
 
 				ImGui::CloseCurrentPopup();
 			}
@@ -258,7 +261,10 @@ public:
 					NewScene();
 
 				if (ImGui::MenuItem("Open Scene", "Ctrl+O"))
-					OpenScene();
+					OpenSceneDialog();
+
+				if (ImGui::MenuItem("Save Scene", "Ctrl-S"))
+					SaveScene();
 
 				if (ImGui::MenuItem("Save Scene As", "Ctrl+Shift+S"))
 					SaveSceneAs();
@@ -635,9 +641,11 @@ public:
 		if (Input::GetKey(ED_KEY_SHIFT) && Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_S))
 			SaveSceneAs();
 		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_O))
-			OpenScene();
+			OpenSceneDialog();
 		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_N))
 			NewScene();
+		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_S))
+			SaveScene();
 
 		// Show UI or not
 		if (Input::GetKeyDown(KeyCode::F3))

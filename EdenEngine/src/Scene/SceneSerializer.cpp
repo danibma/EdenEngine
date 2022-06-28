@@ -27,11 +27,11 @@ namespace Eden
 			std::filesystem::create_directories("assets/Scenes");
 	}
 
-	void SceneSerializer::Serialize(const std::string& filepath)
+	void SceneSerializer::Serialize(const std::filesystem::path& filepath)
 	{
 		YAML::Emitter out;
 		out << YAML::BeginMap;
-		out << YAML::Key << "Scene" << YAML::Value << "Untitled";
+		out << YAML::Key << "Scene" << YAML::Value << filepath.stem().string();
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 		m_Scene->m_Registry.each([&](auto entity_id) 
 		{
@@ -48,7 +48,7 @@ namespace Eden
 		fout << out.c_str();
 	}
 
-	bool SceneSerializer::Deserialize(const std::string& filepath)
+	bool SceneSerializer::Deserialize(const std::filesystem::path& filepath)
 	{
 		std::ifstream stream(filepath);
 		std::stringstream str_stream;
@@ -60,8 +60,7 @@ namespace Eden
 
 		std::string scene_name = data["Scene"].as<std::string>();
 		ED_LOG_INFO("Deserializing scene '{}'", scene_name);
-
-		m_Scene->Clear();
+		m_Scene->m_Name = scene_name;
 
 		auto entities = data["Entities"];
 		if (entities)
@@ -100,6 +99,9 @@ namespace Eden
 				if (point_light_component)
 				{
 					auto& pl = deserialized_entity.AddComponent<PointLightComponent>();
+					auto& transform = deserialized_entity.GetComponent<TransformComponent>();
+
+					pl.position = glm::vec4(transform.translation, 1.0f);
 					pl.color = point_light_component["Color"].as<glm::vec4>();
 					pl.constant_value = point_light_component["Constant Value"].as<float>();
 					pl.quadratic_value = point_light_component["Quadratic Value"].as<float>();
@@ -109,9 +111,11 @@ namespace Eden
 				auto directional_light_component = entity["DirectionalLightComponent"];
 				if (directional_light_component)
 				{
-					// Entities always have transform
-					auto& ml = deserialized_entity.AddComponent<DirectionalLightComponent>();
-					ml.intensity = directional_light_component["Intensity"].as<float>();
+					auto& dl = deserialized_entity.AddComponent<DirectionalLightComponent>();
+					auto& transform = deserialized_entity.GetComponent<TransformComponent>();
+
+					dl.direction = glm::vec4(transform.rotation, 1.0f);
+					dl.intensity = directional_light_component["Intensity"].as<float>();
 				}
 			}
 		}

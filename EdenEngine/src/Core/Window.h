@@ -12,6 +12,7 @@ namespace Eden
 		bool m_CloseRequested = false;
 		bool m_IsMinimized = false;
 		uint32_t m_Width, m_Height;
+		std::string m_DefaultTitle;
 		std::function<void(uint32_t, uint32_t)> m_ResizeCallback = [](uint32_t, uint32_t) {};
 
 	public:
@@ -33,6 +34,7 @@ namespace Eden
 		uint32_t GetWidth() { return m_Width; }
 		uint32_t GetHeight() { return m_Height; }
 		float GetAspectRatio() { return (float)m_Width / (float)m_Height; }
+		const std::string& GetDefaultTitle() const { return m_DefaultTitle; }
 	};
 }
 

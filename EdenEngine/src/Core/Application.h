@@ -23,8 +23,11 @@ namespace Eden
 		~Application();
 
 		void Run();
+
 		std::string OpenFileDialog(const char* filter = "");
 		std::string SaveFileDialog(const char* filter = "");
+
+		void ChangeWindowTitle(const std::string& title);
 
 		virtual void OnInit();
 		virtual void OnUpdate();

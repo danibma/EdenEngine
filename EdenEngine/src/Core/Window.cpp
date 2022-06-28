@@ -69,7 +69,9 @@ static LRESULT CALLBACK WindowProc(HWND handle, UINT uMsg, WPARAM wParam, LPARAM
 namespace Eden
 {
 	Window::Window(const char* title, uint32_t width, uint32_t height)
-		: m_Width(width), m_Height(height)
+		: m_Width(width)
+		, m_Height(height)
+		, m_DefaultTitle(title)
 	{
 		WNDCLASSEX wc		= {};
 		wc.cbSize			= sizeof(wc);
@@ -105,9 +107,9 @@ namespace Eden
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;		 // Enable Docking
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;		 // Enable Multi Viewports
 
-		io.Fonts->AddFontFromFileTTF("assets/Fonts/Roboto/Roboto-Bold.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
-		io.Fonts->AddFontFromFileTTF("assets/Fonts/Roboto/Roboto-Regular.ttf", 24.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
-		io.FontDefault = io.Fonts->AddFontFromFileTTF("assets/Fonts/Roboto/Roboto-SemiMedium.ttf", 15.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Bold.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Regular.ttf", 24.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.FontDefault = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-SemiMedium.ttf", 15.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 
 		// Setup Dear ImGui style
 		ImGui::StyleColorsDark();
