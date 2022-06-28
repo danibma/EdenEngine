@@ -147,7 +147,7 @@ public:
 
 	void OpenSceneDialog()
 	{
-		std::string path = OpenFileDialog("Eden Scene (.escene)\0*.escene;\0");
+		std::string path = OpenFileDialog("Eden Scene (.escene)\0*.escene\0");
 		if (!path.empty())
 			OpenScene(path);
 	}
@@ -161,9 +161,12 @@ public:
 
 	void SaveSceneAs()
 	{
-		std::string path = SaveFileDialog("Eden Scene (.escene)\0*.escene;\0");
+		std::filesystem::path path = SaveFileDialog("Eden Scene (.escene)\0*.escene\0");
 		if (!path.empty())
 		{
+			if (!path.has_extension())
+				path += SceneSerializer::DefaultExtension;
+
 			SceneSerializer serializer(m_CurrentScene);
 			serializer.Serialize(path);
 		}
