@@ -10,3 +10,6 @@
 
 ### Basic Editor UI working with ECS
 ![ECS UI](ecs_ui.png)
+
+### Scene Serialization
+<img src="scene_serialization.gif" width="1920" height="100%">
