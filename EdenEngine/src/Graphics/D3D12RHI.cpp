@@ -779,14 +779,14 @@ namespace Eden
 		m_BoundIndexBuffer.Format = DXGI_FORMAT_R32_UINT;
 	}
 
-	void D3D12RHI::BindParameter(std::string_view parameter_name, const Buffer buffer)
+	void D3D12RHI::BindParameter(const std::string& parameter_name, const Buffer buffer)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, buffer);
 		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
 	}
 
-	void D3D12RHI::BindParameter(std::string_view parameter_name, const Texture2D texture)
+	void D3D12RHI::BindParameter(const std::string& parameter_name, const Texture2D texture)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 		
@@ -794,7 +794,7 @@ namespace Eden
 		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
 	}
 
-	void D3D12RHI::BindParameter(std::string_view parameter_name, const uint32_t heap_offset)
+	void D3D12RHI::BindParameter(const std::string& parameter_name, const uint32_t heap_offset)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 
@@ -1083,7 +1083,7 @@ namespace Eden
 		m_FenceValues[m_FrameIndex]++;
 	}
 
-	size_t D3D12RHI::GetRootParameterIndex(std::string_view parameter_name)
+	size_t D3D12RHI::GetRootParameterIndex(const std::string& parameter_name)
 	{
 		auto root_parameter_index = m_BoundPipeline.root_parameter_indices.find(parameter_name.data());
 

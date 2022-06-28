@@ -4,6 +4,15 @@
 
 namespace Eden
 {
+	Scene::~Scene()
+	{
+		auto entities = GetAllEntitiesWith<MeshComponent>();
+		for (auto entity_id : entities)
+		{
+			Entity mesh_entity = { entity_id, this };
+			mesh_entity.GetComponent<MeshComponent>().mesh_source->Destroy();
+		}
+	}
 
 	Entity Scene::CreateEntity(const std::string_view name /* = "" */)
 	{

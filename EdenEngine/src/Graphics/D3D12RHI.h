@@ -242,9 +242,9 @@ namespace Eden
 		void BindPipeline(const Pipeline& pipeline);
 		void BindVertexBuffer(Buffer vertex_buffer);
 		void BindIndexBuffer(Buffer index_buffer);
-		void BindParameter(std::string_view parameter_name,Buffer buffer);
-		void BindParameter(std::string_view parameter_name,Texture2D texture);
-		void BindParameter(std::string_view parameter_name,uint32_t heap_offset);
+		void BindParameter(const std::string& parameter_name,Buffer buffer);
+		void BindParameter(const std::string& parameter_name,Texture2D texture);
+		void BindParameter(const std::string& parameter_name,uint32_t heap_offset);
 
 		void BeginRender();
 		void EndRender();
@@ -274,7 +274,7 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		size_t GetRootParameterIndex(std::string_view parameter_name);
+		size_t GetRootParameterIndex(const std::string& parameter_name);
 		void CreateBackBuffers(uint32_t width, uint32_t height);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint32_t size, const void* data);

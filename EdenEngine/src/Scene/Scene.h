@@ -17,6 +17,7 @@ namespace Eden
 
 	public:
 		Scene() = default;
+		~Scene();
 
 		Entity CreateEntity(const std::string_view name = "");
 		void DeleteEntity(Entity& entity);

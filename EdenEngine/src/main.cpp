@@ -125,14 +125,14 @@ public:
 
 	void NewScene()
 	{
-		delete m_CurrentScene;
+		edelete m_CurrentScene;
 		m_CurrentScene = enew Scene();
 		ChangeWindowTitle(m_CurrentScene->GetName());
 	}
 
 	void OpenScene(const std::filesystem::path& path)
 	{
-		delete m_CurrentScene;
+		edelete m_CurrentScene;
 		m_CurrentScene = enew Scene();
 		SceneSerializer serializer(m_CurrentScene);
 		serializer.Deserialize(path);
