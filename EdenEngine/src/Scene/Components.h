@@ -15,6 +15,7 @@ namespace Eden
 	// 1- Create the struct here
 	// 2- Draw the component property by calling DrawComponentProperty inside UI_EntityProperties
 	// 3- Add a new menu item inside the "addc_popup"
+	// 4- Add a new item in SerializeEntity in the SceneSerializer
 
 	struct TagComponent
 	{
@@ -42,10 +43,11 @@ namespace Eden
 		std::shared_ptr<MeshSource> mesh_source = std::make_shared<MeshSource>();
 		std::string mesh_path;
 
-		void LoadMeshSource(D3D12RHI* rhi, std::filesystem::path path)
+		void LoadMeshSource(D3D12RHI* rhi, std::filesystem::path path = "")
 		{
-			mesh_path = path.string();
-			mesh_source->LoadGLTF(rhi, path);
+			if (!path.empty())
+				mesh_path = path.string();
+			mesh_source->LoadGLTF(rhi, mesh_path);
 		}
 	};
 

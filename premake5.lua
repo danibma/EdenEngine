@@ -24,6 +24,7 @@ group "ThirdParty"
 include "external/imgui"
 include "external/optick"
 include "external/D3D12MemoryAllocator"
+include "external/yaml-cpp"
 group ""
 
 project "EdenEngine"
@@ -53,6 +54,7 @@ project "EdenEngine"
 		"%{wks.location}/external",
         "%{wks.location}/external/ImGui",
         "%{wks.location}/external/Optick/src",
+        "%{wks.location}/external/yaml-cpp/include"
 	}
 
     links
@@ -60,6 +62,7 @@ project "EdenEngine"
 		"ImGui",
         "Optick",
         "D3D12MemoryAllocator",
+        "yaml-cpp",
 
         "d3d12.lib",
         "dxgi.lib",

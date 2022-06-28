@@ -24,6 +24,7 @@ namespace Eden
 
 		void Run();
 		std::string OpenFileDialog(const char* filter = "");
+		std::string SaveFileDialog(const char* filter = "");
 
 		virtual void OnInit();
 		virtual void OnUpdate();

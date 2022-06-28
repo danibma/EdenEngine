@@ -58,6 +58,11 @@ namespace Eden
 		return Utils::OpenFileDialog(window->GetHandle(), filter);
 	}
 
+	std::string Application::SaveFileDialog(const char* filter /*= ""*/)
+	{
+		return Utils::SaveFileDialog(window->GetHandle(), filter);
+	}
+
 	void Application::OnInit()
 	{
 	}

@@ -409,21 +409,6 @@ namespace Eden
 		{
 			auto& parameter = root_parameters[i];
 
-			// check if the parameter was already found in another shader stage, if it is just skip it
-			/*bool found_parameter = false;
-			for (auto& p : root_parameters)
-			{
-				if (p.ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) continue;
-				if (parameter.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister == p.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister &&
-					parameter.DescriptorTable.pDescriptorRanges[0].RegisterSpace == p.DescriptorTable.pDescriptorRanges[0].RegisterSpace)
-				{
-					p.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-					found_parameter = true;
-					break;
-				}
-			}
-			if (found_parameter) continue;*/
-
 			parameter.DescriptorTable.pDescriptorRanges = &descriptor_ranges[i];
 			parameter.DescriptorTable.NumDescriptorRanges = 1;
 		}
@@ -668,7 +653,7 @@ namespace Eden
 		D3D12MA::Allocation* upload_allocation;
 
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("GPU::CreateTexture2D");
+		ED_PROFILE_GPU_FUNCTION("D3D12RHI::CreateTexture2D");
 
 		// Create the texture
 		{
@@ -825,6 +810,8 @@ namespace Eden
 
 		// Set SRV Descriptor heap
 		SetDescriptorHeap(m_SRVHeap);
+
+		SetRenderTargets(m_RTVHeap, m_DSVHeap);
 	}
 
 	void D3D12RHI::EndRender()
@@ -857,9 +844,7 @@ namespace Eden
 		ED_PROFILE_FUNCTION();
 
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("GPU::Draw");
-
-		SetRenderTargets(m_RTVHeap, m_DSVHeap);
+		ED_PROFILE_GPU_FUNCTION("D3D12RHI::PrepareDraw");
 
 		m_Viewport.MinDepth = m_BoundPipeline.draw_state.min_depth;
 		m_CommandList->RSSetViewports(1, &m_Viewport);
@@ -925,6 +910,8 @@ namespace Eden
 	void D3D12RHI::Render()
 	{
 		ED_PROFILE_FUNCTION();
+		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
+		ED_PROFILE_GPU_FUNCTION("D3D12RHI::Render");
 
 		if (FAILED(m_CommandList->Close()))
 			ED_ASSERT_MB(false, "Failed to close command list");
@@ -998,6 +985,9 @@ namespace Eden
 
 	void D3D12RHI::ClearRenderTargets()
 	{
+		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
+		ED_PROFILE_GPU_FUNCTION("D3D12RHI::ClearRenderTargets");
+
 		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
 
@@ -1013,6 +1003,8 @@ namespace Eden
 
 	void D3D12RHI::ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state)
 	{
+		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
+		ED_PROFILE_GPU_FUNCTION("D3D12RHI::ChangeResourceState");
 		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, current_state, desired_state));
 	}
 

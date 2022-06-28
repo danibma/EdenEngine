@@ -11,6 +11,7 @@
 #include "Scene/MeshSource.h"
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
+#include "Scene/SceneSerializer.h"
 #include "Math/Math.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -133,6 +134,41 @@ public:
 		UpdatePointLights();
 	}
 
+	void NewScene()
+	{
+		delete m_CurrentScene;
+		m_CurrentScene = enew Scene();
+	}
+
+	void OpenScene()
+	{
+		std::string path = OpenFileDialog("Eden Scene (.escene)\0*.escene;\0");
+		if (!path.empty())
+		{
+			delete m_CurrentScene;
+			m_CurrentScene = enew Scene();
+			SceneSerializer serializer(m_CurrentScene);
+			serializer.Deserialize(path);
+
+			auto entities = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+			for (auto& entity : entities)
+			{
+				Entity e = { entity, m_CurrentScene };
+				e.GetComponent<MeshComponent>().LoadMeshSource(rhi);
+			}
+		}
+	}
+
+	void SaveSceneAs()
+	{
+		std::string path = SaveFileDialog("Eden Scene (.escene)\0*.escene;\0");
+		if (!path.empty())
+		{
+			SceneSerializer serializer(m_CurrentScene);
+			serializer.Serialize(path);
+		}
+	}
+
 	void EntityMenu()
 	{
 		if (ImGui::MenuItem("Create Empty Entity"))
@@ -218,6 +254,15 @@ public:
 		{
 			if (ImGui::BeginMenu("File"))
 			{
+				if (ImGui::MenuItem("New Scene", "Ctrl+N"))
+					NewScene();
+
+				if (ImGui::MenuItem("Open Scene", "Ctrl+O"))
+					OpenScene();
+
+				if (ImGui::MenuItem("Save Scene As", "Ctrl+Shift+S"))
+					SaveSceneAs();
+
 				if (ImGui::MenuItem("Exit"))
 					window->CloseWasRequested();
 
@@ -494,7 +539,7 @@ public:
 
 	void UI_DebugWindow()
 	{
-		ImGui::Begin("Debug", &m_OpenDebugWindow, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin("Debug", &m_OpenDebugWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 
 		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
 
@@ -586,6 +631,13 @@ public:
 			if (Input::GetKey(KeyCode::R))
 				m_GizmoType = ImGuizmo::SCALE;
 		}
+
+		if (Input::GetKey(ED_KEY_SHIFT) && Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_S))
+			SaveSceneAs();
+		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_O))
+			OpenScene();
+		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_N))
+			NewScene();
 
 		// Show UI or not
 		if (Input::GetKeyDown(KeyCode::F3))

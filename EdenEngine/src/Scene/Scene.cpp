@@ -20,6 +20,11 @@ namespace Eden
 		m_Registry.destroy(entity);
 	}
 
+	void Scene::Clear()
+	{
+		m_Registry.clear<TransformComponent>();
+	}
+
 	size_t Scene::Size()
 	{
 		return m_Registry.size();

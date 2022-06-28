@@ -5,10 +5,12 @@
 namespace Eden
 {
 	class Entity;
+	class SceneSerializer;
 	class Scene
 	{
 		entt::registry m_Registry;
 		friend class Entity;
+		friend class SceneSerializer;
 
 	public:
 		Scene() = default;
@@ -21,6 +23,8 @@ namespace Eden
 		{
 			return m_Registry.view<Components...>();
 		}
+
+		void Clear();
 
 		size_t Size();
 	};
