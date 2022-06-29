@@ -18,6 +18,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
+#include <vector>
 
 using namespace Eden;
 
@@ -78,6 +79,10 @@ class EdenApplication : public Application
 	Scene* m_CurrentScene = nullptr;
 	Entity m_SelectedEntity;
 	std::filesystem::path m_CurrentScenePath = "";
+
+	// Rendering
+	RenderPass m_GBuffer;
+	RenderPass m_ImGuiPass;
 public:
 	EdenApplication() = default;
 
@@ -118,6 +123,10 @@ public:
 		UpdateDirectionalLights();
 		point_light_components_buffer = rhi->CreateBuffer<PointLightComponent>(nullptr, MAX_POINT_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
 		UpdatePointLights();
+
+		// Rendering
+		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTexture, L"GBuffer_");
+		m_ImGuiPass = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"ImGuiPass_", true);
 	}
 
 	void NewScene()
@@ -229,8 +238,8 @@ public:
 
 	void UI_Toolbar()
 	{
-		const float toolbar_size = 1.0f;
 		bool show_help_popup = false;
+		const float toolbar_size = 1.0f;
 
 		ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y));
@@ -620,6 +629,11 @@ public:
 			UI_DrawGuizmo();
 		if (m_OpenShadersPanel)
 			UI_PipelinesPanel();
+
+		ImGui::Begin("Viewport");
+		auto viewportSize = ImGui::GetContentRegionAvail();
+		ImGui::Image((ImTextureID)rhi->GetTextureGPUHandle(m_GBuffer.render_targets[0]).ptr, viewportSize);
+		ImGui::End();
 	}
 
 	void EditorInput()
@@ -650,9 +664,6 @@ public:
 		// Show UI or not
 		if (Input::GetKeyDown(KeyCode::F3))
 			m_ShowUI = !m_ShowUI;
-		if (m_ShowUI)
-			UI_Render();
-
 	}
 
 	void UpdatePointLights()
@@ -713,6 +724,7 @@ public:
 		UpdateDirectionalLights();
 		UpdatePointLights();
 
+		rhi->BeginRenderPass(m_GBuffer);
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
 		for (auto entity : entities_to_render)
 		{
@@ -782,6 +794,14 @@ public:
 				}
 			}
 		}
+		rhi->EndRenderPass(m_GBuffer);
+
+		rhi->BeginRenderPass(m_ImGuiPass);
+
+		if (m_ShowUI)
+			UI_Render();
+
+		rhi->EndRenderPass(m_ImGuiPass);
 
 		rhi->EndRender();
 		rhi->Render();
@@ -790,13 +810,6 @@ public:
 
 	void OnDestroy() override
 	{
-		auto entities_with_mesh = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
-		for (auto entity : entities_with_mesh)
-		{
-			Entity e = { entity, m_CurrentScene };
-			e.GetComponent<MeshComponent>().mesh_source->Destroy();
-		}
-
 		edelete m_CurrentScene;
 
 		point_light_components_buffer.Release();

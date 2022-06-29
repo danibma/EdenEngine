@@ -120,10 +120,22 @@ namespace Eden
 
 	struct RenderPass
 	{
+		enum Type
+		{
+			kRenderTexture,
+			kRenderTarget
+		};
+
 		std::shared_ptr<DescriptorHeap> rtv_heap;
 		std::shared_ptr<DescriptorHeap> dsv_heap;
 		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtv_desc;
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsv_desc;
+		Texture2D render_targets[s_FrameCount];
+		ComPtr<ID3D12Resource> depth_stencil;
+		bool imgui = false;
+		Type type;
+
+		std::wstring name;
 	};
 
 	class D3D12RHI
@@ -133,11 +145,7 @@ namespace Eden
 		ComPtr<IDXGIAdapter1> m_Adapter;
 		ComPtr<ID3D12CommandQueue> m_CommandQueue;
 		ComPtr<IDXGISwapChain3> m_Swapchain;
-		std::shared_ptr<DescriptorHeap> m_RTVHeap;
-		std::shared_ptr<DescriptorHeap> m_DSVHeap;
 		std::shared_ptr<DescriptorHeap> m_SRVHeap;
-		ComPtr<ID3D12Resource> m_RenderTargets[s_FrameCount];
-		ComPtr<ID3D12Resource> m_DepthStencil;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
 		ComPtr<ID3D12GraphicsCommandList4> m_CommandList;
 		ComPtr<ID3D12Fence> m_Fence;
@@ -168,8 +176,6 @@ namespace Eden
 			ComPtr<IDxcBlob> blob;
 			ComPtr<ID3D12ShaderReflection> reflection;
 		};
-
-		RenderPass m_ColorPass;
 
 	public:
 		D3D12RHI(Window* window);
@@ -243,7 +249,7 @@ namespace Eden
 		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string program_name, PipelineState draw_state = PipelineState());
 		[[nodiscard]] Texture2D CreateTexture2D(std::string file_path);
 		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* texture_data, uint64_t width, uint32_t height);
-		[[nodiscard]] RenderPass CreateRenderPass();
+		[[nodiscard]] RenderPass CreateRenderPass(RenderPass::Type type, std::wstring name = L"", bool imgui = false);
 
 		void ReloadPipeline(Pipeline& pipeline);
 
@@ -259,7 +265,7 @@ namespace Eden
 
 		void BeginRender();
 		void BeginRenderPass(RenderPass& render_pass);
-		void EndRenderPass();
+		void EndRenderPass(RenderPass& render_pass);
 		void EndRender();
 
 		void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0);
@@ -268,8 +274,12 @@ namespace Eden
 		void Render();
 		void Resize(uint32_t width, uint32_t height);
 
-		ID3D12Resource* GetCurrentRenderTarget();
+		uint32_t GetCurrentFrameIndex();
+
+		ID3D12Resource* GetCurrentRenderTarget(RenderPass& render_pass);
 		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE GetTextureGPUHandle(Texture2D& texture);
 
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Texture2D texture);
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Buffer buffer);
@@ -279,15 +289,13 @@ namespace Eden
 
 		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
-		void SetRenderTargets(std::shared_ptr<DescriptorHeap> rtv_heap, std::shared_ptr<DescriptorHeap> dsv_heap);
 
-
+		void CreateBackBuffers(RenderPass& render_pass, uint32_t width, uint32_t height);
 	private:
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
 		size_t GetRootParameterIndex(const std::string& parameter_name);
-		void CreateBackBuffers(uint32_t width, uint32_t height);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint32_t size, const void* data);
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);

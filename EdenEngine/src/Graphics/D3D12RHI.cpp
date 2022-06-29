@@ -106,19 +106,10 @@ namespace Eden
 		swapchain.As(&m_Swapchain);
 		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
 
-		// Create descriptor heaps
-		{
-			// Describe and create the render target view(RTV) descriptor heap
-			m_RTVHeap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		// Describe and create a shader resource view (SRV) heap for the texture.
+		m_SRVHeap = CreateDescriptorHeap(128, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
-			// Describe and create the depth stencil view(DSV) descriptor heap
-			m_DSVHeap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-
-			// Describe and create a shader resource view (SRV) heap for the texture.
-			m_SRVHeap = CreateDescriptorHeap(128, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		}
-
-		CreateBackBuffers(window->GetWidth(), window->GetHeight());
+		//CreateBackBuffers( window->GetWidth(), window->GetHeight());
 
 		// Create command allocator
 		if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator))))
@@ -155,8 +146,6 @@ namespace Eden
 		ID3D12Device* pDevice = m_Device.Get();
 		ID3D12CommandQueue* pCommandQueue = m_CommandQueue.Get();
 		ED_PROFILE_GPU_INIT(pDevice, &pCommandQueue, 1);
-
-		m_ColorPass = CreateRenderPass();
 	}
 
 	D3D12RHI::~D3D12RHI()
@@ -453,22 +442,50 @@ namespace Eden
 		return buffer;
 	}
 
-	void D3D12RHI::CreateBackBuffers(const uint32_t width, const uint32_t height)
+	void D3D12RHI::CreateBackBuffers(RenderPass& render_pass, uint32_t width, uint32_t height)
 	{
 		// Create render targets
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_RTVHeap));
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(render_pass.rtv_heap));
+		CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset));
 
-		// Create a RTV for each frame
-		for (uint32_t i = 0; i < s_FrameCount; ++i)
+		if (render_pass.type == RenderPass::kRenderTexture)
 		{
-			if (FAILED(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&m_RenderTargets[i]))))
-				ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
+			auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-			m_Device->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtv_handle);
-			rtv_handle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+			D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+																	width, height,
+																	1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
-			m_RenderTargets[i]->SetName(L"backbuffer");
+			D3D12_CLEAR_VALUE clear_value = { DXGI_FORMAT_R8G8B8A8_UNORM, { 0.f, 0.f, 0.f, 0.f } };
+
+			m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+											  &desc,
+											  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
+											  IID_PPV_ARGS(render_pass.render_targets[0].resource.ReleaseAndGetAddressOf()));
+
+			m_Device->CreateRenderTargetView(render_pass.render_targets[0].resource.Get(), nullptr, rtv_handle);
+
+			render_pass.render_targets[0].heap_offset = m_SRVHeapOffset;
+			m_Device->CreateShaderResourceView(render_pass.render_targets[0].resource.Get(), nullptr, srv_handle);
+			m_SRVHeapOffset++;
 		}
+		else if (render_pass.type == RenderPass::kRenderTarget)
+		{
+			// Create a RTV for each frame
+			for (uint32_t i = 0; i < s_FrameCount; ++i)
+			{
+				if (FAILED(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&render_pass.render_targets[i].resource))))
+					ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
+
+				m_Device->CreateRenderTargetView(render_pass.render_targets[i].resource.Get(), nullptr, rtv_handle);
+				rtv_handle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+
+				std::wstring rt_name = render_pass.name + L"backbuffer";
+				render_pass.render_targets[i].resource->SetName(rt_name.c_str());
+			}
+		}
+
+		
 
 		// Create DSV
 		D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
@@ -487,14 +504,14 @@ namespace Eden
 			&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
 			D3D12_RESOURCE_STATE_DEPTH_WRITE,
 			&depth_optimized_clear_value,
-			IID_PPV_ARGS(&m_DepthStencil)
+			IID_PPV_ARGS(&render_pass.depth_stencil)
 		)))
 		{
 			ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
 		}
 
-		auto dsv_handle = GetCPUHandle(m_DSVHeap);
-		m_Device->CreateDepthStencilView(m_DepthStencil.Get(), &depth_stencil_desc, dsv_handle);
+		auto dsv_handle = GetCPUHandle(render_pass.dsv_heap);
+		m_Device->CreateDepthStencilView(render_pass.depth_stencil.Get(), &depth_stencil_desc, dsv_handle);
 	}
 
 	Pipeline D3D12RHI::CreateGraphicsPipeline(std::string program_name, PipelineState draw_state)
@@ -736,27 +753,19 @@ namespace Eden
 		return texture;
 	}
 
-	RenderPass D3D12RHI::CreateRenderPass()
+	RenderPass D3D12RHI::CreateRenderPass(RenderPass::Type type, std::wstring name /*=L""*/, bool imgui /*= false*/)
 	{
 		RenderPass render_pass;
+		render_pass.imgui = imgui;
+		render_pass.name = name;
+		render_pass.type = type;
 
-		//render_pass.rtv_heap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-		//render_pass.dsv_heap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-		render_pass.rtv_heap = m_RTVHeap;
-		render_pass.rtv_heap = m_DSVHeap;
-		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
-		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+		render_pass.rtv_heap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		render_pass.dsv_heap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		auto rtv_handle = GetCPUHandle(render_pass.rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
+		auto dsv_handle = GetCPUHandle(render_pass.dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 
-		const float clearColor4[]{ 0.f, 0.f, 0.f, 0.f };
-		CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_R32G32B32_FLOAT, clearColor4 };
-
-		D3D12_RENDER_PASS_BEGINNING_ACCESS renderPassBeginningAccessClear{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, { clearValue } };
-		D3D12_RENDER_PASS_ENDING_ACCESS renderPassEndingAccessPreserve{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {} };
-		render_pass.rtv_desc = { rtv_handle, renderPassBeginningAccessClear, renderPassEndingAccessPreserve };
-
-		D3D12_RENDER_PASS_BEGINNING_ACCESS renderPassBeginningAccessNoAccess{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, {} };
-		D3D12_RENDER_PASS_ENDING_ACCESS renderPassEndingAccessNoAccess{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS, {} };
-		render_pass.dsv_desc = { dsv_handle, renderPassBeginningAccessNoAccess, renderPassBeginningAccessNoAccess, renderPassEndingAccessNoAccess, renderPassEndingAccessNoAccess };
+		CreateBackBuffers(render_pass, m_Viewport.Width, m_Viewport.Height);
 
 		return render_pass;
 	}
@@ -831,48 +840,52 @@ namespace Eden
 
 	void D3D12RHI::BeginRender()
 	{
-		// Indicate that the back buffer will be used as a render target
-		auto current_render_target = GetCurrentRenderTarget();
-		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		BeginRenderPass(m_ColorPass);
-
 		// Set SRV Descriptor heap
 		SetDescriptorHeap(m_SRVHeap);
 	}
 
 	void D3D12RHI::BeginRenderPass(RenderPass& render_pass)
 	{
-		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
-		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle;
+		D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = GetCPUHandle(render_pass.dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
+		if (render_pass.type == RenderPass::Type::kRenderTarget)
+		{
+			auto current_render_target = GetCurrentRenderTarget(render_pass);
+			rtv_handle = GetCPUHandle(render_pass.rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+		else if (render_pass.type == RenderPass::Type::kRenderTexture)
+		{
+			auto current_render_target = render_pass.render_targets[0].resource.Get();
+			rtv_handle = GetCPUHandle(render_pass.rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
+			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
 
 		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
 		CD3DX12_CLEAR_VALUE clear_value{ DXGI_FORMAT_R32G32B32_FLOAT, clear_color };
 
+		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE begin_access_type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE end_access_type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
 		// RTV
-		D3D12_RENDER_PASS_BEGINNING_ACCESS rtv_begin_access{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, { clear_value } };
-		D3D12_RENDER_PASS_ENDING_ACCESS rtv_end_access{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {} };
+		D3D12_RENDER_PASS_BEGINNING_ACCESS rtv_begin_access{ begin_access_type, { clear_value } };
+		D3D12_RENDER_PASS_ENDING_ACCESS rtv_end_access{ end_access_type, {} };
 		render_pass.rtv_desc = { rtv_handle, rtv_begin_access, rtv_end_access };
 
 		// DSV
 		D3D12_RENDER_PASS_BEGINNING_ACCESS_CLEAR_PARAMETERS dsv_clear = {};
 		dsv_clear.ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
 		dsv_clear.ClearValue.DepthStencil.Depth = 1.0f;
-		D3D12_RENDER_PASS_BEGINNING_ACCESS dsv_begin_access{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, { dsv_clear } };
-		D3D12_RENDER_PASS_ENDING_ACCESS dsv_end_access{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {} };
+		D3D12_RENDER_PASS_BEGINNING_ACCESS dsv_begin_access{ begin_access_type, { dsv_clear } };
+		D3D12_RENDER_PASS_ENDING_ACCESS dsv_end_access{ end_access_type, {} };
 		render_pass.dsv_desc = { dsv_handle, dsv_begin_access, dsv_begin_access, dsv_end_access, dsv_end_access };
 
 		m_CommandList->BeginRenderPass(1, &render_pass.rtv_desc, &render_pass.dsv_desc, D3D12_RENDER_PASS_FLAG_NONE);
 	}
 
-	void D3D12RHI::EndRenderPass()
+	void D3D12RHI::EndRenderPass(RenderPass& render_pass)
 	{
-		m_CommandList->EndRenderPass();
-	}
-
-	void D3D12RHI::EndRender()
-	{
-		if (m_ImguiInitialized)
+		if (m_ImguiInitialized && render_pass.imgui)
 		{
 			ImGui::Render();
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_CommandList.Get());
@@ -885,11 +898,22 @@ namespace Eden
 			}
 		}
 
-		EndRenderPass();
+		m_CommandList->EndRenderPass();
 
-		auto current_render_target = GetCurrentRenderTarget();
-		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		if (render_pass.type == RenderPass::Type::kRenderTarget)
+		{
+			auto current_render_target = GetCurrentRenderTarget(render_pass);
+			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		}
+		else if (render_pass.type == RenderPass::Type::kRenderTexture)
+		{
+			auto current_render_target = render_pass.render_targets[0].resource.Get();
+			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
+	}
 
+	void D3D12RHI::EndRender()
+	{
 		if (m_ImguiInitialized)
 			ImGuiNewFrame();
 	}
@@ -1019,19 +1043,19 @@ namespace Eden
 			if (FAILED(m_CommandList->Close()))
 				ED_ASSERT_MB(false, "Failed to close command list");
 
-			for (size_t i = 0; i < s_FrameCount; ++i)
-			{
-				m_RenderTargets[i].Reset();
-				m_FenceValues[i] = m_FenceValues[m_FrameIndex];
-			}
+			//for (size_t i = 0; i < s_FrameCount; ++i)
+			//{
+			//	m_RenderTargets[i].Reset();
+			//	m_FenceValues[i] = m_FenceValues[m_FrameIndex];
+			//}
+			//
+			//m_DepthStencil.Reset();
 
-			m_DepthStencil.Reset();
+
 
 			m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, 0);
 
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
-
-			CreateBackBuffers(width, height);
 
 			m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)width, (float)height);
 			m_Scissor  = CD3DX12_RECT(0, 0, width, height);
@@ -1041,9 +1065,14 @@ namespace Eden
 		}
 	}
 
-	ID3D12Resource* D3D12RHI::GetCurrentRenderTarget()
+	uint32_t D3D12RHI::GetCurrentFrameIndex()
 	{
-		return m_RenderTargets[m_FrameIndex].Get();
+		return m_FrameIndex;
+	}
+
+	ID3D12Resource* D3D12RHI::GetCurrentRenderTarget(RenderPass& render_pass)
+{
+		return render_pass.render_targets[m_FrameIndex].resource.Get();
 	}
 
 	void D3D12RHI::ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state)
@@ -1051,6 +1080,11 @@ namespace Eden
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
 		ED_PROFILE_GPU_FUNCTION("D3D12RHI::ChangeResourceState");
 		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, current_state, desired_state));
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetTextureGPUHandle(Texture2D& texture)
+	{
+		return GetGPUHandle(m_SRVHeap, texture.heap_offset);
 	}
 
 	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Texture2D texture)
@@ -1106,13 +1140,6 @@ namespace Eden
 		ID3D12DescriptorHeap* heaps[] = { descriptor_heap->heap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 		descriptor_heap->is_set = true;
-	}
-
-	void D3D12RHI::SetRenderTargets(std::shared_ptr<DescriptorHeap> rtv_heap, std::shared_ptr<DescriptorHeap> dsv_heap)
-	{
-		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
-		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
-		m_CommandList->OMSetRenderTargets(1, &rtv_handle, false, &dsv_handle);
 	}
 
 	void D3D12RHI::WaitForGPU()
