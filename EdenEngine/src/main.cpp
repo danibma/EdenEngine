@@ -710,8 +710,6 @@ public:
 
 		EditorInput();
 
-		rhi->ClearRenderTargets();
-
 		UpdateDirectionalLights();
 		UpdatePointLights();
 

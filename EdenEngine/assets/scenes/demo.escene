@@ -37,7 +37,7 @@ Entities:
     TagComponent:
       Tag: Sphere
     TransformComponent:
-      Translation: [4.19952106, 0, 0]
+      Translation: [4.18772125, 0, 0]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     MeshComponent:

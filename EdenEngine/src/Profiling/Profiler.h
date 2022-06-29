@@ -1,7 +1,5 @@
 #pragma once
 
-// TODO(Daniel): In the future add support for PIX
-
 #define ED_PROFILER_ENABLED
 
 #ifdef ED_PROFILER_ENABLED

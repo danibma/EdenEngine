@@ -118,6 +118,14 @@ namespace Eden
 		bool is_set = false;
 	};
 
+	struct RenderPass
+	{
+		std::shared_ptr<DescriptorHeap> rtv_heap;
+		std::shared_ptr<DescriptorHeap> dsv_heap;
+		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtv_desc;
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsv_desc;
+	};
+
 	class D3D12RHI
 	{
 		ComPtr<ID3D12Device> m_Device;
@@ -131,7 +139,7 @@ namespace Eden
 		ComPtr<ID3D12Resource> m_RenderTargets[s_FrameCount];
 		ComPtr<ID3D12Resource> m_DepthStencil;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
-		ComPtr<ID3D12GraphicsCommandList> m_CommandList;
+		ComPtr<ID3D12GraphicsCommandList4> m_CommandList;
 		ComPtr<ID3D12Fence> m_Fence;
 		
 		CD3DX12_RECT m_Scissor;
@@ -160,6 +168,8 @@ namespace Eden
 			ComPtr<IDxcBlob> blob;
 			ComPtr<ID3D12ShaderReflection> reflection;
 		};
+
+		RenderPass m_ColorPass;
 
 	public:
 		D3D12RHI(Window* window);
@@ -233,6 +243,7 @@ namespace Eden
 		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string program_name, PipelineState draw_state = PipelineState());
 		[[nodiscard]] Texture2D CreateTexture2D(std::string file_path);
 		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* texture_data, uint64_t width, uint32_t height);
+		[[nodiscard]] RenderPass CreateRenderPass();
 
 		void ReloadPipeline(Pipeline& pipeline);
 
@@ -247,6 +258,8 @@ namespace Eden
 		void BindParameter(const std::string& parameter_name,uint32_t heap_offset);
 
 		void BeginRender();
+		void BeginRenderPass(RenderPass& render_pass);
+		void EndRenderPass();
 		void EndRender();
 
 		void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0);
@@ -254,8 +267,6 @@ namespace Eden
 
 		void Render();
 		void Resize(uint32_t width, uint32_t height);
-
-		void ClearRenderTargets();
 
 		ID3D12Resource* GetCurrentRenderTarget();
 		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
@@ -269,6 +280,7 @@ namespace Eden
 		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
 		void SetRenderTargets(std::shared_ptr<DescriptorHeap> rtv_heap, std::shared_ptr<DescriptorHeap> dsv_heap);
+
 
 	private:
 		void PrepareDraw();

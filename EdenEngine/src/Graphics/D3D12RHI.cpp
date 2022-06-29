@@ -155,6 +155,8 @@ namespace Eden
 		ID3D12Device* pDevice = m_Device.Get();
 		ID3D12CommandQueue* pCommandQueue = m_CommandQueue.Get();
 		ED_PROFILE_GPU_INIT(pDevice, &pCommandQueue, 1);
+
+		m_ColorPass = CreateRenderPass();
 	}
 
 	D3D12RHI::~D3D12RHI()
@@ -734,6 +736,31 @@ namespace Eden
 		return texture;
 	}
 
+	RenderPass D3D12RHI::CreateRenderPass()
+	{
+		RenderPass render_pass;
+
+		//render_pass.rtv_heap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		//render_pass.dsv_heap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		render_pass.rtv_heap = m_RTVHeap;
+		render_pass.rtv_heap = m_DSVHeap;
+		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
+		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+
+		const float clearColor4[]{ 0.f, 0.f, 0.f, 0.f };
+		CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_R32G32B32_FLOAT, clearColor4 };
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS renderPassBeginningAccessClear{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, { clearValue } };
+		D3D12_RENDER_PASS_ENDING_ACCESS renderPassEndingAccessPreserve{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {} };
+		render_pass.rtv_desc = { rtv_handle, renderPassBeginningAccessClear, renderPassEndingAccessPreserve };
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS renderPassBeginningAccessNoAccess{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, {} };
+		D3D12_RENDER_PASS_ENDING_ACCESS renderPassEndingAccessNoAccess{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS, {} };
+		render_pass.dsv_desc = { dsv_handle, renderPassBeginningAccessNoAccess, renderPassBeginningAccessNoAccess, renderPassEndingAccessNoAccess, renderPassEndingAccessNoAccess };
+
+		return render_pass;
+	}
+
 	void D3D12RHI::ReloadPipeline(Pipeline& pipeline)
 	{
 		pipeline = CreateGraphicsPipeline(pipeline.name, pipeline.draw_state);
@@ -808,10 +835,39 @@ namespace Eden
 		auto current_render_target = GetCurrentRenderTarget();
 		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
+		BeginRenderPass(m_ColorPass);
+
 		// Set SRV Descriptor heap
 		SetDescriptorHeap(m_SRVHeap);
+	}
 
-		SetRenderTargets(m_RTVHeap, m_DSVHeap);
+	void D3D12RHI::BeginRenderPass(RenderPass& render_pass)
+	{
+		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
+		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+
+		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
+		CD3DX12_CLEAR_VALUE clear_value{ DXGI_FORMAT_R32G32B32_FLOAT, clear_color };
+
+		// RTV
+		D3D12_RENDER_PASS_BEGINNING_ACCESS rtv_begin_access{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, { clear_value } };
+		D3D12_RENDER_PASS_ENDING_ACCESS rtv_end_access{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {} };
+		render_pass.rtv_desc = { rtv_handle, rtv_begin_access, rtv_end_access };
+
+		// DSV
+		D3D12_RENDER_PASS_BEGINNING_ACCESS_CLEAR_PARAMETERS dsv_clear = {};
+		dsv_clear.ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_clear.ClearValue.DepthStencil.Depth = 1.0f;
+		D3D12_RENDER_PASS_BEGINNING_ACCESS dsv_begin_access{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, { dsv_clear } };
+		D3D12_RENDER_PASS_ENDING_ACCESS dsv_end_access{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE, {} };
+		render_pass.dsv_desc = { dsv_handle, dsv_begin_access, dsv_begin_access, dsv_end_access, dsv_end_access };
+
+		m_CommandList->BeginRenderPass(1, &render_pass.rtv_desc, &render_pass.dsv_desc, D3D12_RENDER_PASS_FLAG_NONE);
+	}
+
+	void D3D12RHI::EndRenderPass()
+	{
+		m_CommandList->EndRenderPass();
 	}
 
 	void D3D12RHI::EndRender()
@@ -828,6 +884,8 @@ namespace Eden
 				ImGui::RenderPlatformWindowsDefault();
 			}
 		}
+
+		EndRenderPass();
 
 		auto current_render_target = GetCurrentRenderTarget();
 		ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -981,19 +1039,6 @@ namespace Eden
 			m_CommandAllocator->Reset();
 			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
 		}
-	}
-
-	void D3D12RHI::ClearRenderTargets()
-	{
-		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("D3D12RHI::ClearRenderTargets");
-
-		auto dsv_handle = GetCPUHandle(m_DSVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
-		auto rtv_handle = GetCPUHandle(m_RTVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
-
-		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
-		m_CommandList->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
-		m_CommandList->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	}
 
 	ID3D12Resource* D3D12RHI::GetCurrentRenderTarget()
