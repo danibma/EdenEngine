@@ -667,7 +667,7 @@ public:
 
 	void UI_Render()
 	{
-		//ImGui::ShowDemoWindow(nullptr);
+		// ImGui::ShowDemoWindow(nullptr);
 
 		UI_Dockspace();
 		UI_Viewport();
@@ -808,8 +808,10 @@ public:
 				{
 					if (textured)
 					{
-						rhi->BindParameter("g_textureDiffuse", submesh.diffuse_texture);
-						rhi->BindParameter("g_textureEmissive", submesh.emissive_texture);
+						if (submesh.diffuse_texture > -1)
+							rhi->BindParameter("g_textureDiffuse", submesh.diffuse_texture);
+						if (submesh.emissive_texture > -1)
+							rhi->BindParameter("g_textureEmissive", submesh.emissive_texture);
 					}
 					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 				}
