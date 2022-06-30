@@ -8,8 +8,8 @@
 ### Multiple Lights support
 ![Multiple Lights](multiple_lights.png)
 
-### Basic Editor UI working with ECS
-![ECS UI](ecs_ui.png)
-
 ### Scene Serialization
 ![Scene Open](scene_serialization.gif)
+
+### Editor UI working with ECS and using D3D12 Render Passes
+![ECS UI](editor_ui.png)
