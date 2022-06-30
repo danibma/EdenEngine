@@ -475,8 +475,7 @@ public:
 			if (ImGui::BeginPopup("addc_popup"))
 			{
 				bool mesh_component = !m_SelectedEntity.HasComponent<MeshComponent>();
-				bool point_light_component = !m_SelectedEntity.HasComponent<PointLightComponent>();
-				bool directional_light_component = !m_SelectedEntity.HasComponent<DirectionalLightComponent>();
+				bool light_component = !m_SelectedEntity.HasComponent<PointLightComponent>() && !m_SelectedEntity.HasComponent<DirectionalLightComponent>();
 
 				if (ImGui::MenuItem("Mesh Component", 0, false, mesh_component))
 				{
@@ -484,13 +483,13 @@ public:
 					ImGui::CloseCurrentPopup();
 				}
 
-				if (ImGui::MenuItem("Point Light Component", 0, false, point_light_component))
+				if (ImGui::MenuItem("Point Light Component", 0, false, light_component))
 				{
 					m_SelectedEntity.AddComponent<PointLightComponent>();
 					ImGui::CloseCurrentPopup();
 				}
 
-				if (ImGui::MenuItem("Directional Light Component", 0, false, directional_light_component))
+				if (ImGui::MenuItem("Directional Light Component", 0, false, light_component))
 				{
 					m_SelectedEntity.AddComponent<DirectionalLightComponent>();
 					ImGui::CloseCurrentPopup();
