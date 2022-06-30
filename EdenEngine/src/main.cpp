@@ -149,6 +149,7 @@ public:
 
 		auto scene_to_load = m_CurrentScene->GetScenePath();
 
+		m_SelectedEntity.Invalidate();
 		edelete m_CurrentScene;
 		m_CurrentScene = enew Scene();
 
@@ -167,7 +168,6 @@ public:
 			m_CurrentScene->SetScenePath(scene_to_load);
 		}
 		
-		m_SelectedEntity.Invalidate();
 		m_CurrentScene->SetSceneLoaded(true);
 		ChangeWindowTitle(m_CurrentScene->GetName());
 	}

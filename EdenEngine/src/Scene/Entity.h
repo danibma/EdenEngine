@@ -51,6 +51,12 @@ namespace Eden
 			return m_Scene->m_Registry.valid(m_EntityHandler);
 		}
 
+		void Invalidate()
+		{
+			m_EntityHandler = entt::null;
+			m_Scene = nullptr;
+		}
+
 		uint32_t GetID() const
 		{
 			return static_cast<uint32_t>(m_EntityHandler);
