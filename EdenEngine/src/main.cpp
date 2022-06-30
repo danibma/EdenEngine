@@ -20,6 +20,8 @@
 #include <array>
 #include <vector>
 
+#define WITH_EDITOR 1
+
 using namespace Eden;
 
 class EdenApplication : public Application
@@ -35,45 +37,45 @@ class EdenApplication : public Application
 	};
 
 	static const int MAX_DIRECTIONAL_LIGHTS = 16;
-	Buffer directional_lights_buffer;
+	Buffer m_DirectionalLightsBuffer;
 	static const int MAX_POINT_LIGHTS = 32;
-	Buffer point_light_components_buffer;
+	Buffer m_PointLightsBuffer;
 
 	std::unordered_map<const char*, Pipeline> m_Pipelines;
 
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 projection;
-	SceneData scene_data;
-	Buffer scene_data_cb;
-	Camera camera;
+	glm::mat4 m_ViewMatrix;
+	glm::mat4 m_ProjectionMatrix;
+	SceneData m_SceneData;
+	Buffer m_SceneDataCB;
+	Camera m_Camera;
 
 	Entity m_Helmet;
-	Entity flight_helmet;
 	Entity m_BasicMesh;
 	Entity m_FloorMesh;
 	Entity m_DirectionalLight;
 
 	// Skybox
 	MeshSource m_SkyboxCube;
-	Texture2D skybox_texture;
+	Texture2D m_SkyboxTexture;
 	struct SkyboxData
 	{
 		glm::mat4 view_projection_;
-	} skybox_data;
-	Buffer skybox_data_cb;
+	} m_SkyboxData;
+	Buffer m_SkyboxDataCB;
 
-	bool skybox_enable = false;
+	bool m_SkyboxEnable = true;
 
 	// UI
 	bool m_OpenDebugWindow = true;
 	bool m_OpenEntityProperties = true;
-	bool m_ShowUI = true;
 	bool m_CloseApp = false;
 	bool m_OpenSceneHierarchy = true;
-	bool m_OpenSceneProperties = false;
+	bool m_OpenSceneProperties = true;
 	bool m_OpenShadersPanel = false;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
+	glm::vec2 m_ViewportSize;
+	glm::vec2 m_ViewportPos;
+	bool m_ViewportFocused = false;
 
 	// Scene
 	Scene* m_CurrentScene = nullptr;
@@ -99,34 +101,43 @@ public:
 		skybox_ds.min_depth = 1.0f;
 		m_Pipelines["Skybox"] = rhi->CreateGraphicsPipeline("skybox", skybox_ds);
 
-		camera = Camera(window->GetWidth(), window->GetHeight());
+		m_Camera = Camera(window->GetWidth(), window->GetHeight());
 
-		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
-		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-		model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
-		scene_data.view = view;
-		scene_data.view_projection = projection * view;
-		scene_data.view_position = glm::vec4(camera.position, 1.0f);
+		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
+		m_ProjectionMatrix = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+		m_SceneData.view = m_ViewMatrix;
+		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
+		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
 
-		scene_data_cb = rhi->CreateBuffer<SceneData>(&scene_data, 1);
+		m_SceneDataCB = rhi->CreateBuffer<SceneData>(&m_SceneData, 1);
 
-		skybox_data.view_projection_ = projection * glm::mat4(glm::mat3(view));
-		skybox_data_cb = rhi->CreateBuffer<SkyboxData>(&skybox_data, 1);
+		m_SkyboxData.view_projection_ = m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix));
+		m_SkyboxDataCB = rhi->CreateBuffer<SkyboxData>(&m_SkyboxData, 1);
 
 		m_CurrentScene = enew Scene();
 		std::string default_scene = "assets/scenes/demo.escene";
 		OpenScene(default_scene);
 		m_SkyboxCube.LoadGLTF(rhi, "assets/models/basic/cube.glb"); // TODO(Daniel): Create skybox class
+		m_SkyboxTexture = rhi->CreateTexture2D("assets/skyboxes/studio_garden.hdr");
+		m_SkyboxTexture.resource->SetName(L"Skybox texture");
 
 		// Lights
-		directional_lights_buffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
+		m_DirectionalLightsBuffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
 		UpdateDirectionalLights();
-		point_light_components_buffer = rhi->CreateBuffer<PointLightComponent>(nullptr, MAX_POINT_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
+		m_PointLightsBuffer = rhi->CreateBuffer<PointLightComponent>(nullptr, MAX_POINT_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
 		UpdatePointLights();
 
 		// Rendering
+	#if WITH_EDITOR
 		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTexture, L"GBuffer_");
 		m_ImGuiPass = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"ImGuiPass_", true);
+		rhi->SetRTRenderPass(&m_ImGuiPass);
+		rhi->EnableImGui();
+	#else
+		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"GBuffer_");
+		rhi->SetRTRenderPass(&m_GBuffer);
+	#endif
+		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 	}
 
 	void NewScene()
@@ -236,32 +247,39 @@ public:
 		}
 	}
 
-	void UI_Toolbar()
+	void UI_Dockspace()
 	{
-		bool show_help_popup = false;
-		const float toolbar_size = 1.0f;
-
-		ImGuiViewport* viewport = ImGui::GetMainViewport();
-		ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y));
-		ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, toolbar_size));
+		static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+		// We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
+		// because it would be confusing to have two docking targets within each others.
+		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+		const ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(viewport->WorkSize);
 		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-		ImGuiWindowFlags window_flags = 0
-			| ImGuiWindowFlags_NoDocking
-			| ImGuiWindowFlags_NoTitleBar
-			| ImGuiWindowFlags_NoResize
-			| ImGuiWindowFlags_NoMove
-			| ImGuiWindowFlags_NoScrollbar
-			| ImGuiWindowFlags_NoSavedSettings
-			| ImGuiWindowFlags_MenuBar
-			;
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
-		ImGui::Begin("TOOLBAR", NULL, window_flags);
-		ImGui::PopStyleVar();
-		ImGui::PopStyleVar();
+		// Important: note that we proceed even if Begin() returns false (aka window is collapsed).
+		// This is because we want to keep our DockSpace() active. If a DockSpace() is inactive,
+		// all active windows docked into it will lose their parent and become undocked.
+		// We cannot preserve the docking relationship between an active window and an inactive docking, otherwise
+		// any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("EdenDockSpace", nullptr, window_flags);
+		ImGui::PopStyleVar(3);
 
-		ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.200f, 0.220f, 0.270f, 1.0f));
+		// Submit the DockSpace
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+		{
+			ImGuiID dockspace_id = ImGui::GetID("EdenEditorDockspace");
+			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+		}
+
+		// Menubar
 		if (ImGui::BeginMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
@@ -310,40 +328,15 @@ public:
 				{
 					switch (UI::g_SelectedTheme)
 					{
-						case UI::Themes::Cherry: UI::CherryTheme(); break;
-						case UI::Themes::Hazel: UI::HazelTheme(); break;
+					case UI::Themes::Cherry: UI::CherryTheme(); break;
+					case UI::Themes::Hazel: UI::HazelTheme(); break;
 					}
 				}
 
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::BeginMenu("Help"))
-			{
-				if (ImGui::MenuItem("Help"))
-					show_help_popup = !show_help_popup;
-
-				ImGui::EndMenu();
-			}
-
 			ImGui::EndMenuBar();
-		}
-
-		ImGui::PopStyleColor();
-
-		// Help Popup
-		if (show_help_popup)
-			ImGui::OpenPopup("help_popup");
-		if (ImGui::BeginPopupModal("help_popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
-		{
-			UI::CenterWindow();
-			ImGui::Dummy(ImVec2(0, 10));
-			const char* string = "Press F3 to Hide the UI";
-			UI::AlignedText(string, UI::Align::Center);
-			ImGui::Dummy(ImVec2(0, 20));
-			if (UI::AlignedButton("Close", UI::Align::Center))
-				ImGui::CloseCurrentPopup();
-			ImGui::EndPopup();
 		}
 
 		ImGui::End();
@@ -548,7 +541,7 @@ public:
 	void UI_SceneProperties()
 	{
 		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
-		ImGui::Checkbox("Enable Skybox", &skybox_enable);
+		ImGui::Checkbox("Enable Skybox", &m_SkyboxEnable);
 		ImGui::End();
 	}
 
@@ -557,23 +550,26 @@ public:
 		ImGui::Begin("Debug", &m_OpenDebugWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 
 		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
+		ImGui::Text("Viewport Size: %.0fx%.0f", m_ViewportSize.x, m_ViewportSize.y);
 
 		ImGui::End();
 	}
 
-	void UI_DrawGuizmo()
+	void UI_DrawGizmo()
 	{
 		ImGuizmo::SetOrthographic(false);
 		ImGuizmo::SetDrawlist();
 
-		float window_width = window->GetWidth();
-		float window_height = window->GetHeight();
-		ImGuizmo::SetRect(0.0f, 0.0f, window_width, window_height);
+		float window_width = m_ViewportSize.x;
+		float window_height = m_ViewportSize.y;
+		float window_x = m_ViewportPos.x;
+		float window_y = m_ViewportPos.y;
+		ImGuizmo::SetRect(window_x, window_y, window_width, window_height);
 
 		auto& transform_component = m_SelectedEntity.GetComponent<TransformComponent>();
 		glm::mat4 transform = transform_component.GetTransform();
 
-		ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), static_cast<ImGuizmo::OPERATION>(m_GizmoType), ImGuizmo::LOCAL, glm::value_ptr(transform));
+		ImGuizmo::Manipulate(glm::value_ptr(m_ViewMatrix), glm::value_ptr(m_ProjectionMatrix), static_cast<ImGuizmo::OPERATION>(m_GizmoType), ImGuizmo::LOCAL, glm::value_ptr(transform));
 
 		if (ImGuizmo::IsUsing())
 		{
@@ -612,11 +608,39 @@ public:
 		ImGui::End();
 	}
 
+	void UI_Viewport()
+	{
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+		ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoTitleBar);
+		if (ImGui::IsWindowHovered())
+			Input::SetInputMode(InputMode::Game);
+		else
+			Input::SetInputMode(InputMode::UI);
+
+		auto viewport_size = ImGui::GetContentRegionAvail();
+		if (m_ViewportSize != *(glm::vec2*)&viewport_size)
+		{
+			m_ViewportSize = { viewport_size.x, viewport_size.y };
+			m_GBuffer.width = m_ViewportSize.x;
+			m_GBuffer.height = m_ViewportSize.y;
+			m_Camera.SetViewportSize(viewport_size.x, viewport_size.y);
+		}
+		auto viewport_pos = ImGui::GetWindowPos();
+		m_ViewportPos = { viewport_pos.x, viewport_pos.y };
+
+		m_ViewportFocused = ImGui::IsWindowFocused();
+
+		ImGui::Image((ImTextureID)rhi->GetTextureGPUHandle(m_GBuffer.render_targets[0]).ptr, viewport_size);
+		ImGui::End();
+		ImGui::PopStyleVar();
+	}
+
 	void UI_Render()
 	{
-		// ImGui::ShowDemoWindow(nullptr);
+		//ImGui::ShowDemoWindow(nullptr);
 
-		UI_Toolbar();
+		UI_Dockspace();
+		UI_Viewport();
 		if (m_OpenDebugWindow)
 			UI_DebugWindow();
 		if (m_OpenEntityProperties)
@@ -626,21 +650,16 @@ public:
 		if (m_OpenSceneProperties)
 			UI_SceneProperties();
 		if (m_SelectedEntity)
-			UI_DrawGuizmo();
+			UI_DrawGizmo();
 		if (m_OpenShadersPanel)
 			UI_PipelinesPanel();
 
-		ImGui::Begin("Viewport");
-		auto viewportSize = ImGui::GetContentRegionAvail();
-		ImGui::Image((ImTextureID)rhi->GetTextureGPUHandle(m_GBuffer.render_targets[0]).ptr, viewportSize);
-		ImGui::End();
+		
 	}
 
 	void EditorInput()
 	{
-		// BUG: if we are writing inside a textbox it will switch the gizmos too
-		//		find a way to detect if any window is focused, if there is any, dont do these actions
-		if (!Input::GetMouseButton(MouseButton::RightButton))
+		if (!Input::GetMouseButton(MouseButton::RightButton) && m_ViewportFocused)
 		{
 			if (Input::GetKey(KeyCode::Q))
 				m_GizmoType = -1;
@@ -660,10 +679,6 @@ public:
 			NewScene();
 		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_S))
 			SaveScene();
-
-		// Show UI or not
-		if (Input::GetKeyDown(KeyCode::F3))
-			m_ShowUI = !m_ShowUI;
 	}
 
 	void UpdatePointLights()
@@ -682,7 +697,7 @@ public:
 			point_light_components[i] = pl;
 		}
 
-		rhi->UpdateBuffer<PointLightComponent>(point_light_components_buffer, point_light_components.data(), point_light_components.size());
+		rhi->UpdateBuffer<PointLightComponent>(m_PointLightsBuffer, point_light_components.data(), point_light_components.size());
 	}
 
 	void UpdateDirectionalLights()
@@ -701,7 +716,7 @@ public:
 			directional_light_components[i] = pl;
 		}
 
-		rhi->UpdateBuffer<DirectionalLightComponent>(directional_lights_buffer, directional_light_components.data(), directional_light_components.size());
+		rhi->UpdateBuffer<DirectionalLightComponent>(m_DirectionalLightsBuffer, directional_light_components.data(), directional_light_components.size());
 	}
 
 	void OnUpdate() override
@@ -710,14 +725,18 @@ public:
 
 		rhi->BeginRender();
 
+	#if !WITH_EDITOR
+		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
+	#endif
+
 		// Update camera and scene data
-		camera.Update(window, delta_time);
-		view = glm::lookAtLH(camera.position, camera.position + camera.front, camera.up);
-		projection = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 2000.0f);
-		scene_data.view = view;
-		scene_data.view_projection = projection * view;
-		scene_data.view_position = glm::vec4(camera.position, 1.0f);
-		rhi->UpdateBuffer<SceneData>(scene_data_cb, &scene_data, 1);
+		m_Camera.Update(delta_time);
+		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
+		m_ProjectionMatrix = glm::perspectiveFovLH_ZO(glm::radians(70.0f), m_ViewportSize.x, m_ViewportSize.y, 0.1f, 2000.0f);
+		m_SceneData.view = m_ViewMatrix;
+		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
+		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
+		rhi->UpdateBuffer<SceneData>(m_SceneDataCB, &m_SceneData, 1);
 
 		EditorInput();
 
@@ -751,10 +770,10 @@ public:
 					rhi->UpdateBuffer<glm::mat4>(ms->transform_cb, &transform, 1);
 				}
 
-				rhi->BindParameter("SceneData", scene_data_cb);
+				rhi->BindParameter("SceneData", m_SceneDataCB);
 				rhi->BindParameter("Transform", ms->transform_cb);
-				rhi->BindParameter("DirectionalLights", directional_lights_buffer);
-				rhi->BindParameter("PointLights", point_light_components_buffer);
+				rhi->BindParameter("DirectionalLights", m_DirectionalLightsBuffer);
+				rhi->BindParameter("PointLights", m_PointLightsBuffer);
 
 				for (auto& submesh : mesh.submeshes)
 				{
@@ -769,39 +788,31 @@ public:
 		}
 
 		// Skybox
-		if (skybox_enable)
+		if (m_SkyboxEnable)
 		{
-			// this should not be loaded during runtime, but yeah...
-			if (!skybox_texture.resource) // If the texture is not loaded yet, load it
-			{
-				skybox_texture = rhi->CreateTexture2D("assets/skyboxes/sky.hdr");
-				skybox_texture.resource->SetName(L"Skybox texture");
-			}
-
 			rhi->BindPipeline(m_Pipelines["Skybox"]);
 			rhi->BindVertexBuffer(m_SkyboxCube.mesh_vb);
 			rhi->BindIndexBuffer(m_SkyboxCube.mesh_ib);
 			for (auto& mesh : m_SkyboxCube.meshes)
 			{
-				skybox_data.view_projection_ = projection * glm::mat4(glm::mat3(view));
-				rhi->UpdateBuffer<SkyboxData>(skybox_data_cb, &skybox_data, 1);
-				rhi->BindParameter("SkyboxData", skybox_data_cb);
+				m_SkyboxData.view_projection_ = m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix));
+				rhi->UpdateBuffer<SkyboxData>(m_SkyboxDataCB, &m_SkyboxData, 1);
+				rhi->BindParameter("SkyboxData", m_SkyboxDataCB);
 
 				for (auto& submesh : mesh.submeshes)
 				{
-					rhi->BindParameter("g_cubemapTexture", skybox_texture);
+					rhi->BindParameter("g_cubemapTexture", m_SkyboxTexture);
 					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
 				}
 			}
 		}
 		rhi->EndRenderPass(m_GBuffer);
 
+	#if WITH_EDITOR
 		rhi->BeginRenderPass(m_ImGuiPass);
-
-		if (m_ShowUI)
-			UI_Render();
-
+		UI_Render();
 		rhi->EndRenderPass(m_ImGuiPass);
+	#endif
 
 		rhi->EndRender();
 		rhi->Render();
@@ -812,12 +823,12 @@ public:
 	{
 		edelete m_CurrentScene;
 
-		point_light_components_buffer.Release();
-		directional_lights_buffer.Release();
-		scene_data_cb.Release();
-		skybox_data_cb.Release();
+		m_PointLightsBuffer.Release();
+		m_DirectionalLightsBuffer.Release();
+		m_SceneDataCB.Release();
+		m_SkyboxDataCB.Release();
 		m_SkyboxCube.Destroy();
-		skybox_texture.Release();
+		m_SkyboxTexture.Release();
 	}
 
 };

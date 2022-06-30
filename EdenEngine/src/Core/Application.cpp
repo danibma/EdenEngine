@@ -20,7 +20,6 @@ namespace Eden
 	#endif 
 
 		rhi = enew D3D12RHI(window);
-		rhi->EnableImGui();
 	}
 
 	Application::~Application()

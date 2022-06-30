@@ -69,7 +69,7 @@ namespace Eden
 		/*
 		* Returns the current mouse position
 		*/
-		static std::pair<int64_t, int64_t> GetMousePos(Window* window);
+		static std::pair<int64_t, int64_t> GetMousePos();
 
 		/*
 		* Returns the mouse scroll delta

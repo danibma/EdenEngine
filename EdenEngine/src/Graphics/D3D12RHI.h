@@ -47,7 +47,7 @@ namespace Eden
 	struct Resource
 	{
 		ComPtr<ID3D12Resource> resource;
-		D3D12MA::Allocation* allocation;
+		D3D12MA::Allocation* allocation = nullptr;
 
 		void Release()
 		{
@@ -55,7 +55,8 @@ namespace Eden
 			{
 				resource->Release();
 				resource = nullptr;
-				allocation->Release();
+				if (allocation != nullptr)
+					allocation->Release();
 			}
 		}
 	};
@@ -134,7 +135,7 @@ namespace Eden
 		ComPtr<ID3D12Resource> depth_stencil;
 		bool imgui = false;
 		Type type;
-
+		uint32_t width, height;
 		std::wstring name;
 	};
 
@@ -176,6 +177,9 @@ namespace Eden
 			ComPtr<IDxcBlob> blob;
 			ComPtr<ID3D12ShaderReflection> reflection;
 		};
+
+		// Main Render Target Render pass
+		RenderPass* m_RTRenderPass;
 
 	public:
 		D3D12RHI(Window* window);
@@ -265,6 +269,7 @@ namespace Eden
 
 		void BeginRender();
 		void BeginRenderPass(RenderPass& render_pass);
+		void SetRTRenderPass(RenderPass* render_pass);
 		void EndRenderPass(RenderPass& render_pass);
 		void EndRender();
 
@@ -273,6 +278,7 @@ namespace Eden
 
 		void Render();
 		void Resize(uint32_t width, uint32_t height);
+		void ResizeRenderPassTexture(RenderPass& render_pass, uint32_t width, uint32_t height);
 
 		uint32_t GetCurrentFrameIndex();
 
@@ -290,11 +296,11 @@ namespace Eden
 		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
 
-		void CreateBackBuffers(RenderPass& render_pass, uint32_t width, uint32_t height);
 	private:
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
+		void CreateBackBuffers(RenderPass& render_pass, uint32_t width, uint32_t height);
 		size_t GetRootParameterIndex(const std::string& parameter_name);
 		void CreateRootSignature(Pipeline& pipeline);
 		Buffer CreateBuffer(uint32_t size, const void* data);

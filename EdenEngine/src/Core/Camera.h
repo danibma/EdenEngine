@@ -10,11 +10,15 @@ namespace Eden
 	{
 	public:
 		Camera() = default;
-		Camera(uint32_t screen_width, uint32_t screen_height);
+		Camera(uint32_t viewport_width, uint32_t viewport_height);
 
-		void Update(Window* window, float delta_time);
-		void UpdateLookAt(Window* window);
+		void Update(float delta_time);
+		void SetViewportSize(float width, float height);
 
+	private:
+		void UpdateLookAt();
+
+	public:
 		glm::vec3 position;
 		glm::vec3 front;
 		glm::vec3 up;
@@ -26,6 +30,7 @@ namespace Eden
 		float m_X, m_Y;
 		bool m_FirstTimeMouse = true;
 		bool m_Locked = false;
+		glm::vec2 m_ViewportSize;
 	};
 
 }

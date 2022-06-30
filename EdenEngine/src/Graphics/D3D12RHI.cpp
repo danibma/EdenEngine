@@ -446,11 +446,11 @@ namespace Eden
 	{
 		// Create render targets
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(render_pass.rtv_heap));
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset));
 
 		if (render_pass.type == RenderPass::kRenderTexture)
 		{
 			auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+			CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset));
 
 			D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
 																	width, height,
@@ -466,6 +466,8 @@ namespace Eden
 			m_Device->CreateRenderTargetView(render_pass.render_targets[0].resource.Get(), nullptr, rtv_handle);
 
 			render_pass.render_targets[0].heap_offset = m_SRVHeapOffset;
+			render_pass.render_targets[0].width = width;
+			render_pass.render_targets[0].height = height;
 			m_Device->CreateShaderResourceView(render_pass.render_targets[0].resource.Get(), nullptr, srv_handle);
 			m_SRVHeapOffset++;
 		}
@@ -482,10 +484,13 @@ namespace Eden
 
 				std::wstring rt_name = render_pass.name + L"backbuffer";
 				render_pass.render_targets[i].resource->SetName(rt_name.c_str());
+				render_pass.render_targets[i].width = width;
+				render_pass.render_targets[i].height = height;
 			}
 		}
 
-		
+		render_pass.width = width;
+		render_pass.height = height;
 
 		// Create DSV
 		D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
@@ -856,6 +861,13 @@ namespace Eden
 		}
 		else if (render_pass.type == RenderPass::Type::kRenderTexture)
 		{
+			// Check if the render targets need to get resized
+			if (render_pass.width != render_pass.render_targets[0].width ||
+				render_pass.height != render_pass.render_targets[0].height)
+			{
+				ResizeRenderPassTexture(render_pass, render_pass.width, render_pass.height);
+			}
+
 			auto current_render_target = render_pass.render_targets[0].resource.Get();
 			rtv_handle = GetCPUHandle(render_pass.rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
 			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -881,6 +893,11 @@ namespace Eden
 		render_pass.dsv_desc = { dsv_handle, dsv_begin_access, dsv_begin_access, dsv_end_access, dsv_end_access };
 
 		m_CommandList->BeginRenderPass(1, &render_pass.rtv_desc, &render_pass.dsv_desc, D3D12_RENDER_PASS_FLAG_NONE);
+	}
+
+	void D3D12RHI::SetRTRenderPass(RenderPass* render_pass)
+	{
+		m_RTRenderPass = render_pass;
 	}
 
 	void D3D12RHI::EndRenderPass(RenderPass& render_pass)
@@ -1021,20 +1038,16 @@ namespace Eden
 		// Set the fence value for the next frame
 		m_FenceValues[m_FrameIndex] = current_fence_value + 1;
 
-		WaitForGPU(); // NOTE(Daniel): this shouldn't be needed here, fix this!
+		WaitForGPU();
 
-		// Command list allocators can only be reseted when the associated
-		// command lists have finished the execution on the GPU
 		m_CommandAllocator->Reset();
 
-		// However, when ExecuteCommandList() is called on a particular command 
-		// list, that command list can then be reset at any time and must be before 
-		// re-recording.
 		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
 	}
 
 	void D3D12RHI::Resize(uint32_t width, uint32_t height)
 	{
+		ED_ASSERT_LOG(m_RTRenderPass, "Failed to resize, no Render Target Render Pass assigned");
 		if (m_Device && m_Swapchain)
 		{
 			ED_LOG_TRACE("Resizing Window to {}x{}", width, height);
@@ -1043,19 +1056,22 @@ namespace Eden
 			if (FAILED(m_CommandList->Close()))
 				ED_ASSERT_MB(false, "Failed to close command list");
 
-			//for (size_t i = 0; i < s_FrameCount; ++i)
-			//{
-			//	m_RenderTargets[i].Reset();
-			//	m_FenceValues[i] = m_FenceValues[m_FrameIndex];
-			//}
-			//
-			//m_DepthStencil.Reset();
-
-
+			for (size_t i = 0; i < s_FrameCount; ++i)
+			{
+				m_RTRenderPass->render_targets[i].resource.Reset();
+				m_FenceValues[i] = m_FenceValues[m_FrameIndex];
+			}
+			
+			m_RTRenderPass->depth_stencil.Reset();
 
 			m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, 0);
 
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
+
+			CreateBackBuffers(*m_RTRenderPass, width, height);
+
+			m_RTRenderPass->width = width;
+			m_RTRenderPass->height = height;
 
 			m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)width, (float)height);
 			m_Scissor  = CD3DX12_RECT(0, 0, width, height);
@@ -1063,6 +1079,60 @@ namespace Eden
 			m_CommandAllocator->Reset();
 			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
 		}
+	}
+
+	void D3D12RHI::ResizeRenderPassTexture(RenderPass& render_pass, uint32_t width, uint32_t height)
+	{
+		ED_ASSERT_LOG(render_pass.type == RenderPass::kRenderTexture, "Render pass cannot be resized because it isn't a render texture");
+
+		auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, render_pass.render_targets[0].heap_offset));
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(render_pass.rtv_heap));
+
+		D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+																width, height,
+																1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+		D3D12_CLEAR_VALUE clear_value = { DXGI_FORMAT_R8G8B8A8_UNORM, { 0.f, 0.f, 0.f, 0.f } };
+
+		m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+										  &desc,
+										  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
+										  IID_PPV_ARGS(render_pass.render_targets[0].resource.ReleaseAndGetAddressOf()));
+
+		m_Device->CreateRenderTargetView(render_pass.render_targets[0].resource.Get(), nullptr, rtv_handle);
+
+		render_pass.render_targets[0].width = width;
+		render_pass.render_targets[0].height = height;
+		m_Viewport.Width = width;
+		m_Viewport.Height = height;
+		m_Device->CreateShaderResourceView(render_pass.render_targets[0].resource.Get(), nullptr, srv_handle);
+
+		// Create DSV
+		D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
+		depth_stencil_desc.Format = DXGI_FORMAT_D32_FLOAT;
+		depth_stencil_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		depth_stencil_desc.Flags = D3D12_DSV_FLAG_NONE;
+
+		D3D12_CLEAR_VALUE depth_optimized_clear_value;
+		depth_optimized_clear_value.Format = DXGI_FORMAT_D32_FLOAT;
+		depth_optimized_clear_value.DepthStencil.Depth = 1.0f;
+		depth_optimized_clear_value.DepthStencil.Stencil = 0;
+
+		if (FAILED(m_Device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&depth_optimized_clear_value,
+			IID_PPV_ARGS(&render_pass.depth_stencil)
+		)))
+		{
+			ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
+		}
+
+		auto dsv_handle = GetCPUHandle(render_pass.dsv_heap);
+		m_Device->CreateDepthStencilView(render_pass.depth_stencil.Get(), &depth_stencil_desc, dsv_handle);
 	}
 
 	uint32_t D3D12RHI::GetCurrentFrameIndex()
@@ -1165,4 +1235,3 @@ namespace Eden
 		return root_parameter_index->second;
 	}
 }
-;

@@ -6,22 +6,23 @@
 namespace Eden
 {
 
-	Camera::Camera(const uint32_t screen_width, const uint32_t screen_height)
+	Camera::Camera(const uint32_t viewport_width, const uint32_t viewport_height)
 	{
 		position = { 0, 3, -10 };
 		front = { 0, 0, 1 };
 		up = { 0, 1, 0 };
-		m_LastX = (float)screen_width / 2;
-		m_LastY = (float)screen_height / 2;
+		m_LastX = (float)viewport_width / 2;
+		m_LastY = (float)viewport_height / 2;
 		m_Yaw = 0.0f;
 		m_Pitch = 0.0f;
 		m_Sensitivity = 0.2f;
 		m_X = 0;
 		m_Y = 0;
 		m_FirstTimeMouse = true;
+		m_ViewportSize = { viewport_width, viewport_height };
 	}
 
-	void Camera::Update(Window* window, const float delta_time)
+	void Camera::Update(float delta_time)
 	{
 		if (Input::GetInputMode() == InputMode::UI)
 			return;
@@ -29,6 +30,7 @@ namespace Eden
 		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
 			Input::SetCursorMode(CursorMode::Hidden);
+			SetCursorPos(m_ViewportSize.x / 2, m_ViewportSize.y / 2);
 
 			m_Locked = true;
 
@@ -47,7 +49,7 @@ namespace Eden
 			if (Input::GetKey(KeyCode::Shift))
 				position.y -= cameraSpeed;
 
-			UpdateLookAt(window);
+			UpdateLookAt();
 		}
 		else if (Input::GetMouseButtonUp(MouseButton::RightButton))
 		{
@@ -58,9 +60,15 @@ namespace Eden
 		}
 	}
 
-	void Camera::UpdateLookAt(Window* window)
+	void Camera::SetViewportSize(float width, float height)
+	{
+		m_ViewportSize.x = width;
+		m_ViewportSize.y = height;
+	}
+
+	void Camera::UpdateLookAt()
 {
-		auto[x_pos, y_pos] = Input::GetMousePos(window);
+		auto[x_pos, y_pos] = Input::GetMousePos();
 
 		if (m_Locked)
 		{

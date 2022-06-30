@@ -21,15 +21,6 @@ namespace Eden
 
 	void Input::HandleInput(const uint32_t message, const uint32_t code, const uint32_t lParam)
 	{
-		if (GImGui)
-		{
-			ImGuiIO& io = ImGui::GetIO();
-			if (io.WantCaptureMouse)
-				SetInputMode(InputMode::UI);
-			else
-				SetInputMode(InputMode::Game);
-		}
-
 		switch (message)
 		{
 		case WM_KEYUP: case WM_SYSKEYUP:
@@ -117,8 +108,8 @@ namespace Eden
 		return ((uint32_t)button < ARRAYSIZE(s_KeyDown) ? s_KeyDown[(uint32_t)button] && !s_PreviousKeyDown[(uint32_t)button] : false);
 	}
 
-	std::pair<int64_t, int64_t> Input::GetMousePos(Window* window)
-	{
+	std::pair<int64_t, int64_t> Input::GetMousePos()
+{
 		if (GetCursorMode() == CursorMode::Hidden)
 			return s_RelativeMousePos;
 		else
