@@ -16,6 +16,7 @@ namespace Eden
 	// 2- Draw the component property by calling DrawComponentProperty inside UI_EntityProperties
 	// 3- Add a new menu item inside the "addc_popup"
 	// 4- Add a new item in SerializeEntity in the SceneSerializer
+	// 5- if the component contains any graphics Resource when modifying or deleting, add that "modification" to the scene preparation system
 
 	struct TagComponent
 	{

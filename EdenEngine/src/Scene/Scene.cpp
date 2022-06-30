@@ -39,4 +39,37 @@ namespace Eden
 		return m_Registry.size();
 	}
 
+	void Scene::SetScenePath(const std::filesystem::path& path)
+	{
+		m_ScenePath = path;
+	}
+
+	const std::filesystem::path Scene::GetScenePath()
+	{
+		return m_ScenePath;
+	}
+
+	void Scene::SetSceneLoaded(bool loaded)
+	{
+		m_Loaded = loaded;
+	}
+
+	bool Scene::IsSceneLoaded()
+	{
+		return m_Loaded;
+	}
+
+	void Scene::ExecutePreparations()
+	{
+		for (auto preparation : m_Preparations)
+			preparation();
+
+		m_Preparations.clear();
+	}
+
+	void Scene::AddPreparation(std::function<void()> preparation)
+	{
+		m_Preparations.emplace_back(preparation);
+	}
+
 }

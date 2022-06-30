@@ -29,9 +29,11 @@ namespace Eden
 
 	void SceneSerializer::Serialize(const std::filesystem::path& filepath)
 	{
+		std::string scene_name = filepath.stem().string();
+
 		YAML::Emitter out;
 		out << YAML::BeginMap;
-		out << YAML::Key << "Scene" << YAML::Value << filepath.stem().string();
+		out << YAML::Key << "Scene" << YAML::Value << scene_name;
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 		m_Scene->m_Registry.each([&](auto entity_id) 
 		{
@@ -46,6 +48,8 @@ namespace Eden
 
 		std::ofstream fout(filepath);
 		fout << out.c_str();
+
+		m_Scene->m_Name = scene_name;
 	}
 
 	bool SceneSerializer::Deserialize(const std::filesystem::path& filepath)

@@ -80,7 +80,6 @@ class EdenApplication : public Application
 	// Scene
 	Scene* m_CurrentScene = nullptr;
 	Entity m_SelectedEntity;
-	std::filesystem::path m_CurrentScenePath = "";
 
 	// Rendering
 	RenderPass m_GBuffer;
@@ -140,29 +139,48 @@ public:
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 	}
 
-	void NewScene()
+	void PrepareScene()
 	{
+		if (m_CurrentScene->IsSceneLoaded())
+		{
+			m_CurrentScene->ExecutePreparations();
+			return;
+		}
+
+		auto scene_to_load = m_CurrentScene->GetScenePath();
+
 		edelete m_CurrentScene;
 		m_CurrentScene = enew Scene();
+
+		if (!scene_to_load.empty())
+		{
+			SceneSerializer serializer(m_CurrentScene);
+			serializer.Deserialize(scene_to_load);
+
+			auto entities = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+			for (auto& entity : entities)
+			{
+				Entity e = { entity, m_CurrentScene };
+				e.GetComponent<MeshComponent>().LoadMeshSource(rhi);
+			}
+
+			m_CurrentScene->SetScenePath(scene_to_load);
+		}
+		
+		m_CurrentScene->SetSceneLoaded(true);
 		ChangeWindowTitle(m_CurrentScene->GetName());
+	}
+
+	void NewScene()
+	{
+		m_CurrentScene->SetScenePath("");
+		m_CurrentScene->SetSceneLoaded(false);
 	}
 
 	void OpenScene(const std::filesystem::path& path)
 	{
-		edelete m_CurrentScene;
-		m_CurrentScene = enew Scene();
-		SceneSerializer serializer(m_CurrentScene);
-		serializer.Deserialize(path);
-		m_CurrentScenePath = path;
-
-		ChangeWindowTitle(m_CurrentScene->GetName());
-
-		auto entities = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
-		for (auto& entity : entities)
-		{
-			Entity e = { entity, m_CurrentScene };
-			e.GetComponent<MeshComponent>().LoadMeshSource(rhi);
-		}
+		m_CurrentScene->SetScenePath(path);
+		m_CurrentScene->SetSceneLoaded(false);
 	}
 
 	void OpenSceneDialog()
@@ -170,13 +188,6 @@ public:
 		std::string path = OpenFileDialog("Eden Scene (.escene)\0*.escene\0");
 		if (!path.empty())
 			OpenScene(path);
-	}
-
-	void SaveScene()
-	{
-		ED_LOG_INFO("Saved scene: {}", m_CurrentScenePath);
-		SceneSerializer serializer(m_CurrentScene);
-		serializer.Serialize(m_CurrentScenePath);
 	}
 
 	void SaveSceneAs()
@@ -189,7 +200,22 @@ public:
 
 			SceneSerializer serializer(m_CurrentScene);
 			serializer.Serialize(path);
+			m_CurrentScene->SetScenePath(path);
+			ChangeWindowTitle(m_CurrentScene->GetName());
 		}
+	}
+
+	void SaveScene()
+	{
+		if (m_CurrentScene->GetScenePath().empty())
+		{
+			SaveSceneAs();
+			return;
+		}
+
+		ED_LOG_INFO("Saved scene: {}", m_CurrentScene->GetScenePath());
+		SceneSerializer serializer(m_CurrentScene);
+		serializer.Serialize(m_CurrentScene->GetScenePath());
 	}
 
 	void EntityMenu()
@@ -249,9 +275,7 @@ public:
 
 	void UI_Dockspace()
 	{
-		static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
-		// We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
-		// because it would be confusing to have two docking targets within each others.
+		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 		const ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -262,11 +286,6 @@ public:
 		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-		// Important: note that we proceed even if Begin() returns false (aka window is collapsed).
-		// This is because we want to keep our DockSpace() active. If a DockSpace() is inactive,
-		// all active windows docked into it will lose their parent and become undocked.
-		// We cannot preserve the docking relationship between an active window and an inactive docking, otherwise
-		// any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("EdenDockSpace", nullptr, window_flags);
 		ImGui::PopStyleVar(3);
@@ -360,7 +379,9 @@ public:
 				m_SelectedEntity = e;
 				if (ImGui::MenuItem("Delete", "Del"))
 				{
-					m_CurrentScene->DeleteEntity(m_SelectedEntity);
+					m_CurrentScene->AddPreparation([&]() {
+						m_CurrentScene->DeleteEntity(m_SelectedEntity);
+					});
 				}
 				ImGui::Separator();
 				EntityMenu();
@@ -380,7 +401,11 @@ public:
 		}
 
 		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
-			m_CurrentScene->DeleteEntity(m_SelectedEntity);
+		{
+			m_CurrentScene->AddPreparation([&]() {
+				m_CurrentScene->DeleteEntity(m_SelectedEntity);
+			});
+		}
 
 		ImGui::End();
 	}
@@ -503,7 +528,12 @@ public:
 			{
 				std::string new_path = OpenFileDialog("Model formats (.gltf, .glb)\0*.gltf;*.glb\0");
 				if (!new_path.empty())
-					mc.LoadMeshSource(rhi, new_path);
+				{
+					mc.mesh_path = new_path;
+					m_CurrentScene->AddPreparation([&]() {
+						mc.LoadMeshSource(rhi);
+					});
+				}
 			}
 		});
 
@@ -653,8 +683,6 @@ public:
 			UI_DrawGizmo();
 		if (m_OpenShadersPanel)
 			UI_PipelinesPanel();
-
-		
 	}
 
 	void EditorInput()
@@ -742,6 +770,7 @@ public:
 
 		UpdateDirectionalLights();
 		UpdatePointLights();
+		PrepareScene();
 
 		rhi->BeginRenderPass(m_GBuffer);
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
