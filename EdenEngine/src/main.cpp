@@ -167,6 +167,7 @@ public:
 			m_CurrentScene->SetScenePath(scene_to_load);
 		}
 		
+		m_SelectedEntity.Invalidate();
 		m_CurrentScene->SetSceneLoaded(true);
 		ChangeWindowTitle(m_CurrentScene->GetName());
 	}
@@ -364,11 +365,11 @@ public:
 	void UI_SceneHierarchy()
 	{
 		ImGui::Begin("Scene Hierarchy", &m_OpenSceneHierarchy, ImGuiWindowFlags_NoCollapse);
-		auto& entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
-		for (int i = entities.size() - 1; i >= 0; --i)
+		auto entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
+		// This loop is inversed because that way the last added entity shows at the bottom
+		for (int i = entities.size() - 1; i >= 0; --i) 
 		{
-			entt::entity entity = entities[i];
-			Entity e = { entity, m_CurrentScene };
+			Entity e = { entities[i], m_CurrentScene};
 			auto& tag = e.GetComponent<TagComponent>();
 			if (tag.tag.length() == 0) tag.tag = " "; // If the tag is empty add a space to it doesnt crash
 			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))

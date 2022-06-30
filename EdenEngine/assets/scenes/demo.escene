@@ -1,6 +1,6 @@
 Scene: demo
 Entities:
-  - Entity: 6
+  - Entity: 0
     TagComponent:
       Tag: Directional Light
     TransformComponent:
@@ -9,7 +9,7 @@ Entities:
       Scale: [1, 1, 1]
     DirectionalLightComponent:
       Intensity: 0.75
-  - Entity: 5
+  - Entity: 1
     TagComponent:
       Tag: Helmet
     TransformComponent:
@@ -17,8 +17,8 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     MeshComponent:
-      File Path: assets/Models/DamagedHelmet/DamagedHelmet.glb
-  - Entity: 4
+      File Path: E:\EdenEngine\EdenEngine\assets\models\DamagedHelmet\DamagedHelmet.glb
+  - Entity: 2
     TagComponent:
       Tag: Sphere
     TransformComponent:
@@ -36,7 +36,7 @@ Entities:
       Scale: [10, 0.200000003, 10]
     MeshComponent:
       File Path: assets/Models/basic/cube.glb
-  - Entity: 2
+  - Entity: 4
     TagComponent:
       Tag: RedLight
     TransformComponent:
@@ -48,7 +48,7 @@ Entities:
       Constant Value: 1
       Linear Value: 0.0900000036
       Quadratic Value: 0.0320000015
-  - Entity: 1
+  - Entity: 5
     TagComponent:
       Tag: GreenLight
     TransformComponent:
@@ -57,20 +57,6 @@ Entities:
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [0.068292737, 1, 0, 1]
-      Constant Value: 1
-      Linear Value: 0.0900000036
-      Quadratic Value: 0.0320000015
-  - Entity: 0
-    TagComponent:
-      Tag: Empty Entity
-    TransformComponent:
-      Translation: [0, 2.32665014, 1.10259068]
-      Rotation: [0, -0, 0]
-      Scale: [1, 1, 1]
-    MeshComponent:
-      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cylinder.glb
-    PointLightComponent:
-      Color: [1, 1, 1, 1]
       Constant Value: 1
       Linear Value: 0.0900000036
       Quadratic Value: 0.0320000015

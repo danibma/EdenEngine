@@ -3,6 +3,7 @@
 #include "Components.h"
 
 #include <filesystem>
+#include "entt\entt.hpp"
 
 namespace Eden
 {
@@ -35,14 +36,16 @@ namespace Eden
 		out << YAML::BeginMap;
 		out << YAML::Key << "Scene" << YAML::Value << scene_name;
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
-		m_Scene->m_Registry.each([&](auto entity_id) 
+		auto entities = m_Scene->GetAllEntitiesWith<TagComponent>();
+		// This loop is inversed so that it serializes the entities from 0 to ...
+		for (int i = entities.size() - 1; i >= 0; --i)
 		{
-			Entity entity = { entity_id, m_Scene };
+			Entity entity = { entities[i], m_Scene};
 			if (!entity)
 				return;
 
 			SerializeEntity(out, entity);
-		});
+		}
 		out << YAML::EndSeq;
 		out << YAML::EndMap;
 

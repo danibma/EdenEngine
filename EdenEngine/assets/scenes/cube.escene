@@ -1,0 +1,29 @@
+Scene: cube
+Entities:
+  - Entity: 0
+    TagComponent:
+      Tag: Sun
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0.230260938, 0.80498004, -2.02022314]
+      Scale: [1, 0.999998689, 0.999999523]
+    DirectionalLightComponent:
+      Intensity: 0.75
+  - Entity: 1
+    TagComponent:
+      Tag: Cube
+    TransformComponent:
+      Translation: [0, 4.20620108, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
+  - Entity: 2
+    TagComponent:
+      Tag: Floor
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [16.0927639, 0.313519388, 12.46]
+    MeshComponent:
+      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
