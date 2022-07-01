@@ -83,6 +83,19 @@ class EdenApplication : public Application
 	std::unordered_map<const char*, Texture2D> m_EditorIcons;
 	std::filesystem::path m_CurrentPath = s_AssetsDirectory;
 	std::vector<std::string> m_EdenExtensions;
+	char m_SearchBuffer[32] = "\0";
+	float m_ThumbnailPadding = 16.0f;
+	float m_ThumbnailSize = 91.0f;
+
+	struct DirectoryInfo
+	{
+		std::string filename;
+		std::string extension;
+		std::string path;
+		bool is_directory;
+		std::vector<DirectoryInfo> sub_directories;
+	} m_CurrentDirectory;
+
 
 	// Scene
 	Scene* m_CurrentScene = nullptr;
@@ -662,10 +675,15 @@ public:
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 		ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoTitleBar);
+
 		if (ImGui::IsWindowHovered())
 			Input::SetInputMode(InputMode::Game);
 		else
 			Input::SetInputMode(InputMode::UI);
+
+		// Focus window on right click
+		if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(1))
+			ImGui::SetWindowFocus();
 
 		auto viewport_size = ImGui::GetContentRegionAvail();
 		if (m_ViewportSize != *(glm::vec2*)&viewport_size)
@@ -673,10 +691,11 @@ public:
 			m_ViewportSize = { viewport_size.x, viewport_size.y };
 			m_GBuffer.width = m_ViewportSize.x;
 			m_GBuffer.height = m_ViewportSize.y;
-			m_Camera.SetViewportSize(viewport_size.x, viewport_size.y);
+			m_Camera.SetViewportSize(m_ViewportSize);
 		}
 		auto viewport_pos = ImGui::GetWindowPos();
 		m_ViewportPos = { viewport_pos.x, viewport_pos.y };
+		m_Camera.SetViewportPosition(m_ViewportPos);
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
@@ -742,15 +761,79 @@ public:
 			for (auto& p : std::filesystem::directory_iterator(directory))
 			{
 				if (p.is_directory())
-				{
 					DrawContentOutlinerFolder(p);
-				}
 			}
 
 			ImGui::TreePop();
 		}
 
 		ImGui::PopStyleVar();
+	}
+
+	void Search(const char* path)
+	{
+		for (auto& p : std::filesystem::directory_iterator(path))
+		{
+			DirectoryInfo info;
+			info.filename = p.path().filename().string();
+			info.extension = p.path().extension().string();
+			info.path = p.path().string();
+			info.is_directory = p.is_directory();
+
+			if (strstr(info.filename.c_str(), m_SearchBuffer) != nullptr)
+				DrawDirectory(info);
+
+			if (info.is_directory)
+				Search(info.path.c_str());
+		}
+	}
+
+	bool DrawDirectory(DirectoryInfo& info)
+	{
+		if (info.is_directory)
+		{
+			ImGui::PushID(info.filename.c_str());
+			ImGui::TableNextColumn();
+			ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(m_ThumbnailSize, m_ThumbnailSize));
+			if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
+				m_CurrentPath = info.path;
+		}
+		else
+		{
+			bool valid_extension = false;
+			for (auto& eden_extension : m_EdenExtensions)
+			{
+				if (info.extension == eden_extension)
+					valid_extension = true;
+			}
+
+			if (valid_extension)
+			{
+				ImGui::PushID(info.filename.c_str());
+				ImGui::TableNextColumn();
+				ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["File"]).ptr, ImVec2(m_ThumbnailSize, m_ThumbnailSize));
+				if (ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload(CONTENT_BROWSER_DRAG_DROP, info.path.c_str(), info.path.size() + 1);
+					ImGui::Text(info.filename.c_str());
+					ImGui::EndDragDropSource();
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		float middle_of_button = (m_ThumbnailSize + m_ThumbnailPadding) / 2;
+		float middle_of_text = ImGui::CalcTextSize(info.filename.c_str()).x / 2;
+		float button_padding = ImGui::GetStyle().FramePadding.x;
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + button_padding);
+		ImGui::TextWrapped(info.filename.c_str());
+		ImGui::PopID();
+
+		return false;
 	}
 
 	void UI_ContentBrowser()
@@ -764,15 +847,13 @@ public:
 
 			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
 			ImGui::BeginChild("##cb_outliner");
+			if (ImGui::CollapsingHeader("Content", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick))
 			{
-				if (ImGui::CollapsingHeader("Content", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick))
+				for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
 				{
-					for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
+					if (p.is_directory())
 					{
-						if (p.is_directory())
-						{
-							DrawContentOutlinerFolder(p);
-						}
+						DrawContentOutlinerFolder(p);
 					}
 				}
 			}
@@ -781,78 +862,49 @@ public:
 			ImGui::TableSetColumnIndex(1);
 
 			ImGui::BeginChild("##cb_items");
+			// Back Button
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 6));
+			if (ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Back"]).ptr,
+									ImVec2(20, 20), ImVec2(0, 0), ImVec2(1, 1), -1, ImVec4(0, 0, 0, 0),
+									ImVec4(1, 1, 1, 0.7f)))
 			{
-				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 6));
-				if (ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Back"]).ptr,
-									   ImVec2(20, 20), ImVec2(0, 0), ImVec2(1, 1), -1, ImVec4(0, 0, 0, 0),
-									   ImVec4(1, 1, 1, 0.7f)))
+				if (m_CurrentPath.string() != std::string(s_AssetsDirectory))
+					m_CurrentPath = m_CurrentPath.parent_path();
+			}
+			ImGui::PopStyleVar();
+			ImGui::SameLine();
+
+			// Search
+			ImGui::SetNextItemWidth(200.0f);
+			ImGui::InputTextWithHint("###search", "Search:", m_SearchBuffer, sizeof(m_SearchBuffer));
+			ImGui::Separator();
+
+			bool use_search = strcmp(m_SearchBuffer, "");
+			float cell_size = m_ThumbnailSize + m_ThumbnailPadding;
+			int column_count = (int)(ImGui::GetContentRegionAvail().x / cell_size);
+			if (ImGui::BeginTable(CONTENT_BROWSER_CONTENTS_COLUMN, column_count))
+			{
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+				if (use_search)
 				{
-					if (m_CurrentPath.string() != std::string(s_AssetsDirectory))
-						m_CurrentPath = m_CurrentPath.parent_path();
+					Search(m_CurrentPath.string().c_str());
 				}
-				ImGui::Separator();
-				ImGui::PopStyleVar();
-
-				float padding = 16.0f;
-				float thumbnail_size = 91.0f;
-				float cell_size = thumbnail_size + padding;
-
-				int column_count = (int)(ImGui::GetContentRegionAvail().x / cell_size);
-
-				if (ImGui::BeginTable(CONTENT_BROWSER_CONTENTS_COLUMN, column_count))
+				else
 				{
-					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 					for (auto& p : std::filesystem::directory_iterator(m_CurrentPath))
 					{
-						auto filename = p.path().filename().string();
-						auto extension = p.path().extension().string();
+						DirectoryInfo info;
+						info.filename = p.path().filename().string();
+						info.extension = p.path().extension().string();
+						info.path = p.path().string();
+						info.is_directory = p.is_directory();
 
-						if (p.is_directory())
-						{
-							ImGui::PushID(filename.c_str());
-							ImGui::TableNextColumn();
-							ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(thumbnail_size, thumbnail_size));
-							if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
-								m_CurrentPath = p.path();
-						}
-						else if (p.exists()) 
-						{
-							bool valid_extension = false;
-							for (auto& eden_extension : m_EdenExtensions)
-							{
-								if (extension == eden_extension)
-									valid_extension = true;
-							}
-
-							if (valid_extension)
-							{
-								ImGui::PushID(filename.c_str());
-								ImGui::TableNextColumn();
-								ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["File"]).ptr, ImVec2(thumbnail_size, thumbnail_size));
-								if (ImGui::BeginDragDropSource())
-								{
-									ImGui::SetDragDropPayload(CONTENT_BROWSER_DRAG_DROP, p.path().string().c_str(), p.path().string().size() + 1);
-									ImGui::Text(filename.c_str());
-									ImGui::EndDragDropSource();
-								}
-							}
-							else
-							{
-								continue;
-							}
-						}
-
-						float middle_of_button = (thumbnail_size + padding) / 2;
-						float middle_of_text = ImGui::CalcTextSize(filename.c_str()).x / 2;
-						float button_padding = ImGui::GetStyle().FramePadding.x;
-
-						ImGui::SetCursorPosX(ImGui::GetCursorPosX() + button_padding);
-						ImGui::TextWrapped(filename.c_str());
-						ImGui::PopID();
+						if (!DrawDirectory(info))
+							continue;
 					}
-					ImGui::PopStyleColor();
-					ImGui::EndTable();
 				}
+				ImGui::PopStyleColor();
+				ImGui::EndTable();
 			}
 			ImGui::EndChild();
 			ImGui::PopStyleColor();

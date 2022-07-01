@@ -13,7 +13,8 @@ namespace Eden
 		Camera(uint32_t viewport_width, uint32_t viewport_height);
 
 		void Update(float delta_time);
-		void SetViewportSize(float width, float height);
+		void SetViewportSize(glm::vec2 size);
+		void SetViewportPosition(glm::vec2 pos);
 
 	private:
 		void UpdateLookAt();
@@ -31,6 +32,7 @@ namespace Eden
 		bool m_FirstTimeMouse = true;
 		bool m_Locked = false;
 		glm::vec2 m_ViewportSize;
+		glm::vec2 m_ViewportPosition;
 	};
 
 }

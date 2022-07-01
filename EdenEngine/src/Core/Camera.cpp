@@ -30,7 +30,7 @@ namespace Eden
 		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
 			Input::SetCursorMode(CursorMode::Hidden);
-			SetCursorPos(m_ViewportSize.x / 2, m_ViewportSize.y / 2);
+			SetCursorPos((m_ViewportSize.x / 2) + m_ViewportPosition.x, (m_ViewportSize.y / 2) + m_ViewportPosition.y);
 
 			m_Locked = true;
 
@@ -60,10 +60,14 @@ namespace Eden
 		}
 	}
 
-	void Camera::SetViewportSize(float width, float height)
+	void Camera::SetViewportSize(glm::vec2 size)
 	{
-		m_ViewportSize.x = width;
-		m_ViewportSize.y = height;
+		m_ViewportSize = size;
+	}
+
+	void Camera::SetViewportPosition(glm::vec2 pos)
+	{
+		m_ViewportPosition = pos;
 	}
 
 	void Camera::UpdateLookAt()
