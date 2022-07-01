@@ -32,7 +32,7 @@ namespace Eden
 		bool m_FirstTimeMouse = true;
 		bool m_Locked = false;
 		glm::vec2 m_ViewportSize;
-		glm::vec2 m_ViewportPosition;
+		glm::vec2 m_ViewportPosition = {0, 0};
 	};
 
 }

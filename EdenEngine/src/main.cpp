@@ -166,6 +166,7 @@ public:
 		rhi->SetRTRenderPass(&m_GBuffer);
 	#endif
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
+		m_ViewportPos = { 0, 0 };
 	}
 
 	void PrepareScene()
