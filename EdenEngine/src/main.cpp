@@ -385,7 +385,9 @@ public:
 		// This loop is inversed because that way the last added entity shows at the bottom
 		for (int i = entities.size() - 1; i >= 0; --i) 
 		{
+
 			Entity e = { entities[i], m_CurrentScene};
+			ImGui::PushID(e.GetID());
 			auto& tag = e.GetComponent<TagComponent>();
 			if (tag.tag.length() == 0) tag.tag = " "; // If the tag is empty add a space to it doesnt crash
 			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
@@ -405,6 +407,8 @@ public:
 
 				ImGui::EndPopup();
 			}
+
+			ImGui::PopID();
 		}
 
 		// Scene hierarchy popup to create new entities
