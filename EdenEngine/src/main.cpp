@@ -59,6 +59,7 @@ class EdenApplication : public Application
 	// Skybox
 	MeshSource m_SkyboxCube;
 	Texture2D m_SkyboxTexture;
+	std::string m_SkyboxTexturePath = "assets/skyboxes/studio_garden.hdr";
 	struct SkyboxData
 	{
 		glm::mat4 view_projection_;
@@ -123,7 +124,7 @@ public:
 		std::string default_scene = "assets/scenes/demo.escene";
 		OpenScene(default_scene);
 		m_SkyboxCube.LoadGLTF(rhi, "assets/models/basic/cube.glb"); // TODO(Daniel): Create skybox class
-		m_SkyboxTexture = rhi->CreateTexture2D("assets/skyboxes/studio_garden.hdr");
+		m_SkyboxTexture = rhi->CreateTexture2D(m_SkyboxTexturePath);
 		m_SkyboxTexture.resource->SetName(L"Skybox texture");
 
 		// Lights
@@ -144,9 +145,9 @@ public:
 		m_EditorIcons["Back"] = rhi->CreateTexture2D("assets/editor/icon_back.png");
 
 		m_EdenExtensions.emplace_back(SceneSerializer::DefaultExtension);
-		m_EdenExtensions.emplace_back(".gltf"); // TODO: Add ability to drop a .gltf/.glb file into the viewport and it creates an entity with that mesh
+		m_EdenExtensions.emplace_back(".gltf");
 		m_EdenExtensions.emplace_back(".glb");
-		m_EdenExtensions.emplace_back(".hdr"); // TODO: Add ability to drop a .hdr file into the viewport and it creates loads that skybox
+		m_EdenExtensions.emplace_back(".hdr");
 	#else
 		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"GBuffer_");
 		rhi->SetRTRenderPass(&m_GBuffer);
@@ -676,6 +677,41 @@ public:
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
 		ImGui::Image((ImTextureID)rhi->GetTextureGPUHandle(m_GBuffer.render_targets[0]).ptr, viewport_size);
+
+		// Drag and drop
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (auto payload = ImGui::AcceptDragDropPayload(CONTENT_BROWSER_DRAG_DROP))
+			{
+				std::filesystem::path path = std::filesystem::path(reinterpret_cast<const char*>(payload->Data));
+				auto extension = path.extension().string();
+
+				// TODO: Find a way to not do this manually, like iterate through the vector in some way, idk...
+				if (extension == SceneSerializer::DefaultExtension)
+				{
+					OpenScene(path);
+				}
+				else if (extension == ".gltf" || extension == ".glb")
+				{
+					auto e = m_CurrentScene->CreateEntity(path.stem().string());
+					auto& mc = e.AddComponent<MeshComponent>();
+					mc.mesh_path = path.string();
+					m_CurrentScene->AddPreparation([&]() {
+						mc.LoadMeshSource(rhi);
+					});
+				} 
+				else if (extension == ".hdr")
+				{
+					m_SkyboxTexturePath = path.string();
+					m_CurrentScene->AddPreparation([&]() {
+						m_SkyboxTexture.Release();
+						m_SkyboxTexture = rhi->CreateTexture2D(m_SkyboxTexturePath);
+					});
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+
 		ImGui::End();
 		ImGui::PopStyleVar();
 	}
@@ -769,6 +805,7 @@ public:
 
 						if (p.is_directory())
 						{
+							ImGui::PushID(filename.c_str());
 							ImGui::TableNextColumn();
 							ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(thumbnail_size, thumbnail_size));
 							if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
@@ -785,8 +822,15 @@ public:
 
 							if (valid_extension)
 							{
+								ImGui::PushID(filename.c_str());
 								ImGui::TableNextColumn();
 								ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["File"]).ptr, ImVec2(thumbnail_size, thumbnail_size));
+								if (ImGui::BeginDragDropSource())
+								{
+									ImGui::SetDragDropPayload(CONTENT_BROWSER_DRAG_DROP, p.path().string().c_str(), p.path().string().size() + 1);
+									ImGui::Text(filename.c_str());
+									ImGui::EndDragDropSource();
+								}
 							}
 							else
 							{
@@ -800,6 +844,7 @@ public:
 
 						ImGui::SetCursorPosX(ImGui::GetCursorPosX() + button_padding);
 						ImGui::TextWrapped(filename.c_str());
+						ImGui::PopID();
 					}
 					ImGui::PopStyleColor();
 					ImGui::EndTable();
