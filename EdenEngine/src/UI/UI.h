@@ -7,6 +7,9 @@
 
 #include "ImGuizmo.h"
 
+#define CONTENT_BROWSER_COLUMN "CONTENT_BROWSER_COLUMN"
+#define CONTENT_BROWSER_CONTENTS_COLUMN "CONTENT_BROWSER_CONTENTS_COLUMN"
+
 namespace Eden::UI
 {
 	enum class Themes
@@ -32,7 +35,8 @@ namespace Eden::UI
 	void DrawVec3(const std::string& label, glm::vec3& values, float reset_value = 0.0f, float column_width = 100.0f);
 	void DrawColor(const std::string& label, glm::vec4& values, float column_width = 100.0f);
 	void DrawProperty(const std::string& label, float& value, float speed = 1.0f, float min = 0.0f, float max = 0.0f, float column_width = 100.0f);
-	
+	bool TreeNodeWithIcon(ImTextureID icon, ImVec2 size, const char* label, ImGuiTreeNodeFlags flags);
+
 	// Themes
 	static void Styles();
 	void CherryTheme();

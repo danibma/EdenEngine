@@ -22,6 +22,8 @@
 
 #define WITH_EDITOR 1
 
+constexpr char* s_AssetsDirectory = "assets";
+
 using namespace Eden;
 
 class EdenApplication : public Application
@@ -72,10 +74,14 @@ class EdenApplication : public Application
 	bool m_OpenSceneHierarchy = true;
 	bool m_OpenSceneProperties = true;
 	bool m_OpenShadersPanel = false;
+	bool m_OpenContentBrowser = true;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 	glm::vec2 m_ViewportSize;
 	glm::vec2 m_ViewportPos;
 	bool m_ViewportFocused = false;
+	std::unordered_map<const char*, Texture2D> m_EditorIcons;
+	std::filesystem::path m_CurrentPath = s_AssetsDirectory;
+	std::vector<std::string> m_EdenExtensions;
 
 	// Scene
 	Scene* m_CurrentScene = nullptr;
@@ -132,6 +138,15 @@ public:
 		m_ImGuiPass = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"ImGuiPass_", true);
 		rhi->SetRTRenderPass(&m_ImGuiPass);
 		rhi->EnableImGui();
+
+		m_EditorIcons["File"] = rhi->CreateTexture2D("assets/editor/file.png");
+		m_EditorIcons["Folder"] = rhi->CreateTexture2D("assets/editor/folder.png");
+		m_EditorIcons["Back"] = rhi->CreateTexture2D("assets/editor/icon_back.png");
+
+		m_EdenExtensions.emplace_back(SceneSerializer::DefaultExtension);
+		m_EdenExtensions.emplace_back(".gltf"); // TODO: Add ability to drop a .gltf/.glb file into the viewport and it creates an entity with that mesh
+		m_EdenExtensions.emplace_back(".glb");
+		m_EdenExtensions.emplace_back(".hdr"); // TODO: Add ability to drop a .hdr file into the viewport and it creates loads that skybox
 	#else
 		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"GBuffer_");
 		rhi->SetRTRenderPass(&m_GBuffer);
@@ -665,9 +680,142 @@ public:
 		ImGui::PopStyleVar();
 	}
 
+	void DrawContentOutlinerFolder(std::filesystem::directory_entry directory)
+	{
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
+
+		auto path = directory.path().string();
+		auto folder_name = directory.path().stem().string();
+
+		ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+
+		if (m_CurrentPath == directory.path())
+			base_flags |= ImGuiTreeNodeFlags_Selected;
+
+		bool node_open = UI::TreeNodeWithIcon((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(18, 18), folder_name.c_str(), base_flags);
+
+		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+			m_CurrentPath = directory.path();
+
+		if (node_open)
+		{
+			for (auto& p : std::filesystem::directory_iterator(directory))
+			{
+				if (p.is_directory())
+				{
+					DrawContentOutlinerFolder(p);
+				}
+			}
+
+			ImGui::TreePop();
+		}
+
+		ImGui::PopStyleVar();
+	}
+
+	void UI_ContentBrowser()
+	{
+		ImGui::Begin("Content Browser", nullptr, ImGuiWindowFlags_NoScrollbar);
+
+		if (ImGui::BeginTable(CONTENT_BROWSER_COLUMN, 2, ImGuiTableFlags_Resizable, ImVec2(ImGui::GetContentRegionAvail())))
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+
+			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+			ImGui::BeginChild("##cb_outliner");
+			{
+				if (ImGui::CollapsingHeader("Content", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick))
+				{
+					for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
+					{
+						if (p.is_directory())
+						{
+							DrawContentOutlinerFolder(p);
+						}
+					}
+				}
+			}
+			ImGui::EndChild();
+
+			ImGui::TableSetColumnIndex(1);
+
+			ImGui::BeginChild("##cb_items");
+			{
+				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 6));
+				if (ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Back"]).ptr,
+									   ImVec2(20, 20), ImVec2(0, 0), ImVec2(1, 1), -1, ImVec4(0, 0, 0, 0),
+									   ImVec4(1, 1, 1, 0.7f)))
+				{
+					if (m_CurrentPath.string() != std::string(s_AssetsDirectory))
+						m_CurrentPath = m_CurrentPath.parent_path();
+				}
+				ImGui::Separator();
+				ImGui::PopStyleVar();
+
+				float padding = 16.0f;
+				float thumbnail_size = 91.0f;
+				float cell_size = thumbnail_size + padding;
+
+				int column_count = (int)(ImGui::GetContentRegionAvail().x / cell_size);
+
+				if (ImGui::BeginTable(CONTENT_BROWSER_CONTENTS_COLUMN, column_count))
+				{
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+					for (auto& p : std::filesystem::directory_iterator(m_CurrentPath))
+					{
+						auto filename = p.path().filename().string();
+						auto extension = p.path().extension().string();
+
+						if (p.is_directory())
+						{
+							ImGui::TableNextColumn();
+							ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(thumbnail_size, thumbnail_size));
+							if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
+								m_CurrentPath = p.path();
+						}
+						else if (p.exists()) 
+						{
+							bool valid_extension = false;
+							for (auto& eden_extension : m_EdenExtensions)
+							{
+								if (extension == eden_extension)
+									valid_extension = true;
+							}
+
+							if (valid_extension)
+							{
+								ImGui::TableNextColumn();
+								ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["File"]).ptr, ImVec2(thumbnail_size, thumbnail_size));
+							}
+							else
+							{
+								continue;
+							}
+						}
+
+						float middle_of_button = (thumbnail_size + padding) / 2;
+						float middle_of_text = ImGui::CalcTextSize(filename.c_str()).x / 2;
+						float button_padding = ImGui::GetStyle().FramePadding.x;
+
+						ImGui::SetCursorPosX(ImGui::GetCursorPosX() + button_padding);
+						ImGui::TextWrapped(filename.c_str());
+					}
+					ImGui::PopStyleColor();
+					ImGui::EndTable();
+				}
+			}
+			ImGui::EndChild();
+			ImGui::PopStyleColor();
+			ImGui::EndTable();
+		}
+		
+		ImGui::End();
+	}
+
 	void UI_Render()
 	{
-		// ImGui::ShowDemoWindow(nullptr);
+		//ImGui::ShowDemoWindow(nullptr);
 
 		UI_Dockspace();
 		UI_Viewport();
@@ -683,6 +831,8 @@ public:
 			UI_DrawGizmo();
 		if (m_OpenShadersPanel)
 			UI_PipelinesPanel();
+		if (m_OpenContentBrowser)
+			UI_ContentBrowser();
 	}
 
 	void EditorInput()
@@ -860,6 +1010,11 @@ public:
 		m_SkyboxDataCB.Release();
 		m_SkyboxCube.Destroy();
 		m_SkyboxTexture.Release();
+
+	#if WITH_EDITOR
+		for (auto& icon : m_EditorIcons)
+			icon.second.Release();
+	#endif
 	}
 
 };
