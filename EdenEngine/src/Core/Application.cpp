@@ -8,6 +8,7 @@
 
 namespace Eden
 {
+	Application* Application::s_Instance;
 
 	Application::Application()
 	{
@@ -20,6 +21,8 @@ namespace Eden
 	#endif 
 
 		rhi = enew D3D12RHI(window);
+
+		s_Instance = this;
 	}
 
 	Application::~Application()
@@ -60,6 +63,11 @@ namespace Eden
 	std::string Application::SaveFileDialog(const char* filter /*= ""*/)
 	{
 		return Utils::SaveFileDialog(window->GetHandle(), filter);
+	}
+
+	Application* Application::Get()
+	{
+		return s_Instance;
 	}
 
 	void Application::ChangeWindowTitle(const std::string& title)

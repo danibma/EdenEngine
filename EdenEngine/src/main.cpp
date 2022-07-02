@@ -13,6 +13,8 @@
 #include "Scene/Components.h"
 #include "Scene/SceneSerializer.h"
 #include "Math/Math.h"
+#include "Editor/ContentBrowserPanel.h"
+#include "Editor/SceneHierarchy.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -21,8 +23,6 @@
 #include <vector>
 
 #define WITH_EDITOR 1
-
-constexpr char* s_AssetsDirectory = "assets";
 
 using namespace Eden;
 
@@ -65,41 +65,21 @@ class EdenApplication : public Application
 		glm::mat4 view_projection_;
 	} m_SkyboxData;
 	Buffer m_SkyboxDataCB;
-
 	bool m_SkyboxEnable = true;
 
 	// UI
 	bool m_OpenDebugWindow = true;
-	bool m_OpenEntityProperties = true;
-	bool m_CloseApp = false;
-	bool m_OpenSceneHierarchy = true;
 	bool m_OpenSceneProperties = true;
 	bool m_OpenShadersPanel = false;
-	bool m_OpenContentBrowser = true;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 	glm::vec2 m_ViewportSize;
 	glm::vec2 m_ViewportPos;
 	bool m_ViewportFocused = false;
-	std::unordered_map<const char*, Texture2D> m_EditorIcons;
-	std::filesystem::path m_CurrentPath = s_AssetsDirectory;
-	std::vector<std::string> m_EdenExtensions;
-	char m_SearchBuffer[32] = "\0";
-	float m_ThumbnailPadding = 16.0f;
-	float m_ThumbnailSize = 91.0f;
-
-	struct DirectoryInfo
-	{
-		std::string filename;
-		std::string extension;
-		std::string path;
-		bool is_directory;
-		std::vector<DirectoryInfo> sub_directories;
-	} m_CurrentDirectory;
-
+	std::unique_ptr<ContentBrowserPanel> m_ContentBrowserPanel;
+	std::unique_ptr<SceneHierarchy> m_SceneHierarchy;
 
 	// Scene
 	Scene* m_CurrentScene = nullptr;
-	Entity m_SelectedEntity;
 
 	// Rendering
 	RenderPass m_GBuffer;
@@ -153,14 +133,8 @@ public:
 		rhi->SetRTRenderPass(&m_ImGuiPass);
 		rhi->EnableImGui();
 
-		m_EditorIcons["File"] = rhi->CreateTexture2D("assets/editor/file.png");
-		m_EditorIcons["Folder"] = rhi->CreateTexture2D("assets/editor/folder.png");
-		m_EditorIcons["Back"] = rhi->CreateTexture2D("assets/editor/icon_back.png");
-
-		m_EdenExtensions.emplace_back(SceneSerializer::DefaultExtension);
-		m_EdenExtensions.emplace_back(".gltf");
-		m_EdenExtensions.emplace_back(".glb");
-		m_EdenExtensions.emplace_back(".hdr");
+		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>(rhi);
+		m_SceneHierarchy = std::make_unique<SceneHierarchy>(rhi, m_CurrentScene);
 	#else
 		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"GBuffer_");
 		rhi->SetRTRenderPass(&m_GBuffer);
@@ -179,9 +153,10 @@ public:
 
 		auto scene_to_load = m_CurrentScene->GetScenePath();
 
-		m_SelectedEntity.Invalidate();
+		m_CurrentScene->GetSelectedEntity().Invalidate();
 		edelete m_CurrentScene;
 		m_CurrentScene = enew Scene();
+		m_SceneHierarchy->SetCurrentScene(m_CurrentScene);
 
 		if (!scene_to_load.empty())
 		{
@@ -249,61 +224,6 @@ public:
 		serializer.Serialize(m_CurrentScene->GetScenePath());
 	}
 
-	void EntityMenu()
-	{
-		if (ImGui::MenuItem("Create Empty Entity"))
-		{
-			m_CurrentScene->CreateEntity();
-
-			ImGui::CloseCurrentPopup();
-		}
-
-		if (ImGui::BeginMenu("3D Object"))
-		{
-			if (ImGui::MenuItem("Cube"))
-			{
-				auto e = m_CurrentScene->CreateEntity("Cube");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/cube.glb");
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			if (ImGui::MenuItem("Plane"))
-			{
-				auto e = m_CurrentScene->CreateEntity("Plane");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/plane.glb");
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			if (ImGui::MenuItem("Sphere"))
-			{
-				auto e = m_CurrentScene->CreateEntity("Sphere");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/sphere.glb");
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			if (ImGui::MenuItem("Cone"))
-			{
-				auto e = m_CurrentScene->CreateEntity("Cone");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/cone.glb");
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			if (ImGui::MenuItem("Cylinder"))
-			{
-				auto e = m_CurrentScene->CreateEntity("Cylinder");
-				e.AddComponent<MeshComponent>().LoadMeshSource(rhi, "assets/models/basic/cylinder.glb");
-
-				ImGui::CloseCurrentPopup();
-			}
-
-			ImGui::EndMenu();
-		}
-	}
-
 	void UI_Dockspace()
 	{
 		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
@@ -355,17 +275,18 @@ public:
 			if (ImGui::BeginMenu("View"))
 			{
 				ImGui::MenuItem("Debug", NULL, &m_OpenDebugWindow);
-				ImGui::MenuItem("Entity Properties", NULL, &m_OpenEntityProperties);
-				ImGui::MenuItem("Scene Hierarchy", NULL, &m_OpenSceneHierarchy);
+				ImGui::MenuItem("Entity Properties", NULL, &m_SceneHierarchy->open_entity_properties);
+				ImGui::MenuItem("Scene Hierarchy", NULL, &m_SceneHierarchy->open_scene_hierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
 				ImGui::MenuItem("Shaders Panel", NULL, &m_OpenShadersPanel);
+				ImGui::MenuItem("ContentBrowser", NULL, &m_ContentBrowserPanel->open_content_browser);
 
 				ImGui::EndMenu();
 			}
 
 			if (ImGui::BeginMenu("Entity"))
 			{
-				EntityMenu();
+				m_SceneHierarchy->EntityMenu();
 				ImGui::EndMenu();
 			}
 
@@ -389,216 +310,6 @@ public:
 			ImGui::EndMenuBar();
 		}
 
-		ImGui::End();
-	}
-
-	void UI_SceneHierarchy()
-	{
-		ImGui::Begin("Scene Hierarchy", &m_OpenSceneHierarchy, ImGuiWindowFlags_NoCollapse);
-		auto entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
-		// This loop is inversed because that way the last added entity shows at the bottom
-		for (int i = entities.size() - 1; i >= 0; --i) 
-		{
-
-			Entity e = { entities[i], m_CurrentScene};
-			ImGui::PushID(e.GetID());
-			auto& tag = e.GetComponent<TagComponent>();
-			if (tag.tag.length() == 0) tag.tag = " "; // If the tag is empty add a space to it doesnt crash
-			if (ImGui::Selectable(tag.tag.c_str(), m_SelectedEntity == e))
-				m_SelectedEntity = e;
-
-			if (ImGui::BeginPopupContextItem())
-			{
-				m_SelectedEntity = e;
-				if (ImGui::MenuItem("Delete", "Del"))
-				{
-					m_CurrentScene->AddPreparation([&]() {
-						m_CurrentScene->DeleteEntity(m_SelectedEntity);
-					});
-				}
-				ImGui::Separator();
-				EntityMenu();
-
-				ImGui::EndPopup();
-			}
-
-			ImGui::PopID();
-		}
-
-		// Scene hierarchy popup to create new entities
-		if (Input::GetMouseButton(ED_MOUSE_RIGHT) && ImGui::IsWindowHovered())
-			ImGui::OpenPopup("hierarchy_popup");
-
-		if (ImGui::BeginPopup("hierarchy_popup"))
-		{
-			EntityMenu();
-			ImGui::EndPopup();
-		}
-
-		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
-		{
-			m_CurrentScene->AddPreparation([&]() {
-				m_CurrentScene->DeleteEntity(m_SelectedEntity);
-			});
-		}
-
-		ImGui::End();
-	}
-
-	template <typename T>
-	void DrawComponentProperty(const char* title, std::function<void()> func)
-	{
-		if (m_SelectedEntity.HasComponent<T>())
-		{
-			ImGui::PushID((void*)typeid(T).hash_code());
-
-			bool open = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap);
-			ImGui::SameLine(ImGui::GetWindowWidth() - 25.0f);
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-			if (ImGui::Button("...", ImVec2(20, 19)))
-			{
-				ImGui::OpenPopup("component_settings");
-			}
-			ImGui::PopStyleColor();
-
-			if (ImGui::BeginPopup("component_settings"))
-			{
-				bool remove_component = true;
-				if (std::is_same<T, TransformComponent>::value)
-					remove_component = false;
-
-				if (ImGui::MenuItem("Remove Component", nullptr, false, remove_component))
-				{
-					m_SelectedEntity.RemoveComponent<T>();
-					open = false;
-
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
-			ImGui::PopID();
-
-			if (open)
-				func();
-
-		}
-	}
-
-	void UI_EntityProperties()
-	{
-		ImGui::Begin("Entity Properties", &m_OpenEntityProperties, ImGuiWindowFlags_NoCollapse);
-		if (!m_SelectedEntity) goto end;
-
-		if (m_SelectedEntity.HasComponent<TagComponent>())
-		{
-			auto& tag = m_SelectedEntity.GetComponent<TagComponent>().tag;
-			constexpr size_t num_chars = 256;
-			char buffer[num_chars];
-			strcpy_s(buffer, tag.c_str());
-			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
-			if (ImGui::InputText("##Tag", buffer, num_chars))
-				tag = std::string(buffer);
-			ImGui::PopItemWidth();
-		}
-		ImGui::SameLine();
-		{
-			if (UI::AlignedButton("Add Component", UI::Align::Right))
-				ImGui::OpenPopup("addc_popup");
-
-			if (ImGui::BeginPopup("addc_popup"))
-			{
-				bool mesh_component = !m_SelectedEntity.HasComponent<MeshComponent>();
-				bool light_component = !m_SelectedEntity.HasComponent<PointLightComponent>() && !m_SelectedEntity.HasComponent<DirectionalLightComponent>();
-
-				if (ImGui::MenuItem("Mesh Component", 0, false, mesh_component))
-				{
-					m_SelectedEntity.AddComponent<MeshComponent>();
-					ImGui::CloseCurrentPopup();
-				}
-
-				if (ImGui::MenuItem("Point Light Component", 0, false, light_component))
-				{
-					m_SelectedEntity.AddComponent<PointLightComponent>();
-					ImGui::CloseCurrentPopup();
-				}
-
-				if (ImGui::MenuItem("Directional Light Component", 0, false, light_component))
-				{
-					m_SelectedEntity.AddComponent<DirectionalLightComponent>();
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
-		}
-
-		DrawComponentProperty<TransformComponent>("Transform", [&]() {
-			auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
-			UI::DrawVec3("Translation", transform.translation);
-			glm::vec3 rotation = glm::degrees(transform.rotation);
-			UI::DrawVec3("Rotation", rotation);
-			transform.rotation = glm::radians(rotation);
-			UI::DrawVec3("Scale", transform.scale, 1.0f);
-		});
-
-		ImGui::Spacing();
-		ImGui::Spacing();
-
-		DrawComponentProperty<MeshComponent>("Mesh", [&]() {
-			auto& mc = m_SelectedEntity.GetComponent<MeshComponent>();
-
-			ImGui::Text("File Path");
-			ImGui::SameLine();
-			constexpr size_t num_chars = 256;
-			char buffer[num_chars];
-			memset(buffer, 0, num_chars);
-			memcpy(buffer, mc.mesh_path.c_str(), mc.mesh_path.length());
-			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.9f);
-			ImGui::InputText("###meshpath", buffer, num_chars, ImGuiInputTextFlags_ReadOnly);
-			ImGui::PopItemWidth();
-			ImGui::SameLine();
-			if (UI::AlignedButton("...", UI::Align::Right))
-			{
-				std::string new_path = OpenFileDialog("Model formats (.gltf, .glb)\0*.gltf;*.glb\0");
-				if (!new_path.empty())
-				{
-					mc.mesh_path = new_path;
-					m_CurrentScene->AddPreparation([&]() {
-						mc.LoadMeshSource(rhi);
-					});
-				}
-			}
-		});
-
-		ImGui::Spacing();
-		ImGui::Spacing();
-
-		DrawComponentProperty<PointLightComponent>("Point Light", [&]() {
-			auto& pl = m_SelectedEntity.GetComponent<PointLightComponent>();
-			auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
-			
-			pl.position = glm::vec4(transform.translation, 1.0f);
-
-			UI::DrawColor("Color", pl.color);
-			UI::DrawProperty("Constant", pl.constant_value, 0.05f, 0.0f, 1.0f);
-			UI::DrawProperty("Linear", pl.linear_value, 0.05f, 0.0f, 1.0f);
-			UI::DrawProperty("Quadratic", pl.quadratic_value, 0.05f, 0.0f, 1.0f);
-		});
-
-		ImGui::Spacing();
-		ImGui::Spacing();
-
-		DrawComponentProperty<DirectionalLightComponent>("Directional Light", [&]() {
-			auto& dl = m_SelectedEntity.GetComponent<DirectionalLightComponent>();
-			auto& transform = m_SelectedEntity.GetComponent<TransformComponent>();
-
-			dl.direction = glm::vec4(transform.rotation, 1.0f);
-			
-			UI::DrawProperty("Intensity", dl.intensity, 0.05f, 0.0f, 1.0f);
-		});
-
-		end: // goto end
 		ImGui::End();
 	}
 
@@ -630,7 +341,7 @@ public:
 		float window_y = m_ViewportPos.y;
 		ImGuizmo::SetRect(window_x, window_y, window_width, window_height);
 
-		auto& transform_component = m_SelectedEntity.GetComponent<TransformComponent>();
+		auto& transform_component = m_CurrentScene->GetSelectedEntity().GetComponent<TransformComponent>();
 		glm::mat4 transform = transform_component.GetTransform();
 
 		ImGuizmo::Manipulate(glm::value_ptr(m_ViewMatrix), glm::value_ptr(m_ProjectionMatrix), static_cast<ImGuizmo::OPERATION>(m_GizmoType), ImGuizmo::LOCAL, glm::value_ptr(transform));
@@ -700,7 +411,7 @@ public:
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
-		ImGui::Image((ImTextureID)rhi->GetTextureGPUHandle(m_GBuffer.render_targets[0]).ptr, viewport_size);
+		ImGui::Image((ImTextureID)m_GBuffer.render_targets[0].gpu_handle.ptr, viewport_size);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -740,181 +451,6 @@ public:
 		ImGui::PopStyleVar();
 	}
 
-	void DrawContentOutlinerFolder(std::filesystem::directory_entry directory)
-	{
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-
-		auto path = directory.path().string();
-		auto folder_name = directory.path().stem().string();
-
-		ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
-
-		if (m_CurrentPath == directory.path())
-			base_flags |= ImGuiTreeNodeFlags_Selected;
-
-		bool node_open = UI::TreeNodeWithIcon((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(18, 18), folder_name.c_str(), base_flags);
-
-		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-			m_CurrentPath = directory.path();
-
-		if (node_open)
-		{
-			for (auto& p : std::filesystem::directory_iterator(directory))
-			{
-				if (p.is_directory())
-					DrawContentOutlinerFolder(p);
-			}
-
-			ImGui::TreePop();
-		}
-
-		ImGui::PopStyleVar();
-	}
-
-	void Search(const char* path)
-	{
-		for (auto& p : std::filesystem::directory_iterator(path))
-		{
-			DirectoryInfo info;
-			info.filename = p.path().filename().string();
-			info.extension = p.path().extension().string();
-			info.path = p.path().string();
-			info.is_directory = p.is_directory();
-
-			if (strstr(info.filename.c_str(), m_SearchBuffer) != nullptr)
-				DrawDirectory(info);
-
-			if (info.is_directory)
-				Search(info.path.c_str());
-		}
-	}
-
-	bool DrawDirectory(DirectoryInfo& info)
-	{
-		if (info.is_directory)
-		{
-			ImGui::PushID(info.filename.c_str());
-			ImGui::TableNextColumn();
-			ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Folder"]).ptr, ImVec2(m_ThumbnailSize, m_ThumbnailSize));
-			if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
-				m_CurrentPath = info.path;
-		}
-		else
-		{
-			bool valid_extension = false;
-			for (auto& eden_extension : m_EdenExtensions)
-			{
-				if (info.extension == eden_extension)
-					valid_extension = true;
-			}
-
-			if (valid_extension)
-			{
-				ImGui::PushID(info.filename.c_str());
-				ImGui::TableNextColumn();
-				ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["File"]).ptr, ImVec2(m_ThumbnailSize, m_ThumbnailSize));
-				if (ImGui::BeginDragDropSource())
-				{
-					ImGui::SetDragDropPayload(CONTENT_BROWSER_DRAG_DROP, info.path.c_str(), info.path.size() + 1);
-					ImGui::Text(info.filename.c_str());
-					ImGui::EndDragDropSource();
-				}
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		float middle_of_button = (m_ThumbnailSize + m_ThumbnailPadding) / 2;
-		float middle_of_text = ImGui::CalcTextSize(info.filename.c_str()).x / 2;
-		float button_padding = ImGui::GetStyle().FramePadding.x;
-
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + button_padding);
-		ImGui::TextWrapped(info.filename.c_str());
-		ImGui::PopID();
-
-		return false;
-	}
-
-	void UI_ContentBrowser()
-	{
-		ImGui::Begin("Content Browser", nullptr, ImGuiWindowFlags_NoScrollbar);
-
-		if (ImGui::BeginTable(CONTENT_BROWSER_COLUMN, 2, ImGuiTableFlags_Resizable, ImVec2(ImGui::GetContentRegionAvail())))
-		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-
-			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
-			ImGui::BeginChild("##cb_outliner");
-			if (ImGui::CollapsingHeader("Content", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick))
-			{
-				for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
-				{
-					if (p.is_directory())
-					{
-						DrawContentOutlinerFolder(p);
-					}
-				}
-			}
-			ImGui::EndChild();
-
-			ImGui::TableSetColumnIndex(1);
-
-			ImGui::BeginChild("##cb_items");
-			// Back Button
-			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 6));
-			if (ImGui::ImageButton((ImTextureID)rhi->GetTextureGPUHandle(m_EditorIcons["Back"]).ptr,
-									ImVec2(20, 20), ImVec2(0, 0), ImVec2(1, 1), -1, ImVec4(0, 0, 0, 0),
-									ImVec4(1, 1, 1, 0.7f)))
-			{
-				if (m_CurrentPath.string() != std::string(s_AssetsDirectory))
-					m_CurrentPath = m_CurrentPath.parent_path();
-			}
-			ImGui::PopStyleVar();
-			ImGui::SameLine();
-
-			// Search
-			ImGui::SetNextItemWidth(200.0f);
-			ImGui::InputTextWithHint("###search", "Search:", m_SearchBuffer, sizeof(m_SearchBuffer));
-			ImGui::Separator();
-
-			bool use_search = strcmp(m_SearchBuffer, "");
-			float cell_size = m_ThumbnailSize + m_ThumbnailPadding;
-			int column_count = (int)(ImGui::GetContentRegionAvail().x / cell_size);
-			if (ImGui::BeginTable(CONTENT_BROWSER_CONTENTS_COLUMN, column_count))
-			{
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-				if (use_search)
-				{
-					Search(m_CurrentPath.string().c_str());
-				}
-				else
-				{
-					for (auto& p : std::filesystem::directory_iterator(m_CurrentPath))
-					{
-						DirectoryInfo info;
-						info.filename = p.path().filename().string();
-						info.extension = p.path().extension().string();
-						info.path = p.path().string();
-						info.is_directory = p.is_directory();
-
-						if (!DrawDirectory(info))
-							continue;
-					}
-				}
-				ImGui::PopStyleColor();
-				ImGui::EndTable();
-			}
-			ImGui::EndChild();
-			ImGui::PopStyleColor();
-			ImGui::EndTable();
-		}
-		
-		ImGui::End();
-	}
-
 	void UI_Render()
 	{
 		//ImGui::ShowDemoWindow(nullptr);
@@ -923,18 +459,14 @@ public:
 		UI_Viewport();
 		if (m_OpenDebugWindow)
 			UI_DebugWindow();
-		if (m_OpenEntityProperties)
-			UI_EntityProperties();
-		if (m_OpenSceneHierarchy)
-			UI_SceneHierarchy();
 		if (m_OpenSceneProperties)
 			UI_SceneProperties();
-		if (m_SelectedEntity)
+		if (m_CurrentScene->GetSelectedEntity())
 			UI_DrawGizmo();
 		if (m_OpenShadersPanel)
 			UI_PipelinesPanel();
-		if (m_OpenContentBrowser)
-			UI_ContentBrowser();
+		m_ContentBrowserPanel->Render();
+		m_SceneHierarchy->Render();
 	}
 
 	void EditorInput()
@@ -1060,9 +592,9 @@ public:
 				{
 					if (textured)
 					{
-						if (submesh.diffuse_texture > -1)
+						if (submesh.diffuse_texture)
 							rhi->BindParameter("g_textureDiffuse", submesh.diffuse_texture);
-						if (submesh.emissive_texture > -1)
+						if (submesh.emissive_texture)
 							rhi->BindParameter("g_textureEmissive", submesh.emissive_texture);
 					}
 					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
@@ -1112,11 +644,6 @@ public:
 		m_SkyboxDataCB.Release();
 		m_SkyboxCube.Destroy();
 		m_SkyboxTexture.Release();
-
-	#if WITH_EDITOR
-		for (auto& icon : m_EditorIcons)
-			icon.second.Release();
-	#endif
 	}
 
 };

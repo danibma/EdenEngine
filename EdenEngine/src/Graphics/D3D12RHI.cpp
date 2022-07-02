@@ -465,7 +465,8 @@ namespace Eden
 
 			m_Device->CreateRenderTargetView(render_pass.render_targets[0].resource.Get(), nullptr, rtv_handle);
 
-			render_pass.render_targets[0].heap_offset = m_SRVHeapOffset;
+			render_pass.render_targets[0].cpu_handle = srv_handle;
+			render_pass.render_targets[0].gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 			render_pass.render_targets[0].width = width;
 			render_pass.render_targets[0].height = height;
 			m_Device->CreateShaderResourceView(render_pass.render_targets[0].resource.Get(), nullptr, srv_handle);
@@ -739,9 +740,9 @@ namespace Eden
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 
-		texture.heap_offset = m_SRVHeapOffset;
-		D3D12_CPU_DESCRIPTOR_HANDLE handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
-		m_Device->CreateShaderResourceView(texture.resource.Get(), &srv_desc, handle);
+		texture.cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+		m_Device->CreateShaderResourceView(texture.resource.Get(), &srv_desc, texture.cpu_handle);
+		texture.gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 
 		WaitForGPU();
 
@@ -823,24 +824,14 @@ namespace Eden
 	void D3D12RHI::BindParameter(const std::string& parameter_name, const Buffer buffer)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
-		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, buffer);
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, buffer.gpu_handle);
 	}
 
 	void D3D12RHI::BindParameter(const std::string& parameter_name, const Texture2D texture)
 	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
 		
-		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, texture);
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
-	}
-
-	void D3D12RHI::BindParameter(const std::string& parameter_name, const uint32_t heap_offset)
-	{
-		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
-
-		D3D12_GPU_DESCRIPTOR_HANDLE handle = GetGPUHandle(m_SRVHeap, heap_offset);
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, handle);
+		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, texture.gpu_handle);
 	}
 
 	void D3D12RHI::BeginRender()
@@ -1086,7 +1077,6 @@ namespace Eden
 		ED_ASSERT_LOG(render_pass.type == RenderPass::kRenderTexture, "Render pass cannot be resized because it isn't a render texture");
 
 		auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, render_pass.render_targets[0].heap_offset));
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(render_pass.rtv_heap));
 
 		D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -1106,7 +1096,7 @@ namespace Eden
 		render_pass.render_targets[0].height = height;
 		m_Viewport.Width = width;
 		m_Viewport.Height = height;
-		m_Device->CreateShaderResourceView(render_pass.render_targets[0].resource.Get(), nullptr, srv_handle);
+		m_Device->CreateShaderResourceView(render_pass.render_targets[0].resource.Get(), nullptr, render_pass.render_targets[0].cpu_handle);
 
 		// Create DSV
 		D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
@@ -1150,27 +1140,6 @@ namespace Eden
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
 		ED_PROFILE_GPU_FUNCTION("D3D12RHI::ChangeResourceState");
 		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, current_state, desired_state));
-	}
-
-	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetTextureGPUHandle(Texture2D& texture)
-	{
-		return GetGPUHandle(m_SRVHeap, texture.heap_offset);
-	}
-
-	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Texture2D texture)
-	{
-		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetGPUDescriptorHandleForHeapStart());
-		handle.Offset(texture.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-
-		return handle;
-	}
-
-	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Buffer buffer)
-	{
-		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetGPUDescriptorHandleForHeapStart());
-		handle.Offset(buffer.heap_offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-
-		return handle;
 	}
 
 	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset /*= 0*/)

@@ -72,4 +72,14 @@ namespace Eden
 		m_Preparations.emplace_back(preparation);
 	}
 
+	Entity Scene::GetSelectedEntity()
+	{
+		return { m_SelectedEntity, this };
+	}
+
+	void Scene::SetSelectedEntity(Entity entity)
+	{
+		m_SelectedEntity = entity;
+	}
+
 }

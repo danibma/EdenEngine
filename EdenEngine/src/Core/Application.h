@@ -18,6 +18,9 @@ namespace Eden
 		Timer timer;
 		float delta_time = 0.0f;
 
+	private:
+		static Application* s_Instance;
+
 	public:
 		Application();
 		~Application();
@@ -26,6 +29,8 @@ namespace Eden
 
 		std::string OpenFileDialog(const char* filter = "");
 		std::string SaveFileDialog(const char* filter = "");
+
+		static Application* Get();
 
 		void ChangeWindowTitle(const std::string& title);
 

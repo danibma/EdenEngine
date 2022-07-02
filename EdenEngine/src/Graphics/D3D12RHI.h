@@ -48,6 +48,8 @@ namespace Eden
 	{
 		ComPtr<ID3D12Resource> resource;
 		D3D12MA::Allocation* allocation = nullptr;
+		D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
+		D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
 
 		void Release()
 		{
@@ -59,6 +61,11 @@ namespace Eden
 					allocation->Release();
 			}
 		}
+
+		operator bool()
+		{
+			return resource;
+		}
 	};
 
 	struct Buffer : Resource
@@ -67,13 +74,7 @@ namespace Eden
 		uint32_t size;
 		uint32_t stride;
 		uint32_t count;
-		uint32_t heap_offset; // Used for srv's, like structured buffer
 		bool initialized_data = false;
-
-		operator bool()
-		{
-			return resource;
-		}
 	};
 
 	struct Texture2D : Resource
@@ -81,7 +82,6 @@ namespace Eden
 		uint64_t width;
 		uint32_t height;
 		DXGI_FORMAT format;
-		uint32_t heap_offset;
 	};
 
 	struct PipelineState
@@ -217,9 +217,9 @@ namespace Eden
 					srv_desc.Buffer.StructureByteStride = sizeof(TYPE);
 					srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-					buffer.heap_offset = m_SRVHeapOffset;
-					auto handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
-					m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, handle);
+					buffer.cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, buffer.cpu_handle);
+					buffer.gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 					m_SRVHeapOffset++;
 				}
 				break;
@@ -229,9 +229,9 @@ namespace Eden
 					cbv_desc.BufferLocation = buffer.resource->GetGPUVirtualAddress();
 					cbv_desc.SizeInBytes = size;
 
-					buffer.heap_offset = m_SRVHeapOffset;
-					auto handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
-					m_Device->CreateConstantBufferView(&cbv_desc, handle);
+					buffer.cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					m_Device->CreateConstantBufferView(&cbv_desc, buffer.cpu_handle);
+					buffer.gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 					m_SRVHeapOffset++;
 				}
 				break;
@@ -265,7 +265,6 @@ namespace Eden
 		void BindIndexBuffer(Buffer index_buffer);
 		void BindParameter(const std::string& parameter_name,Buffer buffer);
 		void BindParameter(const std::string& parameter_name,Texture2D texture);
-		void BindParameter(const std::string& parameter_name,uint32_t heap_offset);
 
 		void BeginRender();
 		void BeginRenderPass(RenderPass& render_pass);
@@ -285,14 +284,6 @@ namespace Eden
 		ID3D12Resource* GetCurrentRenderTarget(RenderPass& render_pass);
 		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE GetTextureGPUHandle(Texture2D& texture);
-
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Texture2D texture);
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, Buffer buffer);
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset = 0);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
-
 		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
 
@@ -306,6 +297,9 @@ namespace Eden
 		Buffer CreateBuffer(uint32_t size, const void* data);
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);
 		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shader_register, uint32_t register_space, D3D12_SHADER_VISIBILITY shader_visibility);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset = 0);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
 	};
 }
 

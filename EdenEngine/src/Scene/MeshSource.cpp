@@ -239,7 +239,7 @@ namespace Eden
 
 	}
 
-	uint32_t MeshSource::LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index)
+	Texture2D MeshSource::LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index)
 	{
 		tinygltf::Image& gltf_image = gltf_model.images[image_index];
 
@@ -267,7 +267,7 @@ namespace Eden
 			buffer = &gltf_image.image[0];
 		}
 
-		auto texture_id = textures.emplace_back(gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height)).heap_offset;
+		auto texture_id = textures.emplace_back(gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height));
 
 		if (delete_buffer)
 			edelete buffer;

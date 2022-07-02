@@ -24,6 +24,7 @@ namespace Eden
 		 * this way we dont modify or delete the resources during the frame
 		 */
 		std::vector<std::function<void()>> m_Preparations;
+		entt::entity m_SelectedEntity = entt::null;
 
 	public:
 		Scene() = default;
@@ -45,6 +46,9 @@ namespace Eden
 
 		void ExecutePreparations();
 		void AddPreparation(std::function<void()> preparation);
+
+		Entity GetSelectedEntity();
+		void SetSelectedEntity(Entity entity);
 
 		template<typename... Components>
 		auto GetAllEntitiesWith()

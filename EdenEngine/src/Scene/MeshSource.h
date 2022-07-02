@@ -33,8 +33,8 @@ namespace Eden
 		{
 			struct SubMesh
 			{
-				int32_t diffuse_texture = -1;
-				int32_t emissive_texture = -1;
+				Texture2D diffuse_texture;
+				Texture2D emissive_texture;
 				uint32_t vertex_start;
 				uint32_t index_start;
 				uint32_t index_count;
@@ -61,7 +61,7 @@ namespace Eden
 		}
 
 	private:
-		uint32_t LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index);
+		Texture2D LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index);
 	};
 }
 
