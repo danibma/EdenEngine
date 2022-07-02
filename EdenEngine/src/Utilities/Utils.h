@@ -77,7 +77,7 @@ namespace Eden::Utils
 		ofn.lpstrFilter = filter;
 		ofn.nFilterIndex = 1;
 		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-		if (GetOpenFileNameA(&ofn) == true)
+		if (GetOpenFileNameA(&ofn) == 1)
 			return ofn.lpstrFile;
 
 		return std::string();
@@ -95,7 +95,7 @@ namespace Eden::Utils
 		ofn.lpstrFilter = filter;
 		ofn.nFilterIndex = 1;
 		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-		if (GetSaveFileNameA(&ofn) == true)
+		if (GetSaveFileNameA(&ofn) == 1)
 			return ofn.lpstrFile;
 
 		return std::string();

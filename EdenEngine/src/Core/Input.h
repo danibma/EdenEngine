@@ -30,7 +30,7 @@ namespace Eden
 
 	public:
 		static void UpdateInput();
-		static void HandleInput(uint32_t message, uint32_t code, uint32_t lParam);
+		static void HandleInput(uint64_t message, uint64_t code, uint64_t lParam);
 
 		static void SetCursorMode(CursorMode mode);
 		static void SetMousePos(int64_t x, int64_t y);

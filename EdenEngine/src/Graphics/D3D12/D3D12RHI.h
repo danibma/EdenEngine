@@ -53,13 +53,19 @@ namespace Eden
 
 		void Release()
 		{
-			if (resource != nullptr)
-			{
-				resource->Release();
-				resource = nullptr;
-				if (allocation != nullptr)
-					allocation->Release();
-			}
+			//if (resource != nullptr)
+			//{
+			//	resource->Release();
+			//	resource = nullptr;
+			//	
+			//}
+			if (allocation != nullptr)
+				allocation->Release();
+		}
+
+		~Resource()
+		{
+			Release();
 		}
 
 		operator bool()
@@ -110,7 +116,7 @@ namespace Eden
 		ComPtr<ID3D12ShaderReflection> vertex_reflection;
 
 		// name, rootParameterIndex
-		std::unordered_map<std::string, size_t> root_parameter_indices;
+		std::unordered_map<std::string, uint32_t> root_parameter_indices;
 	};
 
 	struct DescriptorHeap
@@ -131,7 +137,7 @@ namespace Eden
 		std::shared_ptr<DescriptorHeap> dsv_heap;
 		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtv_desc;
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsv_desc;
-		Texture2D render_targets[s_FrameCount];
+		std::shared_ptr<Texture2D> render_targets[s_FrameCount];
 		ComPtr<ID3D12Resource> depth_stencil;
 		bool imgui = false;
 		Type type;
@@ -168,7 +174,7 @@ namespace Eden
 
 		D3D12_VERTEX_BUFFER_VIEW m_BoundVertexBuffer;
 		D3D12_INDEX_BUFFER_VIEW m_BoundIndexBuffer;
-		Pipeline m_BoundPipeline;
+		std::shared_ptr<Pipeline> m_BoundPipeline;
 
 		uint32_t m_SRVHeapOffset = 1;
 
@@ -179,7 +185,7 @@ namespace Eden
 		};
 
 		// Main Render Target Render pass
-		RenderPass* m_RTRenderPass;
+		std::shared_ptr<RenderPass> m_RTRenderPass;
 
 	public:
 		D3D12RHI(Window* window);
@@ -194,15 +200,15 @@ namespace Eden
 
 		// Template Helpers
 		template<typename TYPE>
-		Buffer CreateBuffer(void* data, uint32_t element_count, BufferType view_creation = BufferType::kCreateCBV)
+		std::shared_ptr<Buffer> CreateBuffer(void* data, uint32_t element_count, BufferType view_creation = BufferType::kCreateCBV)
 		{
 			uint32_t size = element_count * sizeof(TYPE);
 			if (view_creation == BufferType::kCreateCBV)
 				size = ALIGN(size, 256);
 			 
-			Buffer buffer = CreateBuffer(size, data);
-			buffer.stride = (uint32_t)sizeof(TYPE);
-			buffer.count = element_count;
+			std::shared_ptr<Buffer> buffer = CreateBuffer(size, data);
+			buffer->stride = (uint32_t)sizeof(TYPE);
+			buffer->count = element_count;
 
 			switch (view_creation)
 			{
@@ -217,21 +223,21 @@ namespace Eden
 					srv_desc.Buffer.StructureByteStride = sizeof(TYPE);
 					srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-					buffer.cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
-					m_Device->CreateShaderResourceView(buffer.resource.Get(), &srv_desc, buffer.cpu_handle);
-					buffer.gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
+					buffer->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					m_Device->CreateShaderResourceView(buffer->resource.Get(), &srv_desc, buffer->cpu_handle);
+					buffer->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 					m_SRVHeapOffset++;
 				}
 				break;
 			case BufferType::kCreateCBV:
 				{
 					D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-					cbv_desc.BufferLocation = buffer.resource->GetGPUVirtualAddress();
+					cbv_desc.BufferLocation = buffer->resource->GetGPUVirtualAddress();
 					cbv_desc.SizeInBytes = size;
 
-					buffer.cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
-					m_Device->CreateConstantBufferView(&cbv_desc, buffer.cpu_handle);
-					buffer.gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
+					buffer->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					m_Device->CreateConstantBufferView(&cbv_desc, buffer->cpu_handle);
+					buffer->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 					m_SRVHeapOffset++;
 				}
 				break;
@@ -243,33 +249,33 @@ namespace Eden
 		}
 
 		template<typename TYPE>
-		void UpdateBuffer(Buffer& buffer, void* data, const uint32_t element_count)
+		void UpdateBuffer(std::shared_ptr<Buffer>& buffer, void* data, const size_t element_count)
 		{
-			if (!buffer.initialized_data)
-				buffer.resource->Map(0, nullptr, &buffer.data);
-			memcpy(buffer.data, data, sizeof(TYPE) * element_count);
+			if (!buffer->initialized_data)
+				buffer->resource->Map(0, nullptr, &buffer->data);
+			memcpy(buffer->data, data, sizeof(TYPE) * element_count);
 		}
 
-		[[nodiscard]] Pipeline CreateGraphicsPipeline(std::string program_name, PipelineState draw_state = PipelineState());
-		[[nodiscard]] Texture2D CreateTexture2D(std::string file_path);
-		[[nodiscard]] Texture2D CreateTexture2D(unsigned char* texture_data, uint64_t width, uint32_t height);
-		[[nodiscard]] RenderPass CreateRenderPass(RenderPass::Type type, std::wstring name = L"", bool imgui = false);
+		[[nodiscard]] std::shared_ptr<Pipeline> CreateGraphicsPipeline(std::string program_name, PipelineState draw_state = PipelineState());
+		[[nodiscard]] std::shared_ptr<Texture2D> CreateTexture2D(std::string file_path);
+		[[nodiscard]] std::shared_ptr<Texture2D> CreateTexture2D(unsigned char* texture_data, uint64_t width, uint32_t height);
+		[[nodiscard]] std::shared_ptr<RenderPass> CreateRenderPass(RenderPass::Type type, std::wstring name = L"", bool imgui = false);
 
-		void ReloadPipeline(Pipeline& pipeline);
+		void ReloadPipeline(std::shared_ptr<Pipeline>& pipeline);
 
 		void EnableImGui();
 		void ImGuiNewFrame();
 
-		void BindPipeline(const Pipeline& pipeline);
-		void BindVertexBuffer(Buffer vertex_buffer);
-		void BindIndexBuffer(Buffer index_buffer);
-		void BindParameter(const std::string& parameter_name,Buffer buffer);
-		void BindParameter(const std::string& parameter_name,Texture2D texture);
+		void BindPipeline(const std::shared_ptr<Pipeline>& pipeline);
+		void BindVertexBuffer(std::shared_ptr<Buffer>& vertex_buffer);
+		void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer);
+		void BindParameter(const std::string& parameter_name, const std::shared_ptr<Buffer>& buffer);
+		void BindParameter(const std::string& parameter_name, const std::shared_ptr<Texture2D>& texture);
 
 		void BeginRender();
-		void BeginRenderPass(RenderPass& render_pass);
-		void SetRTRenderPass(RenderPass* render_pass);
-		void EndRenderPass(RenderPass& render_pass);
+		void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass);
+		void SetRTRenderPass(std::shared_ptr<RenderPass>& render_pass);
+		void EndRenderPass(std::shared_ptr<RenderPass>& render_pass);
 		void EndRender();
 
 		void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0);
@@ -277,11 +283,11 @@ namespace Eden
 
 		void Render();
 		void Resize(uint32_t width, uint32_t height);
-		void ResizeRenderPassTexture(RenderPass& render_pass, uint32_t width, uint32_t height);
+		void ResizeRenderPassTexture(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height);
 
 		uint32_t GetCurrentFrameIndex();
 
-		ID3D12Resource* GetCurrentRenderTarget(RenderPass& render_pass);
+		ID3D12Resource* GetCurrentRenderTarget(std::shared_ptr<RenderPass>& render_pass);
 		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
 
 		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
@@ -291,10 +297,10 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		void CreateBackBuffers(RenderPass& render_pass, uint32_t width, uint32_t height);
-		size_t GetRootParameterIndex(const std::string& parameter_name);
-		void CreateRootSignature(Pipeline& pipeline);
-		Buffer CreateBuffer(uint32_t size, const void* data);
+		void CreateBackBuffers(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height);
+		uint32_t GetRootParameterIndex(const std::string& parameter_name);
+		void CreateRootSignature(std::shared_ptr<Pipeline>& pipeline);
+		std::shared_ptr<Buffer> CreateBuffer(uint32_t size, const void* data);
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);
 		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shader_register, uint32_t register_space, D3D12_SHADER_VISIBILITY shader_visibility);
 

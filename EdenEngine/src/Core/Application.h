@@ -2,6 +2,7 @@
 #include <string>
 
 #include "Profiling/Timer.h"
+#include <memory>
 
 namespace Eden
 {
@@ -12,7 +13,7 @@ namespace Eden
 	{
 	protected:
 		Window* window;
-		D3D12RHI* rhi;
+		std::shared_ptr<D3D12RHI> rhi;
 
 		// Timer stuff
 		Timer timer;

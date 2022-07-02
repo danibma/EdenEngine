@@ -1,6 +1,6 @@
 #include "UI.h"
 #include "glm/gtc/type_ptr.hpp"
-#include "Graphics/D3D12RHI.h"
+#include "Graphics/D3D12/D3D12RHI.h"
 
 namespace Eden::UI
 {
@@ -17,6 +17,8 @@ namespace Eden::UI
 		case Align::Right:
 			return 0.95f;
 			break;
+		default:
+			return 0.0f;
 		}
 	}
 

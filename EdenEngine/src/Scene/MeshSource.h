@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Graphics/D3D12RHI.h"
+#include "Graphics/D3D12/D3D12RHI.h"
 
 #include <functional>
 #include <vector>
@@ -33,8 +33,8 @@ namespace Eden
 		{
 			struct SubMesh
 			{
-				Texture2D diffuse_texture;
-				Texture2D emissive_texture;
+				std::shared_ptr<Texture2D> diffuse_texture;
+				std::shared_ptr<Texture2D> emissive_texture;
 				uint32_t vertex_start;
 				uint32_t index_start;
 				uint32_t index_count;
@@ -46,13 +46,15 @@ namespace Eden
 
 		uint32_t vertex_count;
 		uint32_t index_count;
-		Buffer mesh_vb;
-		Buffer mesh_ib;
-		Buffer transform_cb;
+		std::shared_ptr<Buffer> mesh_vb;
+		std::shared_ptr<Buffer> mesh_ib;
+		std::shared_ptr<Buffer> transform_cb;
 		std::vector<Mesh> meshes;
-		std::vector<Texture2D> textures;
+		std::vector<std::shared_ptr<Texture2D>> textures;
+		bool has_mesh = false;
 
-		void LoadGLTF(D3D12RHI* gfx, std::filesystem::path file);
+		MeshSource() = default;
+		void LoadGLTF(std::shared_ptr<D3D12RHI>& gfx, std::filesystem::path file);
 		void Destroy();
 
 		~MeshSource()
@@ -61,7 +63,7 @@ namespace Eden
 		}
 
 	private:
-		Texture2D LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index);
+		std::shared_ptr<Texture2D> LoadImage(std::shared_ptr<D3D12RHI>& gfx, tinygltf::Model& gltf_model, int32_t image_index);
 	};
 }
 

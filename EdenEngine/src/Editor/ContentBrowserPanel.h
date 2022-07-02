@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <unordered_map>
 
-#include <Graphics/D3D12RHI.h>
+#include "Graphics/D3D12/D3D12RHI.h"
 
 #define CONTENT_BROWSER_COLUMN "CONTENT_BROWSER_COLUMN"
 #define CONTENT_BROWSER_CONTENTS_COLUMN "CONTENT_BROWSER_CONTENTS_COLUMN"
@@ -26,7 +26,7 @@ namespace Eden
 	{
 	public:
 		ContentBrowserPanel() = default;
-		ContentBrowserPanel(D3D12RHI* rhi);
+		ContentBrowserPanel(std::shared_ptr<D3D12RHI>& rhi);
 		~ContentBrowserPanel();
 		void Render();
 
@@ -36,7 +36,7 @@ namespace Eden
 		bool DrawDirectory(DirectoryInfo& info);
 
 	private:
-		std::unordered_map<const char*, Texture2D> m_EditorIcons;
+		std::unordered_map<const char*, std::shared_ptr<Texture2D>> m_EditorIcons;
 		std::filesystem::path m_CurrentPath = s_AssetsDirectory;
 		std::vector<std::string> m_EdenExtensions;
 		char m_SearchBuffer[32] = "\0";

@@ -38,7 +38,8 @@ namespace Eden
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 		auto entities = m_Scene->GetAllEntitiesWith<TagComponent>();
 		// This loop is inversed so that it serializes the entities from 0 to ...
-		for (int i = entities.size() - 1; i >= 0; --i)
+		int num_entities = static_cast<int>(entities.size() - 1);
+		for (int i = num_entities; i >= 0; --i)
 		{
 			Entity entity = { entities[i], m_Scene};
 			if (!entity)

@@ -19,7 +19,7 @@ namespace Eden
 		memcpy(s_PreviousKeyDown, s_KeyDown, sizeof(s_KeyDown));
 	}
 
-	void Input::HandleInput(const uint32_t message, const uint32_t code, const uint32_t lParam)
+	void Input::HandleInput(uint64_t message, uint64_t code, uint64_t lParam)
 	{
 		switch (message)
 		{
@@ -134,7 +134,7 @@ namespace Eden
 		if (mode == CursorMode::Visible)
 		{
 			SetCursor(LoadCursor(GetModuleHandle(0), IDC_ARROW));
-			SetCursorPos(s_MousePos.first, s_MousePos.second + 25.0f);
+			SetMousePos(s_MousePos.first, s_MousePos.second + 25);
 		}
 		else
 		{
@@ -144,11 +144,7 @@ namespace Eden
 
 	void Input::SetMousePos(int64_t x, int64_t y)
 	{
-		if (GetCursorMode() == CursorMode::Hidden)
-			s_RelativeMousePos = { x, y };
-		else
-			s_MousePos = { x, y };
-		
+		SetCursorPos(static_cast<int>(x), static_cast<int>(y));
 	}
 
 	void Input::SetInputMode(InputMode mode)

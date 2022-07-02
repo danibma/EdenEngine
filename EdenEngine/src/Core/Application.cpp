@@ -1,7 +1,7 @@
 #include "Application.h"
 #include "Log.h"
 #include "Window.h"
-#include "Graphics/D3D12RHI.h"
+#include "Graphics/D3D12/D3D12RHI.h"
 #include "Memory.h"
 #include "Profiling/Profiler.h"
 #include "Utilities/Utils.h"
@@ -20,14 +20,13 @@ namespace Eden
 		window = enew Window("Eden Engine", 1600, 900);
 	#endif 
 
-		rhi = enew D3D12RHI(window);
+		rhi = std::make_shared<D3D12RHI>(window);
 
 		s_Instance = this;
 	}
 
 	Application::~Application()
 	{
-		edelete rhi;
 		edelete window;
 		Log::Shutdown();
 	}

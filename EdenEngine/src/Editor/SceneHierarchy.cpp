@@ -18,7 +18,8 @@ namespace Eden
 		auto selected_entity = m_CurrentScene->GetSelectedEntity();
 
 		// This loop is inversed because that way the last added entity shows at the bottom
-		for (int i = entities.size() - 1; i >= 0; --i)
+		int num_entities = static_cast<int>(entities.size() - 1);
+		for (int i = num_entities; i >= 0; --i)
 		{
 
 			Entity e = { entities[i], m_CurrentScene };
@@ -285,7 +286,7 @@ namespace Eden
 		ImGui::End();
 	}
 
-	SceneHierarchy::SceneHierarchy(D3D12RHI* rhi, Scene* current_scene)
+	SceneHierarchy::SceneHierarchy(std::shared_ptr<D3D12RHI>& rhi, Scene* current_scene)
 	{
 		m_RHI = rhi;
 		m_CurrentScene = current_scene;

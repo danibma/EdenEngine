@@ -2,6 +2,7 @@
 
 #include <stb/stb_image.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBI_MSC_SECURE_CRT
 #include <stb/stb_image_write.h>
 
 #define TINYGLTF_USE_CPP14
@@ -15,10 +16,11 @@
 namespace Eden
 {
 	// Based on Sascha Willems gltfloading.cpp
-	void MeshSource::LoadGLTF(D3D12RHI* rhi, std::filesystem::path file)
+	void MeshSource::LoadGLTF(std::shared_ptr<D3D12RHI>& rhi, std::filesystem::path file)
 	{
-		// Reset the mesh source
-		Destroy();
+		// Destroy the current mesh source
+		if (has_mesh)
+			Destroy();
 
 		glm::mat4 identity = glm::mat4(1.0f);
 		transform_cb = rhi->CreateBuffer<glm::mat4>(&identity, 1);
@@ -218,6 +220,8 @@ namespace Eden
 		mesh_vb = rhi->CreateBuffer<VertexData>(vertices.data(), vertex_count, D3D12RHI::BufferType::kDontCreateView);
 		mesh_ib = rhi->CreateBuffer<uint32_t>(indices.data(), index_count, D3D12RHI::BufferType::kDontCreateView);
 
+		has_mesh = true;
+
 		ED_LOG_INFO("	{} nodes were loaded!", gltf_model.nodes.size());
 		ED_LOG_INFO("	{} meshes were loaded!", gltf_model.meshes.size());
 		ED_LOG_INFO("	{} textures were loaded!", gltf_model.textures.size());
@@ -227,19 +231,11 @@ namespace Eden
 
 	void MeshSource::Destroy()
 	{
-		mesh_vb.Release();
-		mesh_ib.Release();
-		transform_cb.Release();
-
-		for (auto& texture : textures)
-			texture.Release();
-
 		textures.clear();
 		meshes.clear();
-
 	}
 
-	Texture2D MeshSource::LoadImage(D3D12RHI* gfx, tinygltf::Model& gltf_model, int32_t image_index)
+	std::shared_ptr<Texture2D> MeshSource::LoadImage(std::shared_ptr<D3D12RHI>& gfx, tinygltf::Model& gltf_model, int32_t image_index)
 	{
 		tinygltf::Image& gltf_image = gltf_model.images[image_index];
 

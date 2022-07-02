@@ -37,6 +37,8 @@ project "EdenEngine"
     targetdir ("bin/" .. outputdir)
 	objdir ("bin/intermediate/")
 
+    flags { "FatalWarnings" }
+
     files 
 	{ 
 		"%{prj.name}/src/**.h", 

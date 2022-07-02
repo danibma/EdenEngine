@@ -7,7 +7,8 @@
 #include "Core/Camera.h"
 #include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
-#include "Graphics/D3D12RHI.h"
+#include "Graphics/D3D12/D3D12RHI.h"
+#include "Graphics/Skybox.h"
 #include "Scene/MeshSource.h"
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
@@ -39,16 +40,16 @@ class EdenApplication : public Application
 	};
 
 	static const int MAX_DIRECTIONAL_LIGHTS = 16;
-	Buffer m_DirectionalLightsBuffer;
+	std::shared_ptr<Buffer> m_DirectionalLightsBuffer;
 	static const int MAX_POINT_LIGHTS = 32;
-	Buffer m_PointLightsBuffer;
+	std::shared_ptr<Buffer> m_PointLightsBuffer;
 
-	std::unordered_map<const char*, Pipeline> m_Pipelines;
+	std::unordered_map<const char*, std::shared_ptr<Pipeline>> m_Pipelines;
 
 	glm::mat4 m_ViewMatrix;
 	glm::mat4 m_ProjectionMatrix;
 	SceneData m_SceneData;
-	Buffer m_SceneDataCB;
+	std::shared_ptr<Buffer> m_SceneDataCB;
 	Camera m_Camera;
 
 	Entity m_Helmet;
@@ -57,14 +58,7 @@ class EdenApplication : public Application
 	Entity m_DirectionalLight;
 
 	// Skybox
-	MeshSource m_SkyboxCube;
-	Texture2D m_SkyboxTexture;
-	std::string m_SkyboxTexturePath = "assets/skyboxes/studio_garden.hdr";
-	struct SkyboxData
-	{
-		glm::mat4 view_projection_;
-	} m_SkyboxData;
-	Buffer m_SkyboxDataCB;
+	std::shared_ptr<Skybox> m_Skybox;
 	bool m_SkyboxEnable = true;
 
 	// UI
@@ -82,8 +76,8 @@ class EdenApplication : public Application
 	Scene* m_CurrentScene = nullptr;
 
 	// Rendering
-	RenderPass m_GBuffer;
-	RenderPass m_ImGuiPass;
+	std::shared_ptr<RenderPass> m_GBuffer;
+	std::shared_ptr<RenderPass> m_ImGuiPass;
 public:
 	EdenApplication() = default;
 
@@ -107,18 +101,13 @@ public:
 		m_SceneData.view = m_ViewMatrix;
 		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
-
 		m_SceneDataCB = rhi->CreateBuffer<SceneData>(&m_SceneData, 1);
-
-		m_SkyboxData.view_projection_ = m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix));
-		m_SkyboxDataCB = rhi->CreateBuffer<SkyboxData>(&m_SkyboxData, 1);
 
 		m_CurrentScene = enew Scene();
 		std::string default_scene = "assets/scenes/demo.escene";
 		OpenScene(default_scene);
-		m_SkyboxCube.LoadGLTF(rhi, "assets/models/basic/cube.glb"); // TODO(Daniel): Create skybox class
-		m_SkyboxTexture = rhi->CreateTexture2D(m_SkyboxTexturePath);
-		m_SkyboxTexture.resource->SetName(L"Skybox texture");
+
+		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/studio_garden.hdr");
 
 		// Lights
 		m_DirectionalLightsBuffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
@@ -130,7 +119,7 @@ public:
 	#if WITH_EDITOR
 		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTexture, L"GBuffer_");
 		m_ImGuiPass = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"ImGuiPass_", true);
-		rhi->SetRTRenderPass(&m_ImGuiPass);
+		rhi->SetRTRenderPass(m_ImGuiPass);
 		rhi->EnableImGui();
 
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>(rhi);
@@ -156,7 +145,9 @@ public:
 		m_CurrentScene->GetSelectedEntity().Invalidate();
 		edelete m_CurrentScene;
 		m_CurrentScene = enew Scene();
+	#if WITH_EDITOR
 		m_SceneHierarchy->SetCurrentScene(m_CurrentScene);
+	#endif
 
 		if (!scene_to_load.empty())
 		{
@@ -371,7 +362,7 @@ public:
 		ImGui::Columns(1);
 		for (auto& pipeline : m_Pipelines)
 		{
-			ImGui::PushID(pipeline.second.name.c_str());
+			ImGui::PushID(pipeline.second->name.c_str());
 			ImGui::Columns(2);
 			ImGui::Text(pipeline.first);
 			ImGui::NextColumn();
@@ -401,17 +392,17 @@ public:
 		if (m_ViewportSize != *(glm::vec2*)&viewport_size)
 		{
 			m_ViewportSize = { viewport_size.x, viewport_size.y };
-			m_GBuffer.width = m_ViewportSize.x;
-			m_GBuffer.height = m_ViewportSize.y;
+			m_GBuffer->width = (uint32_t)m_ViewportSize.x;
+			m_GBuffer->height = (uint32_t)m_ViewportSize.y;
 			m_Camera.SetViewportSize(m_ViewportSize);
 		}
 		auto viewport_pos = ImGui::GetWindowPos();
-		m_ViewportPos = { viewport_pos.x, viewport_pos.y };
+		m_ViewportPos = { (uint32_t)viewport_pos.x, (uint32_t)viewport_pos.y };
 		m_Camera.SetViewportPosition(m_ViewportPos);
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
-		ImGui::Image((ImTextureID)m_GBuffer.render_targets[0].gpu_handle.ptr, viewport_size);
+		ImGui::Image((ImTextureID)m_GBuffer->render_targets[0]->gpu_handle.ptr, viewport_size);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -437,10 +428,9 @@ public:
 				} 
 				else if (extension == ".hdr")
 				{
-					m_SkyboxTexturePath = path.string();
+					m_Skybox->SetNewTexture(path.string().c_str());
 					m_CurrentScene->AddPreparation([&]() {
-						m_SkyboxTexture.Release();
-						m_SkyboxTexture = rhi->CreateTexture2D(m_SkyboxTexturePath);
+						m_Skybox->UpdateNewTexture(rhi);
 					});
 				}
 			}
@@ -606,20 +596,7 @@ public:
 		if (m_SkyboxEnable)
 		{
 			rhi->BindPipeline(m_Pipelines["Skybox"]);
-			rhi->BindVertexBuffer(m_SkyboxCube.mesh_vb);
-			rhi->BindIndexBuffer(m_SkyboxCube.mesh_ib);
-			for (auto& mesh : m_SkyboxCube.meshes)
-			{
-				m_SkyboxData.view_projection_ = m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix));
-				rhi->UpdateBuffer<SkyboxData>(m_SkyboxDataCB, &m_SkyboxData, 1);
-				rhi->BindParameter("SkyboxData", m_SkyboxDataCB);
-
-				for (auto& submesh : mesh.submeshes)
-				{
-					rhi->BindParameter("g_cubemapTexture", m_SkyboxTexture);
-					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
-				}
-			}
+			m_Skybox->Render(rhi, m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix)));
 		}
 		rhi->EndRenderPass(m_GBuffer);
 
@@ -637,13 +614,6 @@ public:
 	void OnDestroy() override
 	{
 		edelete m_CurrentScene;
-
-		m_PointLightsBuffer.Release();
-		m_DirectionalLightsBuffer.Release();
-		m_SceneDataCB.Release();
-		m_SkyboxDataCB.Release();
-		m_SkyboxCube.Destroy();
-		m_SkyboxTexture.Release();
 	}
 
 };

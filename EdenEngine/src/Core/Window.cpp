@@ -132,12 +132,6 @@ namespace Eden
 		Rid.hwndTarget = m_Handle;
 		if (!RegisterRawInputDevices(&Rid, 1, sizeof(RAWINPUTDEVICE)))
 			ED_ASSERT_MB(false, "Failed to register raw input device");
-
-		// find mouse movement
-		POINT currentPos;
-		GetCursorPos(&currentPos);
-		SetCursorPos(m_Width / 2, m_Height / 2);
-		Input::SetMousePos(currentPos.x - (m_Width / 2), currentPos.y - (m_Height / 2));
 	}
 
 	Window::~Window()

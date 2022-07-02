@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
-#include "Scene\Scene.h"
-#include "Graphics\D3D12RHI.h"
+#include "Scene/Scene.h"
+#include "Graphics/D3D12/D3D12RHI.h"
 
 namespace Eden
 {
@@ -9,7 +9,7 @@ namespace Eden
 	{
 	private:
 		Scene* m_CurrentScene;
-		D3D12RHI* m_RHI;
+		std::shared_ptr<D3D12RHI> m_RHI;
 
 	public:
 		bool open_scene_hierarchy = true;
@@ -17,7 +17,7 @@ namespace Eden
 
 	public:
 		SceneHierarchy() = default;
-		SceneHierarchy(D3D12RHI* rhi, Scene* current_scene);
+		SceneHierarchy(std::shared_ptr<D3D12RHI>& rhi, Scene* current_scene);
 		~SceneHierarchy();
 
 		void Render();
