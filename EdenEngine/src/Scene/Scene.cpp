@@ -12,6 +12,8 @@ namespace Eden
 			Entity mesh_entity = { entity_id, this };
 			mesh_entity.GetComponent<MeshComponent>().mesh_source->Destroy();
 		}
+
+		m_Preparations.clear();
 	}
 
 	Entity Scene::CreateEntity(const std::string_view name /* = "" */)

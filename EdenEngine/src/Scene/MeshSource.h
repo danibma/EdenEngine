@@ -40,7 +40,7 @@ namespace Eden
 				uint32_t index_count;
 			};
 
-			std::vector<SubMesh> submeshes;
+			std::vector<std::shared_ptr<SubMesh>> submeshes;
 			glm::mat4 gltf_matrix = glm::mat4(1.0f);
 		};
 
@@ -49,9 +49,9 @@ namespace Eden
 		std::shared_ptr<Buffer> mesh_vb;
 		std::shared_ptr<Buffer> mesh_ib;
 		std::shared_ptr<Buffer> transform_cb;
-		std::vector<Mesh> meshes;
-		std::vector<std::shared_ptr<Texture2D>> textures;
+		std::vector<std::shared_ptr<Mesh>> meshes;
 		bool has_mesh = false;
+		bool textured = false;
 
 		MeshSource() = default;
 		void LoadGLTF(std::shared_ptr<D3D12RHI>& gfx, std::filesystem::path file);

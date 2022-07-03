@@ -82,8 +82,6 @@ namespace Eden
 				if (tag_component)
 					name = tag_component["Tag"].as<std::string>();
 
-				ED_LOG_INFO("Deserialized entity with ID = {}, name = {}", id, name);
-
 				Entity deserialized_entity = m_Scene->CreateEntity(name);
 
 				auto transform_component = entity["TransformComponent"];

@@ -16,6 +16,7 @@
 #include "Math/Math.h"
 #include "Editor/ContentBrowserPanel.h"
 #include "Editor/SceneHierarchy.h"
+#include "Utilities/Utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -59,12 +60,13 @@ class EdenApplication : public Application
 
 	// Skybox
 	std::shared_ptr<Skybox> m_Skybox;
-	bool m_SkyboxEnable = true;
+	bool m_SkyboxEnable = false;
 
 	// UI
 	bool m_OpenDebugWindow = true;
 	bool m_OpenSceneProperties = true;
 	bool m_OpenShadersPanel = false;
+	bool m_OpenMemoryPanel = true;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 	glm::vec2 m_ViewportSize;
 	glm::vec2 m_ViewportPos;
@@ -140,7 +142,7 @@ public:
 			return;
 		}
 
-		auto scene_to_load = m_CurrentScene->GetScenePath();
+		auto& scene_to_load = m_CurrentScene->GetScenePath();
 
 		m_CurrentScene->GetSelectedEntity().Invalidate();
 		edelete m_CurrentScene;
@@ -441,12 +443,29 @@ public:
 		ImGui::PopStyleVar();
 	}
 
+	void UI_MemoryPanel()
+	{
+		auto stats = Memory::GetAllocationStats();
+
+		std::string total_allocated = "Total Allocated: " + Utils::BytesToString(stats.total_allocated);
+		std::string total_freed = "Total Freed: " + Utils::BytesToString(stats.total_freed);
+		std::string current_usage = "Current Usage: " +  Utils::BytesToString(stats.total_allocated - stats.total_freed);
+
+		ImGui::Begin("Memory", &m_OpenMemoryPanel);
+		ImGui::Text(total_allocated.c_str());
+		ImGui::Text(total_freed.c_str());
+		ImGui::Text(current_usage.c_str());
+		ImGui::End();
+	}
+
 	void UI_Render()
 	{
 		//ImGui::ShowDemoWindow(nullptr);
 
 		UI_Dockspace();
 		UI_Viewport();
+		m_ContentBrowserPanel->Render();
+		m_SceneHierarchy->Render();
 		if (m_OpenDebugWindow)
 			UI_DebugWindow();
 		if (m_OpenSceneProperties)
@@ -455,8 +474,8 @@ public:
 			UI_DrawGizmo();
 		if (m_OpenShadersPanel)
 			UI_PipelinesPanel();
-		m_ContentBrowserPanel->Render();
-		m_SceneHierarchy->Render();
+		if (m_OpenMemoryPanel)
+			UI_MemoryPanel();
 	}
 
 	void EditorInput()
@@ -539,13 +558,13 @@ public:
 		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
 		rhi->UpdateBuffer<SceneData>(m_SceneDataCB, &m_SceneData, 1);
-
+		
 		EditorInput();
-
+		
 		UpdateDirectionalLights();
 		UpdatePointLights();
 		PrepareScene();
-
+		
 		rhi->BeginRenderPass(m_GBuffer);
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
 		for (auto entity : entities_to_render)
@@ -554,44 +573,43 @@ public:
 			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
 			if (!ms->transform_cb) continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
-			bool textured = ms->textures.size() > 0;
-			if (textured)
+			if (ms->textured)
 				rhi->BindPipeline(m_Pipelines["Object Texture"]);
 			else
 				rhi->BindPipeline(m_Pipelines["Object Simple"]);
-
+		
 			rhi->UpdateBuffer<glm::mat4>(ms->transform_cb, &tc.GetTransform(), 1);
-
+		
 			rhi->BindVertexBuffer(ms->mesh_vb);
 			rhi->BindIndexBuffer(ms->mesh_ib);
 			for (auto& mesh : ms->meshes)
 			{
-				if (mesh.gltf_matrix != glm::mat4(1.0f))
+				if (mesh->gltf_matrix != glm::mat4(1.0f))
 				{
 					auto& transform = tc.GetTransform();
-					transform *= mesh.gltf_matrix;
+					transform *= mesh->gltf_matrix;
 					rhi->UpdateBuffer<glm::mat4>(ms->transform_cb, &transform, 1);
 				}
-
+		
 				rhi->BindParameter("SceneData", m_SceneDataCB);
 				rhi->BindParameter("Transform", ms->transform_cb);
 				rhi->BindParameter("DirectionalLights", m_DirectionalLightsBuffer);
 				rhi->BindParameter("PointLights", m_PointLightsBuffer);
-
-				for (auto& submesh : mesh.submeshes)
+		
+				for (auto& submesh : mesh->submeshes)
 				{
-					if (textured)
+					if (ms->textured)
 					{
-						if (submesh.diffuse_texture)
-							rhi->BindParameter("g_textureDiffuse", submesh.diffuse_texture);
-						if (submesh.emissive_texture)
-							rhi->BindParameter("g_textureEmissive", submesh.emissive_texture);
+						if (submesh->diffuse_texture)
+							rhi->BindParameter("g_textureDiffuse", submesh->diffuse_texture);
+						if (submesh->emissive_texture)
+							rhi->BindParameter("g_textureEmissive", submesh->emissive_texture);
 					}
-					rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
+					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
 				}
 			}
 		}
-
+		
 		// Skybox
 		if (m_SkyboxEnable)
 		{

@@ -15,7 +15,6 @@ namespace Eden
 		ImGui::Begin("Scene Hierarchy", &open_scene_hierarchy, ImGuiWindowFlags_NoCollapse);
 		
 		auto entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
-		auto selected_entity = m_CurrentScene->GetSelectedEntity();
 
 		// This loop is inversed because that way the last added entity shows at the bottom
 		int num_entities = static_cast<int>(entities.size() - 1);
@@ -26,7 +25,7 @@ namespace Eden
 			ImGui::PushID(e.GetID());
 			auto& tag = e.GetComponent<TagComponent>();
 			if (tag.tag.length() == 0) tag.tag = " "; // If the tag is empty add a space to it doesnt crash
-			if (ImGui::Selectable(tag.tag.c_str(), selected_entity == e))
+			if (ImGui::Selectable(tag.tag.c_str(), m_CurrentScene->GetSelectedEntity() == e))
 				m_CurrentScene->SetSelectedEntity(e);
 
 			if (ImGui::BeginPopupContextItem())
@@ -35,7 +34,7 @@ namespace Eden
 				if (ImGui::MenuItem("Delete", "Del"))
 				{
 					m_CurrentScene->AddPreparation([&]() {
-						m_CurrentScene->DeleteEntity(selected_entity);
+						m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
 					});
 				}
 				ImGui::Separator();
@@ -60,7 +59,7 @@ namespace Eden
 		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
 		{
 			m_CurrentScene->AddPreparation([&]() {
-				m_CurrentScene->DeleteEntity(selected_entity);
+				m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
 			});
 		}
 

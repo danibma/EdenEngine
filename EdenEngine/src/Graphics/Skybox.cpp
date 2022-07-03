@@ -28,10 +28,10 @@ namespace Eden
 			rhi->UpdateBuffer<SkyboxData>(m_SkyboxDataCB, &m_SkyboxData, 1);
 			rhi->BindParameter("SkyboxData", m_SkyboxDataCB);
 
-			for (auto& submesh : mesh.submeshes)
+			for (auto& submesh : mesh->submeshes)
 			{
 				rhi->BindParameter("g_cubemapTexture", m_SkyboxTexture);
-				rhi->DrawIndexed(submesh.index_count, 1, submesh.index_start);
+				rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
 			}
 		}
 	}
@@ -43,7 +43,6 @@ namespace Eden
 
 	void Skybox::UpdateNewTexture(std::shared_ptr<D3D12RHI>& rhi)
 	{
-		m_SkyboxTexture->Release();
 		m_SkyboxTexture = rhi->CreateTexture2D(m_SkyboxTexturePath);
 	}
 

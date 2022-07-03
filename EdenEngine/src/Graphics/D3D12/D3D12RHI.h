@@ -53,12 +53,6 @@ namespace Eden
 
 		void Release()
 		{
-			//if (resource != nullptr)
-			//{
-			//	resource->Release();
-			//	resource = nullptr;
-			//	
-			//}
 			if (allocation != nullptr)
 				allocation->Release();
 		}

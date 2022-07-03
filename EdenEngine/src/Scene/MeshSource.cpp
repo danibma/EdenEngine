@@ -55,40 +55,40 @@ namespace Eden
 			if (gltf_node.mesh < 0)
 				continue;
 
-			Mesh mesh;
+			std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
 
 			// Get the local node matrix
 			// It's either made up from translation, rotation, scale or a 4x4 matrix
 			if (gltf_node.translation.size() == 3)
 			{
-				mesh.gltf_matrix = glm::translate(mesh.gltf_matrix, glm::vec3(glm::make_vec3(gltf_node.translation.data())));
+				mesh->gltf_matrix = glm::translate(mesh->gltf_matrix, glm::vec3(glm::make_vec3(gltf_node.translation.data())));
 			}
 
 			if (gltf_node.rotation.size() == 4)
 			{
 				glm::quat q = glm::make_quat(gltf_node.rotation.data());
 				auto rotation = glm::quat(q.w, -q.x, q.y, q.z);
-				mesh.gltf_matrix *= glm::mat4(rotation);
+				mesh->gltf_matrix *= glm::mat4(rotation);
 			}
 
 			if (gltf_node.scale.size() == 3)
 			{
-				mesh.gltf_matrix = glm::scale(mesh.gltf_matrix, glm::vec3(glm::make_vec3(gltf_node.scale.data())));
+				mesh->gltf_matrix = glm::scale(mesh->gltf_matrix, glm::vec3(glm::make_vec3(gltf_node.scale.data())));
 			}
 
 			if (gltf_node.matrix.size() == 16)
 			{
-				mesh.gltf_matrix = glm::make_mat4x4(gltf_node.matrix.data());
+				mesh->gltf_matrix = glm::make_mat4x4(gltf_node.matrix.data());
 			}
 
 			const auto& gltf_mesh = gltf_model.meshes[gltf_node.mesh];
 			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
 			{
-				Mesh::SubMesh submesh;
+				std::shared_ptr<Mesh::SubMesh> submesh = std::make_shared<Mesh::SubMesh>();
 				auto& gltf_primitive = gltf_mesh.primitives[p];
-				submesh.vertex_start = (uint32_t)vertices.size();
-				submesh.index_start = (uint32_t)indices.size();
-				submesh.index_count = 0;
+				submesh->vertex_start = (uint32_t)vertices.size();
+				submesh->index_start = (uint32_t)indices.size();
+				submesh->index_count = 0;
 
 				// Vertices
 				{
@@ -144,7 +144,7 @@ namespace Eden
 						else
 							new_vert.color = glm::vec4(1.0f);
 
-						vertices.push_back(new_vert);
+						vertices.emplace_back(new_vert);
 					}
 				}
 
@@ -154,36 +154,36 @@ namespace Eden
 					const tinygltf::BufferView& buffer_view = gltf_model.bufferViews[accessor.bufferView];
 					const tinygltf::Buffer& buffer = gltf_model.buffers[buffer_view.buffer];
 
-					submesh.index_count += static_cast<uint32_t>(accessor.count);
+					submesh->index_count += static_cast<uint32_t>(accessor.count);
 
 					// glTF supports different component types of indices
 					switch (accessor.componentType)
 					{
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
 					{
-						uint32_t* buf = new uint32_t[accessor.count];
+						uint32_t* buf = enew uint32_t[accessor.count];
 						memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint32_t));
 						for (size_t index = 0; index < accessor.count; index++)
-							indices.push_back(buf[index] + submesh.vertex_start);
-
+							indices.emplace_back(buf[index] + submesh->vertex_start);
+						edelete[] buf;
 						break;
 					}
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
 					{
-						uint16_t* buf = new uint16_t[accessor.count];
+						uint16_t* buf = enew uint16_t[accessor.count];
 						memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint16_t));
 						for (size_t index = 0; index < accessor.count; index++)
-							indices.push_back(buf[index] + submesh.vertex_start);
-
+							indices.emplace_back(buf[index] + submesh->vertex_start);
+						edelete[] buf;
 						break;
 					}
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
 					{
-						uint8_t* buf = new uint8_t[accessor.count];
+						uint8_t* buf = enew uint8_t[accessor.count];
 						memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint8_t));
 						for (size_t index = 0; index < accessor.count; index++)
-							indices.push_back(buf[index] + submesh.vertex_start);
-
+							indices.emplace_back(buf[index] + submesh->vertex_start);
+						edelete[] buf;
 						break;
 					}
 					default:
@@ -192,13 +192,13 @@ namespace Eden
 				}
 
 				// Load materials
-				auto gltf_material = gltf_model.materials[gltf_primitive.material];
+				auto& gltf_material = gltf_model.materials[gltf_primitive.material];
 				if (gltf_material.values.find("baseColorTexture") != gltf_material.values.end())
 				{
 					auto material_index = gltf_material.values["baseColorTexture"].TextureIndex();
 					auto texture_index = gltf_model.textures[material_index].source;
 
-					submesh.diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
+					submesh->diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
 				}
 
 				if (gltf_material.emissiveTexture.index > -1)
@@ -206,20 +206,19 @@ namespace Eden
 					auto material_index = gltf_material.emissiveTexture.index;
 					auto texture_index = gltf_model.textures[material_index].source;
 
-					submesh.emissive_texture = LoadImage(rhi, gltf_model, texture_index);
+					submesh->emissive_texture = LoadImage(rhi, gltf_model, texture_index);
 				}
 
-				mesh.submeshes.push_back(submesh);
+				mesh->submeshes.emplace_back(submesh);
 			}
 
-			meshes.push_back(mesh);
+			meshes.emplace_back(mesh);
 		}
 
 		vertex_count = static_cast<uint32_t>(vertices.size());
 		index_count = static_cast<uint32_t>(indices.size());
 		mesh_vb = rhi->CreateBuffer<VertexData>(vertices.data(), vertex_count, D3D12RHI::BufferType::kDontCreateView);
 		mesh_ib = rhi->CreateBuffer<uint32_t>(indices.data(), index_count, D3D12RHI::BufferType::kDontCreateView);
-
 		has_mesh = true;
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltf_model.nodes.size());
@@ -231,7 +230,6 @@ namespace Eden
 
 	void MeshSource::Destroy()
 	{
-		textures.clear();
 		meshes.clear();
 	}
 
@@ -263,7 +261,8 @@ namespace Eden
 			buffer = &gltf_image.image[0];
 		}
 
-		auto texture_id = textures.emplace_back(gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height));
+		textured = true;
+		auto texture_id = gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height);
 
 		if (delete_buffer)
 			edelete buffer;
