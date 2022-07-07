@@ -99,7 +99,8 @@ namespace Eden
 
 	enum API
 	{
-		D3D12
+		D3D12,
+		Vulkan
 	};
 
 	struct GraphicsChild
@@ -273,9 +274,10 @@ namespace Eden
 			{
 			case API::D3D12:
 				return "<D3D12>";
-			default:
-				return "";
+			case API::Vulkan:
+				return "<Vulkan>";
 			}
+			return "";
 		}
 	}
 }
