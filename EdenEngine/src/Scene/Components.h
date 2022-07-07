@@ -44,7 +44,7 @@ namespace Eden
 		std::shared_ptr<MeshSource> mesh_source = std::make_shared<MeshSource>();
 		std::string mesh_path;
 
-		void LoadMeshSource(std::shared_ptr<D3D12RHI>& rhi, std::filesystem::path path = "")
+		void LoadMeshSource(std::shared_ptr<IRHI>& rhi, std::filesystem::path path = "")
 		{
 			if (!path.empty())
 				mesh_path = path.string();

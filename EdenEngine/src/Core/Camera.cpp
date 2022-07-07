@@ -8,7 +8,7 @@ namespace Eden
 
 	Camera::Camera(const uint32_t viewport_width, const uint32_t viewport_height)
 	{
-		position = { 0, 3, -10 };
+		position = { 0, 8, -19 };
 		front = { 0, 0, 1 };
 		up = { 0, 1, 0 };
 		m_LastX = (float)viewport_width / 2;

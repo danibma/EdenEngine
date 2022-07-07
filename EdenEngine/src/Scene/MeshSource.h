@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Graphics/D3D12/D3D12RHI.h"
+#include "Graphics/RHI.h"
 
 #include <functional>
 #include <vector>
@@ -33,8 +33,8 @@ namespace Eden
 		{
 			struct SubMesh
 			{
-				std::shared_ptr<Texture2D> diffuse_texture;
-				std::shared_ptr<Texture2D> emissive_texture;
+				std::shared_ptr<Texture> diffuse_texture;
+				std::shared_ptr<Texture> emissive_texture;
 				uint32_t vertex_start;
 				uint32_t index_start;
 				uint32_t index_count;
@@ -54,7 +54,7 @@ namespace Eden
 		bool textured = false;
 
 		MeshSource() = default;
-		void LoadGLTF(std::shared_ptr<D3D12RHI>& gfx, std::filesystem::path file);
+		void LoadGLTF(std::shared_ptr<IRHI>& rhi, std::filesystem::path file);
 		void Destroy();
 
 		~MeshSource()
@@ -63,7 +63,7 @@ namespace Eden
 		}
 
 	private:
-		std::shared_ptr<Texture2D> LoadImage(std::shared_ptr<D3D12RHI>& gfx, tinygltf::Model& gltf_model, int32_t image_index);
+		std::shared_ptr<Texture> LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index);
 	};
 }
 

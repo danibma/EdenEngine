@@ -7,13 +7,13 @@
 namespace Eden
 {
 	class Window;
-	class D3D12RHI;
+	class IRHI;
 
 	class Application
 	{
 	protected:
 		Window* window;
-		std::shared_ptr<D3D12RHI> rhi;
+		std::shared_ptr<IRHI> rhi;
 
 		// Timer stuff
 		Timer timer;

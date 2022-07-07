@@ -60,7 +60,7 @@ class EdenApplication : public Application
 
 	// Skybox
 	std::shared_ptr<Skybox> m_Skybox;
-	bool m_SkyboxEnable = false;
+	bool m_SkyboxEnable = true;
 
 	// UI
 	bool m_OpenDebugWindow = true;
@@ -85,16 +85,21 @@ public:
 
 	void OnInit() override
 	{
-		PipelineState object_textureDS;
-		object_textureDS.enable_blending = true;
-		m_Pipelines["Object Texture"] = rhi->CreateGraphicsPipeline("object_texture", object_textureDS);
-		m_Pipelines["Object Simple"] = rhi->CreateGraphicsPipeline("object_simple");
+		PipelineDesc object_texture_desc = {};
+		object_texture_desc.enable_blending = true;
+		object_texture_desc.program_name = "object_texture";
+		m_Pipelines["Object Texture"] = rhi->CreatePipeline(&object_texture_desc);
 
-		PipelineState skybox_ds;
-		skybox_ds.cull_mode = D3D12_CULL_MODE_NONE;
-		skybox_ds.depth_func = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		skybox_ds.min_depth = 1.0f;
-		m_Pipelines["Skybox"] = rhi->CreateGraphicsPipeline("skybox", skybox_ds);
+		PipelineDesc object_simple_desc = {};
+		object_simple_desc.program_name = "object_simple";
+		m_Pipelines["Object Simple"] = rhi->CreatePipeline(&object_simple_desc);
+
+		PipelineDesc skybox_desc = {};
+		skybox_desc.cull_mode = CullMode::NONE;
+		skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
+		skybox_desc.min_depth = 1.0f;
+		skybox_desc.program_name = "skybox";
+		m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
 
 		m_Camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -103,7 +108,11 @@ public:
 		m_SceneData.view = m_ViewMatrix;
 		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
-		m_SceneDataCB = rhi->CreateBuffer<SceneData>(&m_SceneData, 1);
+
+		BufferDesc scene_data_desc = {};
+		scene_data_desc.element_count = 1;
+		scene_data_desc.stride = sizeof(SceneData);
+		m_SceneDataCB = rhi->CreateBuffer(&scene_data_desc, &m_SceneData);
 
 		m_CurrentScene = enew Scene();
 		std::string default_scene = "assets/scenes/demo.escene";
@@ -112,15 +121,32 @@ public:
 		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/studio_garden.hdr");
 
 		// Lights
-		m_DirectionalLightsBuffer = rhi->CreateBuffer<DirectionalLightComponent>(nullptr, MAX_DIRECTIONAL_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
+		BufferDesc dl_desc = {};
+		dl_desc.element_count = MAX_DIRECTIONAL_LIGHTS;
+		dl_desc.stride = sizeof(DirectionalLightComponent);
+		dl_desc.usage = BufferDesc::Storage;
+		m_DirectionalLightsBuffer = rhi->CreateBuffer(&dl_desc, nullptr);
 		UpdateDirectionalLights();
-		m_PointLightsBuffer = rhi->CreateBuffer<PointLightComponent>(nullptr, MAX_POINT_LIGHTS, D3D12RHI::BufferType::kCreateSRV);
+
+		BufferDesc pl_desc = {};
+		pl_desc.element_count = MAX_POINT_LIGHTS;
+		pl_desc.stride = sizeof(PointLightComponent);
+		pl_desc.usage = BufferDesc::Storage;
+		m_PointLightsBuffer = rhi->CreateBuffer(&pl_desc, nullptr);
 		UpdatePointLights();
 
 		// Rendering
 	#if WITH_EDITOR
-		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTexture, L"GBuffer_");
-		m_ImGuiPass = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"ImGuiPass_", true);
+		RenderPassDesc gbuffer_desc = {};
+		gbuffer_desc.debug_name = "GBuffer_";
+		gbuffer_desc.usage = RenderPassDesc::RenderTexture;
+		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
+
+		RenderPassDesc imguipass_desc = {};
+		imguipass_desc.debug_name = "ImGuiPass_";
+		imguipass_desc.usage = RenderPassDesc::RenderTarget;
+		imguipass_desc.imgui_pass = true;
+		m_ImGuiPass = rhi->CreateRenderPass(&imguipass_desc);
 		rhi->SetRTRenderPass(m_ImGuiPass);
 		rhi->EnableImGui();
 
@@ -364,7 +390,7 @@ public:
 		ImGui::Columns(1);
 		for (auto& pipeline : m_Pipelines)
 		{
-			ImGui::PushID(pipeline.second->name.c_str());
+			ImGui::PushID(pipeline.second->debug_name.c_str());
 			ImGui::Columns(2);
 			ImGui::Text(pipeline.first);
 			ImGui::NextColumn();
@@ -404,7 +430,7 @@ public:
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
-		ImGui::Image((ImTextureID)m_GBuffer->render_targets[0]->gpu_handle.ptr, viewport_size);
+		ImGui::Image((ImTextureID)rhi->GetTextureID(m_GBuffer->render_targets[0]), viewport_size);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -518,7 +544,9 @@ public:
 			point_light_components[i] = pl;
 		}
 
-		rhi->UpdateBuffer<PointLightComponent>(m_PointLightsBuffer, point_light_components.data(), point_light_components.size());
+		const void* data = point_light_components.data();
+		uint32_t count = static_cast<uint32_t>(point_light_components.size());
+		rhi->UpdateBufferData(m_PointLightsBuffer, data);
 	}
 
 	void UpdateDirectionalLights()
@@ -537,7 +565,8 @@ public:
 			directional_light_components[i] = pl;
 		}
 
-		rhi->UpdateBuffer<DirectionalLightComponent>(m_DirectionalLightsBuffer, directional_light_components.data(), directional_light_components.size());
+		const void* data = directional_light_components.data();
+		rhi->UpdateBufferData(m_DirectionalLightsBuffer, data);
 	}
 
 	void OnUpdate() override
@@ -557,7 +586,7 @@ public:
 		m_SceneData.view = m_ViewMatrix;
 		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
-		rhi->UpdateBuffer<SceneData>(m_SceneDataCB, &m_SceneData, 1);
+		rhi->UpdateBufferData(m_SceneDataCB, &m_SceneData);
 		
 		EditorInput();
 		
@@ -578,7 +607,7 @@ public:
 			else
 				rhi->BindPipeline(m_Pipelines["Object Simple"]);
 		
-			rhi->UpdateBuffer<glm::mat4>(ms->transform_cb, &tc.GetTransform(), 1);
+			rhi->UpdateBufferData(ms->transform_cb, &tc.GetTransform());
 		
 			rhi->BindVertexBuffer(ms->mesh_vb);
 			rhi->BindIndexBuffer(ms->mesh_ib);
@@ -588,7 +617,7 @@ public:
 				{
 					auto& transform = tc.GetTransform();
 					transform *= mesh->gltf_matrix;
-					rhi->UpdateBuffer<glm::mat4>(ms->transform_cb, &transform, 1);
+					rhi->UpdateBufferData(ms->transform_cb, &transform);
 				}
 		
 				rhi->BindParameter("SceneData", m_SceneDataCB);

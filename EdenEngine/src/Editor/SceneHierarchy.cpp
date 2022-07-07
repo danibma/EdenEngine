@@ -285,7 +285,7 @@ namespace Eden
 		ImGui::End();
 	}
 
-	SceneHierarchy::SceneHierarchy(std::shared_ptr<D3D12RHI>& rhi, Scene* current_scene)
+	SceneHierarchy::SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* current_scene)
 	{
 		m_RHI = rhi;
 		m_CurrentScene = current_scene;

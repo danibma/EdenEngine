@@ -12,18 +12,24 @@
 #include <tinygltf/tiny_gltf.h>
 
 #include "Core/Memory.h"
+#include "Core/Log.h"
+#include "Core/Base.h"
 
 namespace Eden
 {
 	// Based on Sascha Willems gltfloading.cpp
-	void MeshSource::LoadGLTF(std::shared_ptr<D3D12RHI>& rhi, std::filesystem::path file)
+	void MeshSource::LoadGLTF(std::shared_ptr<IRHI>& rhi, std::filesystem::path file)
 	{
 		// Destroy the current mesh source
 		if (has_mesh)
 			Destroy();
 
 		glm::mat4 identity = glm::mat4(1.0f);
-		transform_cb = rhi->CreateBuffer<glm::mat4>(&identity, 1);
+		BufferDesc desc;
+		desc.usage = BufferDesc::Uniform;
+		desc.element_count = 1;
+		desc.stride = sizeof(glm::mat4);
+		transform_cb = rhi->CreateBuffer(&desc, &identity);
 
 		tinygltf::Model gltf_model;
 		tinygltf::TinyGLTF loader;
@@ -217,8 +223,18 @@ namespace Eden
 
 		vertex_count = static_cast<uint32_t>(vertices.size());
 		index_count = static_cast<uint32_t>(indices.size());
-		mesh_vb = rhi->CreateBuffer<VertexData>(vertices.data(), vertex_count, D3D12RHI::BufferType::kDontCreateView);
-		mesh_ib = rhi->CreateBuffer<uint32_t>(indices.data(), index_count, D3D12RHI::BufferType::kDontCreateView);
+
+		BufferDesc vb_desc;
+		vb_desc.element_count = vertex_count;
+		vb_desc.stride = sizeof(VertexData);
+		vb_desc.usage = BufferDesc::Vertex_Index;
+		mesh_vb = rhi->CreateBuffer(&vb_desc, vertices.data());
+
+		BufferDesc ib_desc;
+		ib_desc.element_count = index_count;
+		ib_desc.stride = sizeof(uint32_t);
+		ib_desc.usage = BufferDesc::Vertex_Index;
+		mesh_ib = rhi->CreateBuffer(&ib_desc, indices.data());
 		has_mesh = true;
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltf_model.nodes.size());
@@ -233,7 +249,7 @@ namespace Eden
 		meshes.clear();
 	}
 
-	std::shared_ptr<Texture2D> MeshSource::LoadImage(std::shared_ptr<D3D12RHI>& gfx, tinygltf::Model& gltf_model, int32_t image_index)
+	std::shared_ptr<Texture> MeshSource::LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index)
 	{
 		tinygltf::Image& gltf_image = gltf_model.images[image_index];
 
@@ -262,7 +278,11 @@ namespace Eden
 		}
 
 		textured = true;
-		auto texture_id = gfx->CreateTexture2D(buffer, gltf_image.width, gltf_image.height);
+		TextureDesc desc;
+		desc.data = buffer;
+		desc.width = gltf_image.width;
+		desc.height = gltf_image.height;
+		auto texture_id = rhi->CreateTexture(&desc);
 
 		if (delete_buffer)
 			edelete buffer;
