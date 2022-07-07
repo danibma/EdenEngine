@@ -56,9 +56,7 @@ project "EdenEngine"
 		"%{wks.location}/external",
         "%{wks.location}/external/ImGui",
         "%{wks.location}/external/Optick/src",
-        "%{wks.location}/external/yaml-cpp/include",
-
-        "%{VULKAN_SDK}/Include"
+        "%{wks.location}/external/yaml-cpp/include"
 	}
 
     links
@@ -71,9 +69,6 @@ project "EdenEngine"
         "d3d12.lib",
         "dxgi.lib",
         "dxguid.lib",
-
-        "%{VULKAN_SDK}/Lib/vulkan-1.lib",
-        "%{VULKAN_SDK}/Lib/VkLayer_utils.lib",
 
         "%{wks.location}/external/dxc/dxcompiler.lib",
 	}
