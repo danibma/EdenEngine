@@ -1,10 +1,10 @@
 #pragma once
 #include <memory>
-#include "Scene/Scene.h"
-#include "Graphics/RHI.h"
 
 namespace Eden
 {
+	class Scene;
+	class IRHI;
 	class SceneHierarchy
 	{
 	private:

@@ -2,11 +2,13 @@
 
 #include <imgui/imgui.h>
 
+#include "Scene/Scene.h"
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
 #include "UI/UI.h"
 #include "Core/Input.h"
 #include "Core/Application.h"
+#include "Graphics/RHI.h"
 
 namespace Eden
 {

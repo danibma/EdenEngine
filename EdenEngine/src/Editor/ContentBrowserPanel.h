@@ -3,8 +3,6 @@
 #include <filesystem>
 #include <unordered_map>
 
-#include "Graphics/RHI.h"
-
 #define CONTENT_BROWSER_COLUMN "CONTENT_BROWSER_COLUMN"
 #define CONTENT_BROWSER_CONTENTS_COLUMN "CONTENT_BROWSER_CONTENTS_COLUMN"
 #define CONTENT_BROWSER_DRAG_DROP "CONTENT_BROWSER_DRAG_DROP"
@@ -22,6 +20,8 @@ namespace Eden
 		std::vector<DirectoryInfo> sub_directories;
 	};
 
+	class IRHI;
+	struct Texture;
 	class ContentBrowserPanel
 	{
 	public:

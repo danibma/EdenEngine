@@ -760,7 +760,7 @@ namespace Eden
 		D3D12MA::Allocation* upload_allocation;
 
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("D3D12RHI::CreateTexture2D");
+		ED_PROFILE_GPU_FUNCTION("D3D12RHI::CreateTexture");
 
 		// Create the texture
 		{

@@ -1,10 +1,15 @@
 #pragma once
 
-#include "Graphics/RHI.h"
-#include "Scene/MeshSource.h"
+#include <memory>
+#include <string>
+#include <glm/glm.hpp>
 
 namespace Eden
 {
+	class IRHI;
+	struct Texture;
+	struct Buffer;
+	struct MeshSource;
 	class Skybox
 	{
 		std::unique_ptr<MeshSource> m_SkyboxCube;

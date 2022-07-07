@@ -1,5 +1,8 @@
 #include "Skybox.h"
 
+#include "Graphics/RHI.h"
+#include "Scene/MeshSource.h"
+
 namespace Eden
 {
 
