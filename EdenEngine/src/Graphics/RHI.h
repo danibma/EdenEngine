@@ -206,13 +206,13 @@ namespace Eden
 	{
 	protected:
 		bool m_ImguiInitialized = false;
-		int32_t m_FrameIndex;
+		uint32_t m_FrameIndex;
 		API m_CurrentAPI;
 
 	public:
 		IRHI() = default;
 
-		int32_t GetCurrentFrameIndex() { return m_FrameIndex; }
+		uint32_t GetCurrentFrameIndex() { return m_FrameIndex; }
 		API GetCurrentAPI() { return m_CurrentAPI; }
 
 		virtual void Init(Window* window) = 0;

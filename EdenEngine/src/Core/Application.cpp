@@ -2,6 +2,7 @@
 #include "Log.h"
 #include "Window.h"
 #include "Graphics/D3D12/D3D12RHI.h"
+#include "Graphics/Vulkan/VulkanRHI.h"
 #include "Graphics/RHI.h"
 #include "Memory.h"
 #include "Profiling/Profiler.h"
@@ -21,7 +22,8 @@ namespace Eden
 		window = enew Window("Eden Engine", 1600, 900);
 	#endif 
 
-		rhi = std::make_shared<D3D12RHI>();
+		//rhi = std::make_shared<D3D12RHI>();
+		rhi = std::make_shared<VulkanRHI>();
 		rhi->Init(window);
 
 		s_Instance = this;

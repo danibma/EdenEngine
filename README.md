@@ -1,4 +1,5 @@
 ## Requirements
+- ### D3D12 compatible device
 - ### Vulkan SDK 1.3.X
 
 ## Features

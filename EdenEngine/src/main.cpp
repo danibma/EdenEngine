@@ -24,7 +24,7 @@
 #include <array>
 #include <vector>
 
-#define WITH_EDITOR 1
+#define WITH_EDITOR 0
 
 using namespace Eden;
 
@@ -153,9 +153,13 @@ public:
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>(rhi);
 		m_SceneHierarchy = std::make_unique<SceneHierarchy>(rhi, m_CurrentScene);
 	#else
-		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"GBuffer_");
-		rhi->SetRTRenderPass(&m_GBuffer);
+		RenderPassDesc gbuffer_desc = {};
+		gbuffer_desc.debug_name = "GBuffer_";
+		gbuffer_desc.usage = RenderPassDesc::RenderTarget;
+		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
+		rhi->SetRTRenderPass(m_GBuffer);
 	#endif
+
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 		m_ViewportPos = { 0, 0 };
 	}
