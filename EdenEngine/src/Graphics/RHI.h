@@ -147,9 +147,10 @@ namespace Eden
 			TextureCube	// Not implemented
 		};
 
-		unsigned char* data;
+		void* data;
 		uint32_t width;
 		uint32_t height;
+		bool srgb = false;
 		TextureUsage usage = Texture2D;
 	};
 

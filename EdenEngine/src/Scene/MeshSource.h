@@ -63,7 +63,7 @@ namespace Eden
 		}
 
 	private:
-		std::shared_ptr<Texture> LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index);
+		std::shared_ptr<Texture> LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index, bool srgb = false);
 	};
 }
 

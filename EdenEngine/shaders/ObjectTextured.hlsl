@@ -33,7 +33,7 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 //=================
 float4 PSMain(Vertex vertex) : SV_TARGET
 {
-    float4 diffuse_texture = pow(g_textureDiffuse.Sample(g_linearSampler, vertex.uv), (float4)g_Gamma);
+    float4 diffuse_texture = g_textureDiffuse.Sample(g_linearSampler, vertex.uv);
     
     if (diffuse_texture.a > 0.0f)
         vertex.color = diffuse_texture;

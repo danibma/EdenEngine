@@ -205,7 +205,8 @@ namespace Eden
 					auto material_index = gltf_material.values["baseColorTexture"].TextureIndex();
 					auto texture_index = gltf_model.textures[material_index].source;
 
-					submesh->diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
+					// Load the diffuse textures in srgb space
+					submesh->diffuse_texture = LoadImage(rhi, gltf_model, texture_index, true);
 				}
 
 				if (gltf_material.emissiveTexture.index > -1)
@@ -250,7 +251,7 @@ namespace Eden
 		meshes.clear();
 	}
 
-	std::shared_ptr<Texture> MeshSource::LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index)
+	std::shared_ptr<Eden::Texture> MeshSource::LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index, bool srgb /* = false */)
 	{
 		tinygltf::Image& gltf_image = gltf_model.images[image_index];
 
@@ -283,6 +284,7 @@ namespace Eden
 		desc.data = buffer;
 		desc.width = gltf_image.width;
 		desc.height = gltf_image.height;
+		desc.srgb = srgb;
 		auto texture_id = rhi->CreateTexture(&desc);
 
 		if (delete_buffer)

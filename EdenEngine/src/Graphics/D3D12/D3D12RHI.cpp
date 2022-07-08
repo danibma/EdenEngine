@@ -728,6 +728,10 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
+		TextureDesc desc;
+		if (stbi_is_hdr(file_path.c_str()))
+			desc.srgb = true;
+
 		// Load texture from file
 		int width, height, nchannels;
 		unsigned char* texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
@@ -737,7 +741,6 @@ namespace Eden
 			return nullptr;
 		}
 
-		TextureDesc desc;
 		desc.data = texture_file;
 		desc.width = width;
 		desc.height = height;
@@ -757,7 +760,7 @@ namespace Eden
 		auto internal_state = std::make_shared<D3D12Texture>();
 		texture->internal_state = internal_state;
 		texture->desc = *desc;
-		texture->image_format = Format::RGBA8_UNORM;
+		texture->image_format = texture->desc.srgb ? Format::SRGB : Format::RGBA8_UNORM;
 
 		ComPtr<ID3D12Resource> texture_upload_heap;
 		D3D12MA::Allocation* upload_allocation;
@@ -805,7 +808,7 @@ namespace Eden
 			// Copy data to the intermediate upload heap and then schedule a copy 
 			// from the upload heap to the Texture2D.
 			D3D12_SUBRESOURCE_DATA texture_data = {};
-			texture_data.pData = &texture->desc.data[0];
+			texture_data.pData = texture->desc.data;
 			texture_data.RowPitch = texture->desc.width * 4;
 			texture_data.SlicePitch = texture->desc.height * texture_data.RowPitch;
 

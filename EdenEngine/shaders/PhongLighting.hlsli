@@ -67,8 +67,6 @@ float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const flo
     float diffuse_color = max(dot(norm, light_dir), 0.0f);
     float4 diffuse = float4(diffuse_color * light_color, 1.0f) * object_color;
     
-    
-    
     // Specular Light
     float specular_strength = 0.1f;
     float shininess = 32.0f;

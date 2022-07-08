@@ -42,7 +42,7 @@ float2 SampleSphericalMap(float3 v)
 float4 PSMain(PSInput input) : SV_Target
 {
     float2 uv = SampleSphericalMap(normalize(input.uv));
-    float4 color = pow(g_cubemapTexture.Sample(g_linearSampler, uv), (float4)g_Gamma);
+    float4 color = g_cubemapTexture.Sample(g_linearSampler, uv);
 
     return color;
 }
