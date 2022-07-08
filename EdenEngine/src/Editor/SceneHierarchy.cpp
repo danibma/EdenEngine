@@ -266,9 +266,6 @@ namespace Eden
 			pl.position = glm::vec4(transform.translation, 1.0f);
 
 			UI::DrawColor("Color", pl.color);
-			UI::DrawProperty("Constant", pl.constant_value, 0.05f, 0.0f, 1.0f);
-			UI::DrawProperty("Linear", pl.linear_value, 0.05f, 0.0f, 1.0f);
-			UI::DrawProperty("Quadratic", pl.quadratic_value, 0.05f, 0.0f, 1.0f);
 		});
 
 		ImGui::Spacing();

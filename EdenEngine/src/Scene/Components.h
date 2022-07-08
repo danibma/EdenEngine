@@ -56,9 +56,6 @@ namespace Eden
 	{
 		glm::vec4 color = glm::vec4(1.0f);
 		glm::vec4 position;
-		float constant_value = 1.0f;
-		float linear_value = 0.09f;
-		float quadratic_value = 0.032f;
 	};
 
 	struct DirectionalLightComponent

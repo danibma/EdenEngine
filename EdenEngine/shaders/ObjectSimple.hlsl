@@ -1,5 +1,5 @@
-#include "global.hlsli"
-#include "phong_lighting.hlsli"
+#include "Global.hlsli"
+#include "PhongLighting.hlsli"
 
 // Lights
 StructuredBuffer<DirectionalLight> DirectionalLights;

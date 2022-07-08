@@ -1,5 +1,5 @@
-#include "global.hlsli"
-#include "phong_lighting.hlsli"
+#include "Global.hlsli"
+#include "PhongLighting.hlsli"
 
 Texture2D g_textureDiffuse : register(t0);
 Texture2D g_textureEmissive : register(t1);
@@ -33,7 +33,7 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 //=================
 float4 PSMain(Vertex vertex) : SV_TARGET
 {
-    float4 diffuse_texture = g_textureDiffuse.Sample(g_linearSampler, vertex.uv);
+    float4 diffuse_texture = pow(g_textureDiffuse.Sample(g_linearSampler, vertex.uv), (float4)g_Gamma);
     
     if (diffuse_texture.a > 0.0f)
         vertex.color = diffuse_texture;

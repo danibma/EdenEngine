@@ -1,5 +1,5 @@
 #pragma once
-#include "global.hlsli"
+#include "Global.hlsli"
 
 // blinn-phong define
 #define BLINN 1
@@ -50,9 +50,6 @@ struct PointLight
 {
     float4 color;
     float4 position;
-    float constant_value;
-    float linear_value;
-    float quadratic_value;
 };
 
 float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, PointLight point_light)
@@ -86,7 +83,7 @@ float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const flo
     
     // Calculate attenuation
     float distance = length(point_light.position.xyz - frag_pos.xyz);
-    float attenuation = 1.0f / (point_light.constant_value + point_light.linear_value * distance + point_light.quadratic_value * (distance * distance));
+    float attenuation = 1.0f / distance;
     ambient  *= attenuation;
     diffuse  *= attenuation;
     specular *= attenuation;

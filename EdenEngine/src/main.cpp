@@ -65,7 +65,7 @@ class EdenApplication : public Application
 	// UI
 	bool m_OpenDebugWindow = true;
 	bool m_OpenSceneProperties = true;
-	bool m_OpenShadersPanel = false;
+	bool m_OpenPipelinesPanel = false;
 	bool m_OpenMemoryPanel = true;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 	glm::vec2 m_ViewportSize;
@@ -80,6 +80,8 @@ class EdenApplication : public Application
 	// Rendering
 	std::shared_ptr<RenderPass> m_GBuffer;
 	std::shared_ptr<RenderPass> m_ImGuiPass;
+	std::shared_ptr<RenderPass> m_SceneComposite;
+	std::shared_ptr<Buffer> m_QuadBuffer;
 public:
 	EdenApplication() = default;
 
@@ -87,19 +89,23 @@ public:
 	{
 		PipelineDesc object_texture_desc = {};
 		object_texture_desc.enable_blending = true;
-		object_texture_desc.program_name = "object_texture";
+		object_texture_desc.program_name = "ObjectTextured";
 		m_Pipelines["Object Texture"] = rhi->CreatePipeline(&object_texture_desc);
 
 		PipelineDesc object_simple_desc = {};
-		object_simple_desc.program_name = "object_simple";
+		object_simple_desc.program_name = "ObjectSimple";
 		m_Pipelines["Object Simple"] = rhi->CreatePipeline(&object_simple_desc);
 
 		PipelineDesc skybox_desc = {};
 		skybox_desc.cull_mode = CullMode::NONE;
 		skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
 		skybox_desc.min_depth = 1.0f;
-		skybox_desc.program_name = "skybox";
+		skybox_desc.program_name = "Skybox";
 		m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
+
+		PipelineDesc scene_composite_desc = {};
+		scene_composite_desc.program_name = "SceneComposite";
+		m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
 
 		m_Camera = Camera(window->GetWidth(), window->GetHeight());
 
@@ -142,6 +148,11 @@ public:
 		gbuffer_desc.usage = RenderPassDesc::RenderTexture;
 		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
 
+		RenderPassDesc sc_desc = {};
+		sc_desc.debug_name = "SceneComposite_";
+		sc_desc.usage = RenderPassDesc::RenderTexture;
+		m_SceneComposite = rhi->CreateRenderPass(&sc_desc);
+
 		RenderPassDesc imguipass_desc = {};
 		imguipass_desc.debug_name = "ImGuiPass_";
 		imguipass_desc.usage = RenderPassDesc::RenderTarget;
@@ -158,6 +169,22 @@ public:
 	#endif
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 		m_ViewportPos = { 0, 0 };
+
+		float quadVertices[] = {
+			// positions   // texCoords
+			-1.0f,  1.0f,   0.0f, 1.0f,
+			-1.0f, -1.0f,   0.0f, 0.0f,
+			 1.0f, -1.0f,  -1.0f, 0.0f,
+
+			-1.0f,  1.0f,   0.0f, 1.0f,
+			 1.0f, -1.0f,  -1.0f, 0.0f,
+			 1.0f,  1.0f,  -1.0f, 1.0f
+		};
+		BufferDesc quad_desc = {};
+		quad_desc.stride = sizeof(float) * 4;
+		quad_desc.element_count = 6;
+		quad_desc.usage = BufferDesc::Vertex_Index;
+		m_QuadBuffer = rhi->CreateBuffer(&quad_desc, quadVertices);
 	}
 
 	void PrepareScene()
@@ -297,7 +324,7 @@ public:
 				ImGui::MenuItem("Entity Properties", NULL, &m_SceneHierarchy->open_entity_properties);
 				ImGui::MenuItem("Scene Hierarchy", NULL, &m_SceneHierarchy->open_scene_hierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
-				ImGui::MenuItem("Shaders Panel", NULL, &m_OpenShadersPanel);
+				ImGui::MenuItem("Pipelines Panel", NULL, &m_OpenPipelinesPanel);
 				ImGui::MenuItem("ContentBrowser", NULL, &m_ContentBrowserPanel->open_content_browser);
 
 				ImGui::EndMenu();
@@ -385,7 +412,7 @@ public:
 		if (ImGui::Button("Reload all pipelines"))
 		{
 			for (auto& pipeline : m_Pipelines)
-				rhi->ReloadPipeline(pipeline.second);
+				m_CurrentScene->AddPreparation([&]() {rhi->ReloadPipeline(pipeline.second); });
 		}
 		ImGui::Columns(1);
 		for (auto& pipeline : m_Pipelines)
@@ -395,7 +422,7 @@ public:
 			ImGui::Text(pipeline.first);
 			ImGui::NextColumn();
 			if (ImGui::Button("Reload pipeline"))
-				rhi->ReloadPipeline(pipeline.second);
+				m_CurrentScene->AddPreparation([&]() {rhi->ReloadPipeline(pipeline.second); });
 			ImGui::Columns(1);
 			ImGui::PopID();
 		}
@@ -422,6 +449,8 @@ public:
 			m_ViewportSize = { viewport_size.x, viewport_size.y };
 			m_GBuffer->width = (uint32_t)m_ViewportSize.x;
 			m_GBuffer->height = (uint32_t)m_ViewportSize.y;
+			m_SceneComposite->width = (uint32_t)m_ViewportSize.x;
+			m_SceneComposite->height = (uint32_t)m_ViewportSize.y;
 			m_Camera.SetViewportSize(m_ViewportSize);
 		}
 		auto viewport_pos = ImGui::GetWindowPos();
@@ -430,7 +459,7 @@ public:
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
-		ImGui::Image((ImTextureID)rhi->GetTextureID(m_GBuffer->render_targets[0]), viewport_size);
+		ImGui::Image((ImTextureID)rhi->GetTextureID(m_SceneComposite->render_targets[0]), viewport_size);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -463,6 +492,13 @@ public:
 				}
 			}
 			ImGui::EndDragDropTarget();
+		}
+
+		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
+		{
+			m_CurrentScene->AddPreparation([&]() {
+				m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
+			});
 		}
 
 		ImGui::End();
@@ -498,7 +534,7 @@ public:
 			UI_SceneProperties();
 		if (m_CurrentScene->GetSelectedEntity())
 			UI_DrawGizmo();
-		if (m_OpenShadersPanel)
+		if (m_OpenPipelinesPanel)
 			UI_PipelinesPanel();
 		if (m_OpenMemoryPanel)
 			UI_MemoryPanel();
@@ -646,6 +682,13 @@ public:
 			m_Skybox->Render(rhi, m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix)));
 		}
 		rhi->EndRenderPass(m_GBuffer);
+
+		rhi->BeginRenderPass(m_SceneComposite);
+		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
+		rhi->BindVertexBuffer(m_QuadBuffer);
+		rhi->BindParameter("g_sceneTexture", m_GBuffer->render_targets[0]);
+		rhi->Draw(6);
+		rhi->EndRenderPass(m_SceneComposite);
 
 	#if WITH_EDITOR
 		rhi->BeginRenderPass(m_ImGuiPass);

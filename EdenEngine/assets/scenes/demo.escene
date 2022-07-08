@@ -8,7 +8,7 @@ Entities:
       Rotation: [-0.191986218, 1.27409029, 0.052359879]
       Scale: [1, 1, 1]
     DirectionalLightComponent:
-      Intensity: 0.75
+      Intensity: 0.649999976
   - Entity: 1
     TagComponent:
       Tag: Helmet
@@ -40,23 +40,17 @@ Entities:
     TagComponent:
       Tag: RedLight
     TransformComponent:
-      Translation: [1.81668401, 0, -5.58942461]
+      Translation: [5.46651793, -1.45240259, -5.58942461]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [1, 0, 0, 1]
-      Constant Value: 1
-      Linear Value: 0.0900000036
-      Quadratic Value: 0.0320000015
   - Entity: 5
     TagComponent:
       Tag: GreenLight
     TransformComponent:
-      Translation: [-2.05060148, 0, -5.05821991]
+      Translation: [-2.57009244, 0, -5.05821991]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [0.068292737, 1, 0, 1]
-      Constant Value: 1
-      Linear Value: 0.0900000036
-      Quadratic Value: 0.0320000015

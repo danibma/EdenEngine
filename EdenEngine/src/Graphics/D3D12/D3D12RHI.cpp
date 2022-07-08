@@ -219,7 +219,10 @@ namespace Eden
 		ComPtr<IDxcBlobEncoding> source = nullptr;
 		m_DxcUtils->LoadFile(file_path.c_str(), nullptr, &source);
 		if (!source)
+		{
 			ED_LOG_ERROR("Could not find the program shader file: {}", file_path);
+			ED_ASSERT(false);
+		}
 
 		DxcBuffer source_buffer;
 		source_buffer.Ptr = source->GetBufferPointer();
@@ -868,6 +871,7 @@ namespace Eden
 
 	void D3D12RHI::UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count)
 	{
+		if (!data) return;
 		if (count > 0)
 		{
 			buffer->desc.element_count = count;

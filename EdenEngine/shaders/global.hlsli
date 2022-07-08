@@ -1,5 +1,7 @@
 #pragma once
 
+static const float g_Gamma = 2.2f;
+
 struct Vertex
 {
     float4 position : SV_POSITION;

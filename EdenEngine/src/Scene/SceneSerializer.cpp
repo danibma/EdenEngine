@@ -109,9 +109,6 @@ namespace Eden
 
 					pl.position = glm::vec4(transform.translation, 1.0f);
 					pl.color = point_light_component["Color"].as<glm::vec4>();
-					pl.constant_value = point_light_component["Constant Value"].as<float>();
-					pl.quadratic_value = point_light_component["Quadratic Value"].as<float>();
-					pl.linear_value = point_light_component["Linear Value"].as<float>();
 				}
 
 				auto directional_light_component = entity["DirectionalLightComponent"];
@@ -176,9 +173,6 @@ namespace Eden
 
 			auto& pl = entity.GetComponent<PointLightComponent>();
 			out << YAML::Key << "Color" << YAML::Value << pl.color;
-			out << YAML::Key << "Constant Value" << YAML::Value << pl.constant_value;
-			out << YAML::Key << "Linear Value" << YAML::Value << pl.linear_value;
-			out << YAML::Key << "Quadratic Value" << YAML::Value << pl.quadratic_value;
 
 			out << YAML::EndMap; // PointLightComponent
 		}
