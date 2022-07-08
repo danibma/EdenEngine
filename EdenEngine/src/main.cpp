@@ -65,7 +65,7 @@ class EdenApplication : public Application
 	// UI
 	bool m_OpenDebugWindow = true;
 	bool m_OpenSceneProperties = true;
-	bool m_OpenPipelinesPanel = false;
+	bool m_OpenPipelinesPanel = true;
 	bool m_OpenMemoryPanel = true;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 	glm::vec2 m_ViewportSize;
@@ -85,7 +85,7 @@ class EdenApplication : public Application
 
 	struct SceneSettings
 	{
-		float exposure = 0.6f;
+		float exposure = 0.8f;
 	} m_SceneSettings;
 	std::shared_ptr<Buffer> m_SceneSettingsBuffer;
 
