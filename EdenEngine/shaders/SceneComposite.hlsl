@@ -13,12 +13,8 @@ float3 GammaCorrect(float3 color, float gamma)
     return pow(color, (float3)1.0f/gamma);
 }
 
-float3 ToneMap(float3 color)
-{
-    return color / (color + (float3)1.0f);
-}
-
 // Based on http://www.oscars.org/science-technology/sci-tech-projects/aces
+// and taken from Hazel Engine SceneComposite.glsl shader
 float3 ACESTonemap(float3 color)
 {
     float3x3 m1 = float3x3(
