@@ -1,6 +1,3 @@
-## Requirements
-- ### Vulkan SDK 1.3.X
-
 ## Features
 ### Phong Lighting
 ![Phong Lighting Image](img/phong_lighting.png)
