@@ -524,11 +524,11 @@ namespace Eden
 			auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 			CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset));
 
-			D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+			D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(Format::RGBA32_FLOAT),
 																	width, height,
 																	1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
-			D3D12_CLEAR_VALUE clear_value = { DXGI_FORMAT_R8G8B8A8_UNORM, { 0.f, 0.f, 0.f, 0.f } };
+			D3D12_CLEAR_VALUE clear_value = { Helpers::ConvertFormat(Format::RGBA32_FLOAT), { 0.f, 0.f, 0.f, 0.f } };
 
 			m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
 											  &desc,

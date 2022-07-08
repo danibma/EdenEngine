@@ -266,6 +266,7 @@ namespace Eden
 			pl.position = glm::vec4(transform.translation, 1.0f);
 
 			UI::DrawColor("Color", pl.color);
+			UI::DrawProperty("Intensity", pl.intensity, 0.5f, 0.01f, 0.0f);
 		});
 
 		ImGui::Spacing();
@@ -277,7 +278,7 @@ namespace Eden
 
 			dl.direction = glm::vec4(transform.rotation, 1.0f);
 
-			UI::DrawProperty("Intensity", dl.intensity, 0.05f, 0.0f, 1.0f);
+			UI::DrawProperty("Intensity", dl.intensity, 0.5f, 0.01f, 0.0f);
 		});
 
 	end: // goto end

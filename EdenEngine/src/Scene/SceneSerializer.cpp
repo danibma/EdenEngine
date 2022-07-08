@@ -109,6 +109,7 @@ namespace Eden
 
 					pl.position = glm::vec4(transform.translation, 1.0f);
 					pl.color = point_light_component["Color"].as<glm::vec4>();
+					pl.intensity = point_light_component["Intensity"].as<float>();
 				}
 
 				auto directional_light_component = entity["DirectionalLightComponent"];
@@ -173,6 +174,7 @@ namespace Eden
 
 			auto& pl = entity.GetComponent<PointLightComponent>();
 			out << YAML::Key << "Color" << YAML::Value << pl.color;
+			out << YAML::Key << "Intensity" << YAML::Value << pl.intensity;
 
 			out << YAML::EndMap; // PointLightComponent
 		}

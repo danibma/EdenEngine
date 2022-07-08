@@ -45,12 +45,14 @@ Entities:
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [1, 0, 0, 1]
+      Intensity: 1
   - Entity: 5
     TagComponent:
       Tag: GreenLight
     TransformComponent:
-      Translation: [-2.57009244, 0, -5.05821991]
+      Translation: [-4.7666254, -1.20398319, -5.05821991]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [0.068292737, 1, 0, 1]
+      Intensity: 5

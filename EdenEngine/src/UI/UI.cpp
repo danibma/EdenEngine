@@ -316,7 +316,7 @@ namespace Eden::UI
 		ImGui::Text(label.c_str());
 		ImGui::NextColumn();
 		ImGui::PushItemWidth(-1);
-		ImGui::DragFloat("###X", &value, speed, min, max);
+		ImGui::DragFloat("###X", &value, speed, min, max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::PopItemWidth();
 		ImGui::Columns(1);
 		ImGui::PopID();

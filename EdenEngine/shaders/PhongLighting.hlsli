@@ -50,6 +50,7 @@ struct PointLight
 {
     float4 color;
     float4 position;
+    float intensity;
 };
 
 float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const float3 view_dir, const float3 normal, PointLight point_light)
@@ -86,7 +87,7 @@ float4 CalculatePointLight(const float4 object_color, float4 frag_pos, const flo
     diffuse  *= attenuation;
     specular *= attenuation;
     
-    return ambient + diffuse + specular;
+    return (ambient + diffuse + specular) * point_light.intensity;
 }
 
 float4 CalculateAllLights(Vertex vertex, StructuredBuffer<DirectionalLight> DirectionalLights, StructuredBuffer<PointLight> PointLights)

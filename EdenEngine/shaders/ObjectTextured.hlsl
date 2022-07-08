@@ -39,10 +39,10 @@ float4 PSMain(Vertex vertex) : SV_TARGET
         vertex.color = diffuse_texture;
     
     // Emissive
-    float4 emissive = g_textureEmissive.Sample(g_linearSampler, vertex.uv).rgba * 3.0f;
+    float4 emissive = g_textureEmissive.Sample(g_linearSampler, vertex.uv);
     
     float4 pixel_color = CalculateAllLights(vertex, DirectionalLights, PointLights);
-    pixel_color += emissive;
+    pixel_color += emissive * 3.0f;
     
     return pixel_color;
 }

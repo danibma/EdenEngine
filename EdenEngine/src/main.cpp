@@ -82,6 +82,13 @@ class EdenApplication : public Application
 	std::shared_ptr<RenderPass> m_ImGuiPass;
 	std::shared_ptr<RenderPass> m_SceneComposite;
 	std::shared_ptr<Buffer> m_QuadBuffer;
+
+	struct SceneSettings
+	{
+		float exposure = 0.6f;
+	} m_SceneSettings;
+	std::shared_ptr<Buffer> m_SceneSettingsBuffer;
+
 public:
 	EdenApplication() = default;
 
@@ -170,7 +177,7 @@ public:
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 		m_ViewportPos = { 0, 0 };
 
-		float quadVertices[] = {
+		float quad_vertices[] = {
 			// positions   // texCoords
 			-1.0f,  1.0f,   0.0f, 1.0f,
 			-1.0f, -1.0f,   0.0f, 0.0f,
@@ -184,7 +191,13 @@ public:
 		quad_desc.stride = sizeof(float) * 4;
 		quad_desc.element_count = 6;
 		quad_desc.usage = BufferDesc::Vertex_Index;
-		m_QuadBuffer = rhi->CreateBuffer(&quad_desc, quadVertices);
+		m_QuadBuffer = rhi->CreateBuffer(&quad_desc, quad_vertices);
+
+		BufferDesc scene_settings_desc = {};
+		scene_settings_desc.element_count = 1;
+		scene_settings_desc.stride = sizeof(SceneSettings);
+		scene_settings_desc.usage = BufferDesc::Uniform;
+		m_SceneSettingsBuffer = rhi->CreateBuffer(&scene_settings_desc, &m_SceneSettings);
 	}
 
 	void PrepareScene()
@@ -363,6 +376,8 @@ public:
 	{
 		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
 		ImGui::Checkbox("Enable Skybox", &m_SkyboxEnable);
+		ImGui::Separator();
+		UI::DrawProperty("Exposure", m_SceneSettings.exposure, 0.1f, 0.1f, 5.0f);
 		ImGui::End();
 	}
 
@@ -687,6 +702,8 @@ public:
 		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
 		rhi->BindVertexBuffer(m_QuadBuffer);
 		rhi->BindParameter("g_sceneTexture", m_GBuffer->render_targets[0]);
+		rhi->UpdateBufferData(m_SceneSettingsBuffer, &m_SceneSettings);
+		rhi->BindParameter("SceneSettings", m_SceneSettingsBuffer);
 		rhi->Draw(6);
 		rhi->EndRenderPass(m_SceneComposite);
 

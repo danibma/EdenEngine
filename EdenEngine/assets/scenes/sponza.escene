@@ -1,0 +1,30 @@
+Scene: sponza
+Entities:
+  - Entity: 0
+    TagComponent:
+      Tag: Sun
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [-6.4832624e-05, 0.674534261, 1.487764]
+      Scale: [0.999999523, 0.999999642, 0.999999881]
+    DirectionalLightComponent:
+      Intensity: 1
+  - Entity: 1
+    TagComponent:
+      Tag: Sponza
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      File Path: E:\EdenEngine\EdenEngine\assets\models\Sponza\Sponza.gltf
+  - Entity: 2
+    TagComponent:
+      Tag: Light
+    TransformComponent:
+      Translation: [-7.2775526, 0.77065587, 0.195573092]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    PointLightComponent:
+      Color: [1, 0, 0, 1]
+      Intensity : 1

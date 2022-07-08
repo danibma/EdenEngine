@@ -181,7 +181,7 @@ namespace Eden
 		std::unordered_map<std::string, uint32_t> root_parameter_indices;
 	};
 
-	// TODO: Refactor Render Passes when adding vulkan, make it attachments instead of this Type bs
+	// TODO: Refactor Render Passes, make it attachments instead of this Usage bs
 	struct RenderPassDesc
 	{
 		enum RenderPassUsage
