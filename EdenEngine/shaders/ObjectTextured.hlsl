@@ -22,7 +22,7 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
     result.pixel_pos = mul(transform, float4(position, 1.0f));
     result.normal = TransformDirection(transform, normal);
     result.uv = uv;
-    result.color = color;
+    result.color = color.rgb;
     result.view_dir = normalize(view_position.xyz - result.pixel_pos.xyz);
 
     return result;
@@ -34,15 +34,16 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 float4 PSMain(Vertex vertex) : SV_TARGET
 {
     float4 diffuse_texture = g_textureDiffuse.Sample(g_linearSampler, vertex.uv);
-    
-    if (diffuse_texture.a > 0.0f)
-        vertex.color = diffuse_texture;
-    
-    // Emissive
+    float alpha = diffuse_texture.a;
     float4 emissive = g_textureEmissive.Sample(g_linearSampler, vertex.uv);
     
-    float4 pixel_color = CalculateAllLights(vertex, DirectionalLights, PointLights);
-    pixel_color += emissive * 3.0f;
+    if (alpha < 0.01f)
+        discard;
     
-    return pixel_color;
+    vertex.color = diffuse_texture.rgb;
+    vertex.color += emissive.rgb;
+    
+    float3 pixel_color = CalculateAllLights(vertex, DirectionalLights, PointLights);
+    
+    return float4(pixel_color, alpha);
 }

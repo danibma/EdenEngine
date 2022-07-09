@@ -510,95 +510,138 @@ namespace Eden
 		return buffer;
 	}
 
-	void D3D12RHI::CreateBackBuffers(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height)
+	void D3D12RHI::CreateAttachments(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height)
 	{
 		auto internal_state = ToInternal(render_pass.get());
 
-		// Create render targets
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(internal_state->rtv_heap));
-
-		if (render_pass->desc.usage == RenderPassDesc::RenderTexture)
+		if (render_pass->desc.swapchain_target)
 		{
-			auto rt_internal_state = ToInternal(render_pass->render_targets[0].get());
-
-			auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-			CD3DX12_CPU_DESCRIPTOR_HANDLE srv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset));
-
-			D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(Format::RGBA32_FLOAT),
-																	width, height,
-																	1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
-			D3D12_CLEAR_VALUE clear_value = { Helpers::ConvertFormat(Format::RGBA32_FLOAT), { 0.f, 0.f, 0.f, 0.f } };
-
-			m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
-											  &desc,
-											  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
-											  IID_PPV_ARGS(rt_internal_state->resource.ReleaseAndGetAddressOf()));
-
-			m_Device->CreateRenderTargetView(rt_internal_state->resource.Get(), nullptr, rtv_handle);
-
-			rt_internal_state->cpu_handle = srv_handle;
-			rt_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
-			render_pass->render_targets[0]->desc.width = width;
-			render_pass->render_targets[0]->desc.height = height;
-			m_Device->CreateShaderResourceView(rt_internal_state->resource.Get(), nullptr, srv_handle);
-			m_SRVHeapOffset++;
-		}
-		else if (render_pass->desc.usage == RenderPassDesc::RenderTarget)
-		{
-
 			// Create a RTV for each frame
 			for (uint32_t i = 0; i < s_FrameCount; ++i)
 			{
-				auto rt_internal_state = ToInternal(render_pass->render_targets[i].get());
+				auto attachment = std::make_shared<Texture>();
+				attachment->internal_state = std::make_shared<D3D12Texture>();
+				attachment->image_format = Format::RGBA8_UNORM;
+				render_pass->color_attachments.emplace_back(attachment);
 
-				if (FAILED(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&rt_internal_state->resource))))
+				auto attachment_internal_state = ToInternal(attachment.get());
+
+				if (FAILED(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&attachment_internal_state->resource))))
 					ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
 
-				m_Device->CreateRenderTargetView(rt_internal_state->resource.Get(), nullptr, rtv_handle);
+				m_Device->CreateRenderTargetView(attachment_internal_state->resource.Get(), nullptr, rtv_handle);
 				rtv_handle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 
 				std::wstring rt_name;
-				render_pass->desc.debug_name += "backbuffer";
 				Utils::StringConvert(render_pass->desc.debug_name, rt_name);;
-				rt_internal_state->resource->SetName(rt_name.c_str());
-				render_pass->render_targets[i]->desc.width = width;
-				render_pass->render_targets[i]->desc.height = height;
+				rt_name += L"backbuffer";
+				attachment_internal_state->resource->SetName(rt_name.c_str());
+				attachment->desc.width = width;
+				attachment->desc.height = height;
+			}
+		}
+		else
+		{
+			uint32_t attachment_index = 0;
+			for (auto& format : render_pass->desc.attachments_formats)
+			{
+				if (IsDepthFormat(format))
+					continue;
+
+				size_t attachment_count = render_pass->desc.attachments_formats.size();
+				if (GetDepthFormatIndex(render_pass->desc.attachments_formats) > -1)
+					attachment_count = render_pass->desc.attachments_formats.size() - 1;
+
+				std::shared_ptr<Texture> attachment;
+				D3D12Texture* attachment_internal_state;
+				// If the amount of color attachments is equal to the amouth of formats, than its a resize operation
+				if (render_pass->color_attachments.size() == attachment_count)
+				{
+					attachment = render_pass->color_attachments[attachment_index];
+					attachment_internal_state = ToInternal(attachment.get());
+				}
+				else
+				{
+					attachment = std::make_shared<Texture>();
+					attachment->internal_state = std::make_shared<D3D12Texture>();
+					attachment->image_format = format;
+					attachment_internal_state = ToInternal(attachment.get());
+					attachment_internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+					attachment_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
+					render_pass->color_attachments.emplace_back(attachment);
+					m_SRVHeapOffset++;
+				}
+				
+				D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(format),
+																		width, height,
+																		1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+				D3D12_CLEAR_VALUE clear_value = { Helpers::ConvertFormat(format), { 0.f, 0.f, 0.f, 0.f } };
+
+				auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+				m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+												  &desc,
+												  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
+												  IID_PPV_ARGS(attachment_internal_state->resource.ReleaseAndGetAddressOf()));
+
+				m_Device->CreateRenderTargetView(attachment_internal_state->resource.Get(), nullptr, rtv_handle);
+
+				attachment->desc.width = width;
+				attachment->desc.height = height;
+				m_Viewport.Width = static_cast<float>(width);
+				m_Viewport.Height = static_cast<float>(height);
+				std::wstring rt_name;
+				Utils::StringConvert(render_pass->desc.debug_name, rt_name);
+				rt_name += L"color_attachment";
+				attachment_internal_state->resource->SetName(rt_name.c_str());
+				m_Device->CreateShaderResourceView(attachment_internal_state->resource.Get(), nullptr, attachment_internal_state->cpu_handle);
+
+				attachment_index++;
 			}
 		}
 
-		render_pass->width = width;
-		render_pass->height = height;
-
 		// Create DSV
-		D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
-		depth_stencil_desc.Format = DXGI_FORMAT_D32_FLOAT;
-		depth_stencil_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		depth_stencil_desc.Flags = D3D12_DSV_FLAG_NONE;
-
-		D3D12_CLEAR_VALUE depth_optimized_clear_value;
-		depth_optimized_clear_value.Format = DXGI_FORMAT_D32_FLOAT;
-		depth_optimized_clear_value.DepthStencil.Depth = 1.0f;
-		depth_optimized_clear_value.DepthStencil.Stencil = 0;
-
-		if (FAILED(m_Device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			&depth_optimized_clear_value,
-			IID_PPV_ARGS(&internal_state->depth_stencil)
-		)))
+		auto depth_index = GetDepthFormatIndex(render_pass->desc.attachments_formats);
+		if (depth_index > -1)
 		{
-			ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
-		}
+			auto depth_format = render_pass->desc.attachments_formats[depth_index];
 
-		auto dsv_handle = GetCPUHandle(internal_state->dsv_heap);
-		m_Device->CreateDepthStencilView(internal_state->depth_stencil.Get(), &depth_stencil_desc, dsv_handle);
+			render_pass->depth_stencil = std::make_shared<Texture>();
+			render_pass->depth_stencil->internal_state = std::make_shared<D3D12Texture>();
+			auto dsv_internal_state = ToInternal(render_pass->depth_stencil.get());
+
+			D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
+			depth_stencil_desc.Format = Helpers::ConvertFormat(depth_format);
+			depth_stencil_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			depth_stencil_desc.Flags = D3D12_DSV_FLAG_NONE;
+
+			D3D12_CLEAR_VALUE depth_optimized_clear_value;
+			depth_optimized_clear_value.Format = Helpers::ConvertFormat(depth_format);
+			depth_optimized_clear_value.DepthStencil.Depth = 1.0f;
+			depth_optimized_clear_value.DepthStencil.Stencil = 0;
+
+			if (FAILED(m_Device->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(depth_format), width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+				D3D12_RESOURCE_STATE_DEPTH_WRITE,
+				&depth_optimized_clear_value,
+				IID_PPV_ARGS(&dsv_internal_state->resource)
+			)))
+			{
+				ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
+			}
+
+			auto dsv_handle = GetCPUHandle(internal_state->dsv_heap);
+			m_Device->CreateDepthStencilView(dsv_internal_state->resource.Get(), &depth_stencil_desc, dsv_handle);
+		}
 	}
 
 	std::shared_ptr<Pipeline> D3D12RHI::CreatePipeline(PipelineDesc* desc)
 	{
+		ED_ASSERT(desc->render_pass);
+
 		ED_PROFILE_FUNCTION();
 
 		std::shared_ptr<Pipeline> pipeline = std::make_shared<Pipeline>();
@@ -698,7 +741,6 @@ namespace Eden
 		pso_desc.VS = { vertex_shader.blob->GetBufferPointer(), vertex_shader.blob->GetBufferSize() };
 		pso_desc.PS = { pixel_shader.blob->GetBufferPointer(), pixel_shader.blob->GetBufferSize() };
 		pso_desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		pso_desc.BlendState.RenderTarget[0] = render_target_blend_desc;
 		pso_desc.SampleMask = UINT_MAX;
 		pso_desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		pso_desc.RasterizerState.CullMode = Helpers::ConvertCullMode(desc->cull_mode);
@@ -709,9 +751,17 @@ namespace Eden
 		pso_desc.InputLayout.NumElements = static_cast<uint32_t>(input_elements.size());
 		pso_desc.InputLayout.pInputElementDescs = input_elements.data();
 		pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		pso_desc.NumRenderTargets = 1;
-		pso_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		pso_desc.SampleDesc.Count = 1;
+
+		uint32_t attachments_index = 0;
+		for (auto& attachment : desc->render_pass->color_attachments)
+		{
+			pso_desc.RTVFormats[attachments_index] = Helpers::ConvertFormat(attachment->image_format);
+			pso_desc.BlendState.RenderTarget[0] = render_target_blend_desc;
+			attachments_index++;
+		}
+		attachments_index++;
+		pso_desc.NumRenderTargets = attachments_index;
 
 		if (FAILED(m_Device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&internal_state->pipeline_state))))
 			ED_ASSERT_MB(false, "Failed to create graphics pipeline state!");
@@ -729,19 +779,33 @@ namespace Eden
 		ED_PROFILE_FUNCTION();
 
 		TextureDesc desc;
-		if (stbi_is_hdr(file_path.c_str()))
-			desc.srgb = true;
-
-		// Load texture from file
 		int width, height, nchannels;
-		unsigned char* texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
-		if (!texture_file)
+		if (stbi_is_hdr(file_path.c_str()))
 		{
-			ED_LOG_ERROR("Could not load texture file: {}", file_path);
-			return nullptr;
-		}
+			// Load texture from file
+			float* texture_file = stbi_loadf(file_path.c_str(), &width, &height, &nchannels, 4);
+			if (!texture_file)
+			{
+				ED_LOG_ERROR("Could not load texture file: {}", file_path);
+				return nullptr;
+			}
 
-		desc.data = texture_file;
+			desc.data = texture_file;
+			desc.srgb = true;
+		}
+		else
+		{
+			// Load texture from file
+			unsigned char* texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
+			if (!texture_file)
+			{
+				ED_LOG_ERROR("Could not load texture file: {}", file_path);
+				return nullptr;
+			}
+
+			desc.data = texture_file;
+		}
+			
 		desc.width = width;
 		desc.height = height;
 
@@ -760,7 +824,7 @@ namespace Eden
 		auto internal_state = std::make_shared<D3D12Texture>();
 		texture->internal_state = internal_state;
 		texture->desc = *desc;
-		texture->image_format = texture->desc.srgb ? Format::SRGB : Format::RGBA8_UNORM;
+		texture->image_format = texture->desc.srgb ? Format::RGBA32_FLOAT : Format::RGBA8_UNORM;
 
 		ComPtr<ID3D12Resource> texture_upload_heap;
 		D3D12MA::Allocation* upload_allocation;
@@ -810,6 +874,8 @@ namespace Eden
 			D3D12_SUBRESOURCE_DATA texture_data = {};
 			texture_data.pData = texture->desc.data;
 			texture_data.RowPitch = texture->desc.width * 4;
+			if (desc->srgb)
+				texture_data.RowPitch *= sizeof(float);
 			texture_data.SlicePitch = texture->desc.height * texture_data.RowPitch;
 
 			UpdateSubresources(m_CommandList.Get(), internal_state->resource.Get(), texture_upload_heap.Get(), 0, 0, 1, &texture_data);
@@ -861,13 +927,11 @@ namespace Eden
 		auto rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
 		auto dsv_handle = GetCPUHandle(internal_state->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 
-		for (auto& render_target : render_pass->render_targets)
-		{
-			render_target = std::make_shared<Texture>();
-			render_target->internal_state = std::make_shared<D3D12Texture>();
-		}
+		ED_ASSERT_LOG(desc->attachments_formats.size() > 0, "Can't create render pass without attachments");
+		ED_ASSERT_LOG(desc->attachments_formats.size() < 8, "Can't create a render pass with more than 8 attachments");
 
-		CreateBackBuffers(render_pass, render_pass->width, render_pass->height);
+		// NOTE: For now it is only possible to have um depth attachment
+		CreateAttachments(render_pass, render_pass->width, render_pass->height);
 
 		return render_pass;
 	}
@@ -968,25 +1032,26 @@ namespace Eden
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle;
 		D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = GetCPUHandle(internal_state->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
-		if (render_pass->desc.usage ==RenderPassDesc::RenderTarget)
+		if (render_pass->desc.swapchain_target)
 		{
 			auto current_render_target = GetCurrentRenderTarget(render_pass);
 			rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
 			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
-		else if (render_pass->desc.usage ==RenderPassDesc::RenderTexture)
+		else
 		{
-			// Check if the render targets need to get resized
-			if (render_pass->width != render_pass->render_targets[0]->desc.width ||
-				render_pass->height != render_pass->render_targets[0]->desc.height)
+			for (auto& attachment : render_pass->color_attachments)
 			{
-				ResizeRenderPassTexture(render_pass, render_pass->width, render_pass->height);
+				if (render_pass->width != attachment->desc.width ||
+					render_pass->height != attachment->desc.height)
+				{
+					CreateAttachments(render_pass, render_pass->width, render_pass->height);
+				}
+				auto rt_internal_state = ToInternal(attachment.get());
+				auto current_render_target = rt_internal_state->resource.Get();
+				rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
+				ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 			}
-
-			auto rt_internal_state = ToInternal(render_pass->render_targets[0].get());
-			auto current_render_target = rt_internal_state->resource.Get();
-			rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
-			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
 		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
@@ -1011,9 +1076,10 @@ namespace Eden
 		m_CommandList->BeginRenderPass(1, &internal_state->rtv_desc, &internal_state->dsv_desc, D3D12_RENDER_PASS_FLAG_NONE);
 	}
 
-	void D3D12RHI::SetRTRenderPass(std::shared_ptr<RenderPass>& render_pass)
+	void D3D12RHI::SetSwapchainTarget(std::shared_ptr<RenderPass>& render_pass)
 	{
-		m_RTRenderPass = render_pass;
+		ED_ASSERT_LOG(render_pass->desc.swapchain_target, "SetSwapchainTarget render pass was not created as a swapchain target!");
+		m_SwapchainTarget = render_pass;
 	}
 
 	void D3D12RHI::EndRenderPass(std::shared_ptr<RenderPass>& render_pass)
@@ -1033,16 +1099,19 @@ namespace Eden
 
 		m_CommandList->EndRenderPass();
 
-		if (render_pass->desc.usage == RenderPassDesc::RenderTarget)
+		if (render_pass->desc.swapchain_target)
 		{
 			auto current_render_target = GetCurrentRenderTarget(render_pass);
 			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 		}
-		else if (render_pass->desc.usage == RenderPassDesc::RenderTexture)
+		else
 		{
-			auto rt_internal_state = ToInternal(render_pass->render_targets[0].get());
-			auto current_render_target = rt_internal_state->resource.Get();
-			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			for (auto& attachment : render_pass->color_attachments)
+			{
+				auto rt_internal_state = ToInternal(attachment.get());
+				auto current_render_target = rt_internal_state->resource.Get();
+				ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			}
 		}
 	}
 
@@ -1166,9 +1235,9 @@ namespace Eden
 
 	void D3D12RHI::Resize(uint32_t width, uint32_t height)
 	{
-		ED_ASSERT_LOG(m_RTRenderPass, "Failed to resize, no Render Target Render Pass assigned");
+		ED_ASSERT_LOG(m_SwapchainTarget, "Failed to resize, no Render Target Render Pass assigned");
 
-		auto internal_state = ToInternal(m_RTRenderPass.get());
+		auto internal_state = ToInternal(m_SwapchainTarget.get());
 		if (m_Device && m_Swapchain)
 		{
 			ED_LOG_TRACE("Resizing Window to {}x{}", width, height);
@@ -1179,23 +1248,26 @@ namespace Eden
 
 			for (size_t i = 0; i < s_FrameCount; ++i)
 			{
-				auto rt_internal_state = ToInternal(m_RTRenderPass->render_targets[i].get());
+				auto rt_internal_state = ToInternal(m_SwapchainTarget->color_attachments[i].get());
 				rt_internal_state->resource.Reset();
 				m_FenceValues[i] = m_FenceValues[m_FrameIndex];
 			}
 			
-			internal_state->depth_stencil.Reset();
+			m_SwapchainTarget->depth_stencil.reset();
 
 			m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, 0);
 
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
 
-			CreateBackBuffers(m_RTRenderPass, width, height);
+			m_SwapchainTarget->color_attachments.clear();
+			CreateAttachments(m_SwapchainTarget, width, height);
 
-			m_RTRenderPass->width = width;
-			m_RTRenderPass->height = height;
+			m_SwapchainTarget->width = width;
+			m_SwapchainTarget->height = height;
 
-			m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)width, (float)height);
+			// If imgui is initialized then the editor is running, so dont change the viewport here
+			if (!m_ImguiInitialized)
+				m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)width, (float)height);
 			m_Scissor  = CD3DX12_RECT(0, 0, width, height);
 
 			m_CommandAllocator->Reset();
@@ -1203,65 +1275,11 @@ namespace Eden
 		}
 	}
 
-	void D3D12RHI::ResizeRenderPassTexture(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height)
-	{
-		ED_ASSERT_LOG(render_pass->desc.usage == RenderPassDesc::RenderTexture, "Render pass cannot be resized because it isn't a render texture");
-
-		auto internal_state = ToInternal(render_pass.get());
-		auto rt_internal_state = ToInternal(render_pass->render_targets[0].get());
-
-		auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(internal_state->rtv_heap));
-
-		D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM,
-																width, height,
-																1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
-		D3D12_CLEAR_VALUE clear_value = { DXGI_FORMAT_R8G8B8A8_UNORM, { 0.f, 0.f, 0.f, 0.f } };
-
-		m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
-										  &desc,
-										  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
-										  IID_PPV_ARGS(rt_internal_state->resource.ReleaseAndGetAddressOf()));
-
-		m_Device->CreateRenderTargetView(rt_internal_state->resource.Get(), nullptr, rtv_handle);
-
-		render_pass->render_targets[0]->desc.width = width;
-		render_pass->render_targets[0]->desc.height = height;
-		m_Viewport.Width  = static_cast<float>(width);
-		m_Viewport.Height = static_cast<float>(height);
-		m_Device->CreateShaderResourceView(rt_internal_state->resource.Get(), nullptr, rt_internal_state->cpu_handle);
-
-		// Create DSV
-		D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
-		depth_stencil_desc.Format = DXGI_FORMAT_D32_FLOAT;
-		depth_stencil_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		depth_stencil_desc.Flags = D3D12_DSV_FLAG_NONE;
-
-		D3D12_CLEAR_VALUE depth_optimized_clear_value;
-		depth_optimized_clear_value.Format = DXGI_FORMAT_D32_FLOAT;
-		depth_optimized_clear_value.DepthStencil.Depth = 1.0f;
-		depth_optimized_clear_value.DepthStencil.Stencil = 0;
-
-		if (FAILED(m_Device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			&depth_optimized_clear_value,
-			IID_PPV_ARGS(&internal_state->depth_stencil)
-		)))
-		{
-			ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
-		}
-
-		auto dsv_handle = GetCPUHandle(internal_state->dsv_heap);
-		m_Device->CreateDepthStencilView(internal_state->depth_stencil.Get(), &depth_stencil_desc, dsv_handle);
-	}
-
 	ID3D12Resource* D3D12RHI::GetCurrentRenderTarget(std::shared_ptr<RenderPass>& render_pass)
 	{
-		auto internal_state = ToInternal(render_pass->render_targets[m_FrameIndex].get());
+		ED_ASSERT_LOG(render_pass->desc.swapchain_target, "Can't get the current render target of a render pass that isn't the swapchain target!");
+
+		auto internal_state = ToInternal(render_pass->color_attachments[m_FrameIndex].get());
 		return internal_state->resource.Get();
 	}
 

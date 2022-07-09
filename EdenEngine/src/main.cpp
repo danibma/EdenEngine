@@ -94,26 +94,6 @@ public:
 
 	void OnInit() override
 	{
-		PipelineDesc object_texture_desc = {};
-		object_texture_desc.enable_blending = true;
-		object_texture_desc.program_name = "ObjectTextured";
-		m_Pipelines["Object Texture"] = rhi->CreatePipeline(&object_texture_desc);
-
-		PipelineDesc object_simple_desc = {};
-		object_simple_desc.program_name = "ObjectSimple";
-		m_Pipelines["Object Simple"] = rhi->CreatePipeline(&object_simple_desc);
-
-		PipelineDesc skybox_desc = {};
-		skybox_desc.cull_mode = CullMode::NONE;
-		skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
-		skybox_desc.min_depth = 1.0f;
-		skybox_desc.program_name = "Skybox";
-		m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
-
-		PipelineDesc scene_composite_desc = {};
-		scene_composite_desc.program_name = "SceneComposite";
-		m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
-
 		m_Camera = Camera(window->GetWidth(), window->GetHeight());
 
 		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
@@ -152,28 +132,63 @@ public:
 	#if WITH_EDITOR
 		RenderPassDesc gbuffer_desc = {};
 		gbuffer_desc.debug_name = "GBuffer_";
-		gbuffer_desc.usage = RenderPassDesc::RenderTexture;
+		gbuffer_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
 		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
 
 		RenderPassDesc sc_desc = {};
 		sc_desc.debug_name = "SceneComposite_";
-		sc_desc.usage = RenderPassDesc::RenderTexture;
+		sc_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
 		m_SceneComposite = rhi->CreateRenderPass(&sc_desc);
 
 		RenderPassDesc imguipass_desc = {};
 		imguipass_desc.debug_name = "ImGuiPass_";
-		imguipass_desc.usage = RenderPassDesc::RenderTarget;
+		imguipass_desc.attachments_formats = { Format::DEPTH32_FLOAT };
+		imguipass_desc.swapchain_target = true;
 		imguipass_desc.imgui_pass = true;
 		m_ImGuiPass = rhi->CreateRenderPass(&imguipass_desc);
-		rhi->SetRTRenderPass(m_ImGuiPass);
+		rhi->SetSwapchainTarget(m_ImGuiPass);
 		rhi->EnableImGui();
 
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>(rhi);
 		m_SceneHierarchy = std::make_unique<SceneHierarchy>(rhi, m_CurrentScene);
 	#else
-		m_GBuffer = rhi->CreateRenderPass(RenderPass::Type::kRenderTarget, L"GBuffer_");
-		rhi->SetRTRenderPass(&m_GBuffer);
+		RenderPassDesc gbuffer_desc = {};
+		gbuffer_desc.debug_name = "GBuffer_";
+		gbuffer_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
+		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
+
+		RenderPassDesc sc_desc = {};
+		sc_desc.debug_name = "SceneComposite_";
+		sc_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
+		sc_desc.swapchain_target = true;
+		m_SceneComposite = rhi->CreateRenderPass(&sc_desc);
+
+		rhi->SetSwapchainTarget(m_SceneComposite);
 	#endif
+		PipelineDesc object_texture_desc = {};
+		object_texture_desc.enable_blending = true;
+		object_texture_desc.program_name = "ObjectTextured";
+		object_texture_desc.render_pass = m_GBuffer;
+		m_Pipelines["Object Textured"] = rhi->CreatePipeline(&object_texture_desc);
+
+		PipelineDesc object_simple_desc = {};
+		object_simple_desc.program_name = "ObjectSimple";
+		object_simple_desc.render_pass = m_GBuffer;
+		m_Pipelines["Object Simple"] = rhi->CreatePipeline(&object_simple_desc);
+
+		PipelineDesc skybox_desc = {};
+		skybox_desc.cull_mode = CullMode::NONE;
+		skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
+		skybox_desc.min_depth = 1.0f;
+		skybox_desc.program_name = "Skybox";
+		skybox_desc.render_pass = m_GBuffer;
+		m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
+
+		PipelineDesc scene_composite_desc = {};
+		scene_composite_desc.program_name = "SceneComposite";
+		scene_composite_desc.render_pass = m_SceneComposite;
+		m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
+
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 		m_ViewportPos = { 0, 0 };
 
@@ -474,7 +489,7 @@ public:
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
 
-		ImGui::Image((ImTextureID)rhi->GetTextureID(m_SceneComposite->render_targets[0]), viewport_size);
+		ImGui::Image((ImTextureID)rhi->GetTextureID(m_SceneComposite->color_attachments[0]), viewport_size);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -654,7 +669,7 @@ public:
 			if (!ms->transform_cb) continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 			if (ms->textured)
-				rhi->BindPipeline(m_Pipelines["Object Texture"]);
+				rhi->BindPipeline(m_Pipelines["Object Textured"]);
 			else
 				rhi->BindPipeline(m_Pipelines["Object Simple"]);
 		
@@ -701,7 +716,7 @@ public:
 		rhi->BeginRenderPass(m_SceneComposite);
 		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
 		rhi->BindVertexBuffer(m_QuadBuffer);
-		rhi->BindParameter("g_sceneTexture", m_GBuffer->render_targets[0]);
+		rhi->BindParameter("g_sceneTexture", m_GBuffer->color_attachments[0]);
 		rhi->UpdateBufferData(m_SceneSettingsBuffer, &m_SceneSettings);
 		rhi->BindParameter("SceneSettings", m_SceneSettingsBuffer);
 		rhi->Draw(6);

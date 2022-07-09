@@ -55,4 +55,4 @@ Entities:
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [0.068292737, 1, 0, 1]
-      Intensity: 5
+      Intensity: 2

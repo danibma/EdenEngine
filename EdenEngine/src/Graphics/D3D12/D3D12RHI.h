@@ -68,7 +68,6 @@ namespace Eden
 		std::shared_ptr<DescriptorHeap> dsv_heap;
 		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtv_desc;
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsv_desc;
-		ComPtr<ID3D12Resource> depth_stencil;
 	};
 
 	class D3D12RHI final : public IRHI
@@ -109,8 +108,7 @@ namespace Eden
 			ComPtr<ID3D12ShaderReflection> reflection;
 		};
 
-		// Main Render Target Render pass
-		std::shared_ptr<RenderPass> m_RTRenderPass;
+		std::shared_ptr<RenderPass> m_SwapchainTarget;
 
 	public:
 		virtual void Init(Window* window) override;
@@ -139,7 +137,7 @@ namespace Eden
 
 		virtual void BeginRender() override;
 		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
-		virtual void SetRTRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
+		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& render_pass) override;
 		virtual void EndRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
 		virtual void EndRender() override;
 
@@ -148,7 +146,6 @@ namespace Eden
 
 		virtual void Render() override;
 		virtual void Resize(uint32_t width, uint32_t height) override;
-		virtual void ResizeRenderPassTexture(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height) override;
 
 		ID3D12Resource* GetCurrentRenderTarget(std::shared_ptr<RenderPass>& render_pass);
 		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
@@ -160,7 +157,7 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		void CreateBackBuffers(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height);
+		void CreateAttachments(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height);
 		uint32_t GetRootParameterIndex(const std::string& parameter_name);
 		void CreateRootSignature(std::shared_ptr<Pipeline>& pipeline);
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);

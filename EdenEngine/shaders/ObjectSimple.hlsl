@@ -17,7 +17,7 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
     result.position = mul(mvpMatrix, float4(position, 1.0f));
     result.pixel_pos = mul(transform, float4(position, 1.0f));
     result.normal = TransformDirection(transform, normal);
-    result.color = color;
+    result.color = color.rgb;
     result.view_dir = normalize(view_position.xyz - result.pixel_pos.xyz);
     
     return result;
@@ -28,10 +28,9 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 //=================
 float4 PSMain(Vertex input) : SV_TARGET
 {
-    float4 object_color = input.color;
     float3 view_dir = normalize(view_position.xyz - input.pixel_pos.xyz);
 
-    float4 pixel_color = CalculateAllLights(input, DirectionalLights, PointLights);
+    float3 pixel_color = CalculateAllLights(input, DirectionalLights, PointLights);
     
-    return pixel_color;
+    return float4(pixel_color, 1.0f);
 }

@@ -160,6 +160,22 @@ namespace Eden
 		TextureDesc desc;
 	};
 
+	struct RenderPassDesc
+	{
+		std::string debug_name;
+		bool imgui_pass = false;
+		bool swapchain_target = false;
+		std::vector<Format> attachments_formats;
+	};
+
+	struct RenderPass : GraphicsChild
+	{
+		uint32_t width, height;
+		std::vector<std::shared_ptr<Texture>> color_attachments;
+		std::shared_ptr<Texture> depth_stencil;
+		RenderPassDesc desc;
+	};
+
 	struct PipelineDesc
 	{
 		std::string program_name;
@@ -169,6 +185,7 @@ namespace Eden
 		CullMode cull_mode = CullMode::BACK;
 		ComparisonFunc depth_func = ComparisonFunc::LESS;
 		PipelineType type = Graphics;
+		std::shared_ptr<RenderPass> render_pass;
 	};
 
 	struct Pipeline : GraphicsChild
@@ -179,27 +196,6 @@ namespace Eden
 		// Shader Reflection data
 		// name, rootParameterIndex
 		std::unordered_map<std::string, uint32_t> root_parameter_indices;
-	};
-
-	// TODO: Refactor Render Passes, make it attachments instead of this Usage bs
-	struct RenderPassDesc
-	{
-		enum RenderPassUsage
-		{
-			RenderTexture,
-			RenderTarget
-		};
-
-		RenderPassUsage usage;
-		std::string debug_name;
-		bool imgui_pass = false;
-	};
-
-	struct RenderPass : GraphicsChild
-	{
-		uint32_t width, height;
-		std::shared_ptr<Texture> render_targets[s_FrameCount];
-		RenderPassDesc desc;
 	};
 
 	class IRHI
@@ -241,7 +237,7 @@ namespace Eden
 
 		virtual void BeginRender() = 0;
 		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
-		virtual void SetRTRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
+		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& render_pass) = 0;
 		virtual void EndRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
 		virtual void EndRender() = 0;
 
@@ -250,7 +246,29 @@ namespace Eden
 
 		virtual void Render() = 0;
 		virtual void Resize(uint32_t width, uint32_t height) = 0;
-		virtual void ResizeRenderPassTexture(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height) = 0;
+
+	protected:
+		int GetDepthFormatIndex(std::vector<Format>& formats)
+		{
+			for (int i = 0; i < formats.size(); ++i)
+			{
+				if (IsDepthFormat(formats[i]))
+					return i;
+			}
+
+			return -1;
+		}
+
+		bool IsDepthFormat(Format format)
+		{
+			if (format == Format::DEPTH32FSTENCIL8_UINT ||
+				format == Format::DEPTH32_FLOAT ||
+				format == Format::DEPTH24STENCIL8)
+			{
+				return true;
+			}
+			return false;
+		}
 	};
 
 	namespace Utils

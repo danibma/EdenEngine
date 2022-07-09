@@ -6,7 +6,7 @@ struct Vertex
     float4 pixel_pos : POSITION;
     float2 uv : TEXCOORD;
     float3 normal : NORMAL;
-    float4 color : COLOR;
+    float3 color : COLOR;
     float3 view_dir : VIEW_DIR;
 };
 
