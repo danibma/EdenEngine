@@ -13,8 +13,8 @@ Entities:
     TagComponent:
       Tag: Sponza
     TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, -0, 0]
+      Translation: [0, 5, -18.7523975]
+      Rotation: [0, 4.5378561, 0]
       Scale: [1, 1, 1]
     MeshComponent:
       File Path: E:\EdenEngine\EdenEngine\assets\models\Sponza\Sponza.gltf
@@ -27,4 +27,4 @@ Entities:
       Scale: [1, 1, 1]
     PointLightComponent:
       Color: [1, 0, 0, 1]
-      Intensity : 1
+      Intensity: 1

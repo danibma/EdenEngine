@@ -53,6 +53,14 @@ namespace Eden
 
 		ED_ASSERT_LOG(result, "Failed to parse GLTF Model!");
 
+		uint32_t black_texture_data = 0xff000000;
+		TextureDesc black_desc = {};
+		black_desc.data = &black_texture_data;
+		black_desc.width = 1;
+		black_desc.height = 1;
+		auto black_texture = rhi->CreateTexture(&black_desc);
+		
+
 		std::string parent_path = file.parent_path().string() + "/";
 
 		std::vector<VertexData> vertices;
@@ -96,6 +104,8 @@ namespace Eden
 				submesh->vertex_start = (uint32_t)vertices.size();
 				submesh->index_start = (uint32_t)indices.size();
 				submesh->index_count = 0;
+				submesh->diffuse_texture = black_texture;
+				submesh->emissive_texture = black_texture;
 
 				// Vertices
 				{
