@@ -55,6 +55,8 @@ namespace Eden
 		{
 			return m_Registry.view<Components...>();
 		}
+
+		Entity DuplicateEntity(Entity entity);
 	};
 }
 

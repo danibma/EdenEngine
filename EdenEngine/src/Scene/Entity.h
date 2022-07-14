@@ -44,6 +44,16 @@ namespace Eden
 			return m_Scene->m_Registry.any_of<T>(m_EntityHandler);
 		}
 
+		template<typename T>
+		void CopyComponentIfExists(Entity dst)
+		{
+			if (HasComponent<T>())
+			{
+				auto component = m_Scene->m_Registry.get<T>(m_EntityHandler);
+				m_Scene->m_Registry.emplace_or_replace<T>(dst, component);
+			}
+		}
+
 		bool Valid() const
 		{
 			if (m_Scene == nullptr)

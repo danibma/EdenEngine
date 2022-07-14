@@ -27,6 +27,8 @@ namespace Eden
 	private:
 		void DrawHierarchy();
 		void EntityProperties();
+		void DuplicateSelectedEntity();
+		void DeleteSelectedEntity();
 
 	};
 }

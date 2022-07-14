@@ -12,6 +12,16 @@
 
 namespace Eden
 {
+	SceneHierarchy::SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* current_scene)
+	{
+		m_RHI = rhi;
+		m_CurrentScene = current_scene;
+	}
+
+	SceneHierarchy::~SceneHierarchy()
+	{
+	}
+
 	void SceneHierarchy::DrawHierarchy()
 	{
 		ImGui::Begin("Scene Hierarchy", &open_scene_hierarchy, ImGuiWindowFlags_NoCollapse);
@@ -33,12 +43,12 @@ namespace Eden
 			if (ImGui::BeginPopupContextItem())
 			{
 				m_CurrentScene->SetSelectedEntity(e);
+				
+				if (ImGui::MenuItem("Duplicate", "Ctrl-D"))
+					DuplicateSelectedEntity();
 				if (ImGui::MenuItem("Delete", "Del"))
-				{
-					m_CurrentScene->AddPreparation([&]() {
-						m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
-					});
-				}
+					DeleteSelectedEntity();
+
 				ImGui::Separator();
 				EntityMenu();
 
@@ -59,11 +69,9 @@ namespace Eden
 		}
 
 		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
-		{
-			m_CurrentScene->AddPreparation([&]() {
-				m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
-			});
-		}
+			DeleteSelectedEntity();
+		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_D) && ImGui::IsWindowFocused())
+			DuplicateSelectedEntity();
 
 		ImGui::End();
 	}
@@ -285,14 +293,25 @@ namespace Eden
 		ImGui::End();
 	}
 
-	SceneHierarchy::SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* current_scene)
+	void SceneHierarchy::DuplicateSelectedEntity()
 	{
-		m_RHI = rhi;
-		m_CurrentScene = current_scene;
+		m_CurrentScene->AddPreparation([&]() {
+			auto new_entity = m_CurrentScene->DuplicateEntity(m_CurrentScene->GetSelectedEntity());
+			if (new_entity.HasComponent<MeshComponent>())
+			{
+				auto& mc = new_entity.GetComponent<MeshComponent>();
+				mc.LoadMeshSource(m_RHI);
+			}
+
+			m_CurrentScene->SetSelectedEntity(new_entity);
+		});
 	}
 
-	SceneHierarchy::~SceneHierarchy()
+	void SceneHierarchy::DeleteSelectedEntity()
 	{
+		m_CurrentScene->AddPreparation([&]() {
+			m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
+		});
 	}
 
 	void SceneHierarchy::Render()

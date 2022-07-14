@@ -18,6 +18,7 @@ namespace Eden
 	// 4- Add a new item in SerializeEntity in the SceneSerializer
 	// 5- Add a new item in Deserializer in the SceneSerializer
 	// 6- if the component contains any graphics Resource when modifying or deleting, add that "modification" to the scene preparation system
+	// 7- Add the new component to the DuplicateEntity method in Scene.cpp
 
 	struct TagComponent
 	{
@@ -42,8 +43,21 @@ namespace Eden
 
 	struct MeshComponent
 	{
-		std::shared_ptr<MeshSource> mesh_source = std::make_shared<MeshSource>();
+		std::shared_ptr<MeshSource> mesh_source;
 		std::string mesh_path;
+
+		MeshComponent()
+		{
+			mesh_source = std::make_shared<MeshSource>();
+		}
+		MeshComponent(MeshComponent& component)
+		{
+			mesh_path = component.mesh_path;
+			mesh_source = std::make_shared<MeshSource>();
+		}
+		MeshComponent(MeshComponent&& component) noexcept = default;
+		MeshComponent& operator=(MeshComponent& other) = default;
+		MeshComponent& operator=(MeshComponent&& other) noexcept = default;
 
 		void LoadMeshSource(std::shared_ptr<IRHI>& rhi, std::filesystem::path path = "")
 		{

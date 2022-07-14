@@ -29,6 +29,7 @@ namespace Eden
 	void Scene::DeleteEntity(Entity& entity)
 	{
 		m_Registry.destroy(entity);
+		m_SelectedEntity = static_cast<entt::entity>((uint32_t)(m_SelectedEntity) - 1);
 	}
 
 	void Scene::Clear()
@@ -84,4 +85,15 @@ namespace Eden
 		m_SelectedEntity = entity;
 	}
 
+	Entity Scene::DuplicateEntity(Entity entity)
+	{
+		std::string name = entity.GetComponent<TagComponent>().tag;
+		auto new_entity = CreateEntity(name);
+		entity.CopyComponentIfExists<TransformComponent>(new_entity);
+		entity.CopyComponentIfExists<MeshComponent>(new_entity);
+		entity.CopyComponentIfExists<PointLightComponent>(new_entity);
+		entity.CopyComponentIfExists<DirectionalLightComponent>(new_entity);
+
+		return new_entity;
+	}
 }
