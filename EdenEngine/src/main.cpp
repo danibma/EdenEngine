@@ -201,10 +201,10 @@ public:
 		scene_composite_desc.render_pass = m_SceneComposite;
 		m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
 
-		PipelineDesc cs_test_desc = {};
-		cs_test_desc.program_name = "cs_test";
-		cs_test_desc.type = Compute;
-		m_Pipelines["CS Test"] = rhi->CreatePipeline(&cs_test_desc);
+		PipelineDesc cubes_test_desc = {};
+		cubes_test_desc.program_name = "CubesCS";
+		cubes_test_desc.type = Compute;
+		m_Pipelines["Cubes Test"] = rhi->CreatePipeline(&cubes_test_desc);
 
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 		m_ViewportPos = { 0, 0 };
@@ -262,6 +262,7 @@ public:
 	#if WITH_EDITOR
 		m_SceneHierarchy->SetCurrentScene(m_CurrentScene);
 	#endif
+
 
 		if (!scene_to_load.empty())
 		{
@@ -690,6 +691,8 @@ public:
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 	#endif
 
+		PrepareScene();
+
 		// Update camera and scene data
 		m_Camera.Update(delta_time);
 		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
@@ -703,14 +706,13 @@ public:
 		
 		UpdateDirectionalLights();
 		UpdatePointLights();
-		PrepareScene();
 
 		// Compute shader test
-		rhi->BindPipeline(m_Pipelines["CS Test"]);
+		rhi->BindPipeline(m_Pipelines["Cubes Test"]);
 		m_ComputeData.resolution = glm::vec2(m_OutputTexture->desc.width, m_OutputTexture->desc.height);
 		m_ComputeData.time = creation_time;
 		rhi->UpdateBufferData(m_ComputeBuffer, &m_ComputeData);
-		rhi->BindParameter("cb0", m_ComputeBuffer);
+		rhi->BindParameter("RenderingInfo", m_ComputeBuffer);
 		rhi->BindParameter("OutputTexture", m_OutputTexture, kReadWrite);
 		//! 8 is the num of threads, changing in there requires to change in shader
 		rhi->Dispatch(static_cast<uint32_t>(m_OutputTexture->desc.width / 8), static_cast<uint32_t>(m_OutputTexture->desc.height / 8), 1); // TODO: abstract the num of threads in some way

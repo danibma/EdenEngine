@@ -125,7 +125,7 @@ namespace Eden
 		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
 
 		// Describe and create a shader resource view (SRV) heap for the texture.
-		m_SRVHeap = CreateDescriptorHeap(128, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+		m_SRVHeap = CreateDescriptorHeap(s_SRVDescriptorCount, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
 		// Create synchronization objects
 		{
@@ -507,6 +507,7 @@ namespace Eden
 			srv_desc.Buffer.StructureByteStride = buffer->desc.stride;
 			srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
+			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
 			internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
 			m_Device->CreateShaderResourceView(internal_state->resource.Get(), &srv_desc, internal_state->cpu_handle);
 			internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
@@ -519,6 +520,7 @@ namespace Eden
 			cbv_desc.BufferLocation = internal_state->resource->GetGPUVirtualAddress();
 			cbv_desc.SizeInBytes = buffer->size;
 
+			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
 			internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
 			m_Device->CreateConstantBufferView(&cbv_desc, internal_state->cpu_handle);
 			internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
@@ -590,6 +592,7 @@ namespace Eden
 					attachment_internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
 					attachment_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
 					render_pass->color_attachments.emplace_back(attachment);
+					ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
 					m_SRVHeapOffset++;
 				}
 				
@@ -965,6 +968,7 @@ namespace Eden
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 
+		ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
 		internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
 		m_Device->CreateShaderResourceView(internal_state->resource.Get(), &srv_desc, internal_state->cpu_handle);
 		internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
@@ -972,6 +976,7 @@ namespace Eden
 
 		if (desc->storage)
 		{
+			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
 			auto cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
 			m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, nullptr, cpu_handle);
 			m_SRVHeapOffset++;

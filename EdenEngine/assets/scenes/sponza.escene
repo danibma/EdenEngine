@@ -22,9 +22,9 @@ Entities:
     TagComponent:
       Tag: Light
     TransformComponent:
-      Translation: [-7.2775526, 0.77065587, 0.195573092]
+      Translation: [-1.15324068, 12.4103031, -12.8846836]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     PointLightComponent:
-      Color: [1, 0, 0, 1]
-      Intensity: 1
+      Color: [1, 1, 1, 1]
+      Intensity: 5
