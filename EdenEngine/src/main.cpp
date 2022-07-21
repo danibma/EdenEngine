@@ -40,6 +40,16 @@ class EdenApplication : public Application
 		glm::vec4 view_position;
 	};
 
+	//==================
+	// Compute Shader CB
+	//==================
+	struct ComputeData
+	{
+		glm::vec4 max_thread_iter;
+	} m_ComputeData;
+	std::shared_ptr<Buffer> m_ComputeBuffer;
+	std::shared_ptr<Texture> m_OutputTexture;
+
 	static const int MAX_DIRECTIONAL_LIGHTS = 16;
 	std::shared_ptr<Buffer> m_DirectionalLightsBuffer;
 	static const int MAX_POINT_LIGHTS = 32;
@@ -165,6 +175,7 @@ public:
 
 		rhi->SetSwapchainTarget(m_SceneComposite);
 	#endif
+
 		PipelineDesc object_texture_desc = {};
 		object_texture_desc.enable_blending = true;
 		object_texture_desc.program_name = "ObjectTextured";
@@ -188,6 +199,11 @@ public:
 		scene_composite_desc.program_name = "SceneComposite";
 		scene_composite_desc.render_pass = m_SceneComposite;
 		m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
+
+		PipelineDesc cs_test_desc = {};
+		cs_test_desc.program_name = "cs_test";
+		cs_test_desc.type = Compute;
+		m_Pipelines["CS Test"] = rhi->CreatePipeline(&cs_test_desc);
 
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 		m_ViewportPos = { 0, 0 };
@@ -213,6 +229,20 @@ public:
 		scene_settings_desc.stride = sizeof(SceneSettings);
 		scene_settings_desc.usage = BufferDesc::Uniform;
 		m_SceneSettingsBuffer = rhi->CreateBuffer(&scene_settings_desc, &m_SceneSettings);
+
+		// Compute shader
+		m_ComputeData.max_thread_iter = glm::vec4(m_ViewportSize.x, m_ViewportSize.y, 300, 0);
+		BufferDesc compute_data_desc = {};
+		compute_data_desc.element_count = 1;
+		compute_data_desc.stride = sizeof(SceneData);
+		m_ComputeBuffer = rhi->CreateBuffer(&compute_data_desc, &m_ComputeData);
+
+		TextureDesc compute_output_desc = {};
+		compute_output_desc.data = nullptr;
+		compute_output_desc.width = static_cast<uint32_t>(m_ViewportSize.x);
+		compute_output_desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+		compute_output_desc.storage = true;
+		m_OutputTexture = rhi->CreateTexture(&compute_output_desc);
 	}
 
 	void PrepareScene()
@@ -402,6 +432,19 @@ public:
 
 		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
 		ImGui::Text("Viewport Size: %.0fx%.0f", m_ViewportSize.x, m_ViewportSize.y);
+
+		ImVec2 image_size(320, 180);
+		if (m_OutputTexture->desc.width != image_size.x || m_OutputTexture->desc.height != image_size.y)
+		{
+			m_OutputTexture->desc.width = static_cast<uint32_t>(image_size.x);
+			m_OutputTexture->desc.height = static_cast<uint32_t>(image_size.y);
+
+			m_CurrentScene->AddPreparation([&]() {
+				rhi->ResizeTexture(m_OutputTexture);
+			});
+		}
+		rhi->EnsureResourceState(m_OutputTexture, ResourceState::PIXEL_SHADER);
+		ImGui::Image((ImTextureID)rhi->GetTextureID(m_OutputTexture), image_size);
 
 		ImGui::End();
 	}
@@ -659,6 +702,15 @@ public:
 		UpdateDirectionalLights();
 		UpdatePointLights();
 		PrepareScene();
+
+		// Compute shader test
+		rhi->BindPipeline(m_Pipelines["CS Test"]);
+		m_ComputeData.max_thread_iter = glm::vec4(m_ViewportSize.x, m_ViewportSize.y, 300, 0);
+		rhi->UpdateBufferData(m_ComputeBuffer, &m_ComputeData);
+		rhi->BindParameter("cb0", m_ComputeBuffer);
+		rhi->BindParameter("OutputTexture", m_OutputTexture, kReadWrite);
+		//! 8 is the num of threads, changing in there requires to change in shader
+		rhi->Dispatch(static_cast<uint32_t>(m_ViewportSize.x / 8), static_cast<uint32_t>(m_ViewportSize.x / 8), 1); // TODO: abstract the num of threads in some way
 		
 		rhi->BeginRenderPass(m_GBuffer);
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();

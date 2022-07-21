@@ -13,8 +13,10 @@ namespace Eden
 
 	enum ShaderStage
 	{
-		Vertex = 0,
-		Pixel
+		VS = 0,
+		PS,
+		CS,
+		COUNT // Don't use this
 	};
 
 	enum class ComparisonFunc
@@ -91,6 +93,20 @@ namespace Eden
 		Depth = DEPTH24STENCIL8,
 	};
 
+	enum class ResourceState
+	{
+		COMMON,
+		RENDER_TARGET,
+		PRESENT,
+		UNORDERED_ACCESS,
+		PIXEL_SHADER,
+		READ,
+		COPY_DEST,
+		COPY_SRC,
+		DEPTH_READ,
+		DEPTH_WRITE
+	};
+
 	enum PipelineType
 	{
 		Graphics,
@@ -100,6 +116,12 @@ namespace Eden
 	enum API
 	{
 		D3D12
+	};
+
+	enum TextureUsage
+	{
+		kReadOnly,
+		kReadWrite // Used for UAV's
 	};
 
 	struct GraphicsChild
@@ -115,6 +137,7 @@ namespace Eden
 	struct Resource : GraphicsChild
 	{
 		bool initialized = false;
+		ResourceState current_state;
 	};
 
 	struct BufferDesc
@@ -140,7 +163,7 @@ namespace Eden
 
 	struct TextureDesc
 	{
-		enum TextureUsage
+		enum TextureType
 		{
 			Texture2D,
 			Texture3D,  // Not implemented
@@ -151,7 +174,8 @@ namespace Eden
 		uint32_t width;
 		uint32_t height;
 		bool srgb = false;
-		TextureUsage usage = Texture2D;
+		bool storage = false;
+		TextureType type = Texture2D;
 	};
 
 	struct Texture: public Resource
@@ -221,6 +245,10 @@ namespace Eden
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) = 0;
 
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) = 0;
+		virtual void ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width = 0, uint32_t height = 0) = 0;
+
+		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state) = 0;
+		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state) = 0;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) = 0;
 
@@ -232,8 +260,8 @@ namespace Eden
 		virtual void BindPipeline(const std::shared_ptr<Pipeline>& pipeline) = 0;
 		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertex_buffer) = 0;
 		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer) = 0;
-		virtual void BindParameter(const std::string& parameter_name, const std::shared_ptr<Buffer>& buffer) = 0;
-		virtual void BindParameter(const std::string& parameter_name, const std::shared_ptr<Texture>& texture) = 0;
+		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer) = 0;
+		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) = 0;
 
 		virtual void BeginRender() = 0;
 		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
@@ -243,6 +271,7 @@ namespace Eden
 
 		virtual void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0) = 0;
 		virtual void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t start_index_location = 0, uint32_t base_vertex_location = 0, uint32_t start_instance_location = 0) = 0;
+		virtual void Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) = 0;
 
 		virtual void Render() = 0;
 		virtual void Resize(uint32_t width, uint32_t height) = 0;
@@ -277,9 +306,9 @@ namespace Eden
 		{
 			switch (target)
 			{
-			case Vertex:
+			case VS:
 				return "Vertex";
-			case Pixel:
+			case PS:
 				return "Pixel";
 			default:
 				return "Null";

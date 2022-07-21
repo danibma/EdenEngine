@@ -54,6 +54,7 @@ namespace Eden
 		ComPtr<ID3D12PipelineState> pipeline_state;
 		ComPtr<ID3D12ShaderReflection> pixel_reflection;
 		ComPtr<ID3D12ShaderReflection> vertex_reflection;
+		ComPtr<ID3D12ShaderReflection> compute_reflection;
 	};
 
 	struct DescriptorHeap
@@ -75,13 +76,12 @@ namespace Eden
 		ComPtr<ID3D12Device> m_Device;
 		ComPtr<IDXGIFactory4> m_Factory;
 		ComPtr<IDXGIAdapter1> m_Adapter;
-		ComPtr<ID3D12CommandQueue> m_CommandQueue;
 		ComPtr<IDXGISwapChain3> m_Swapchain;
 		std::shared_ptr<DescriptorHeap> m_SRVHeap;
+		ComPtr<ID3D12Fence> m_Fence;
+		ComPtr<ID3D12CommandQueue> m_CommandQueue;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
 		ComPtr<ID3D12GraphicsCommandList4> m_CommandList;
-		ComPtr<ID3D12Fence> m_Fence;
-		
 		CD3DX12_RECT m_Scissor;
 		CD3DX12_VIEWPORT m_Viewport;
 
@@ -121,6 +121,10 @@ namespace Eden
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) override;
 
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) override;
+		virtual void ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width = 0, uint32_t height = 0) override;
+
+		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state) override;
+		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state) override;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) override;
 
@@ -132,8 +136,8 @@ namespace Eden
 		virtual void BindPipeline(const std::shared_ptr<Pipeline>& pipeline) override;
 		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertex_buffer) override;
 		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer) override;
-		virtual void BindParameter(const std::string& parameter_name, const std::shared_ptr<Buffer>& buffer) override;
-		virtual void BindParameter(const std::string& parameter_name, const std::shared_ptr<Texture>& texture) override;
+		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer) override;
+		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) override;
 
 		virtual void BeginRender() override;
 		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
@@ -143,15 +147,10 @@ namespace Eden
 
 		virtual void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0) override;
 		virtual void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t start_index_location = 0, uint32_t base_vertex_location = 0, uint32_t start_instance_location = 0) override;
+		virtual void Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) override;
 
 		virtual void Render() override;
 		virtual void Resize(uint32_t width, uint32_t height) override;
-
-		ID3D12Resource* GetCurrentRenderTarget(std::shared_ptr<RenderPass>& render_pass);
-		void ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state);
-
-		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
 
 	private:
 		void PrepareDraw();
@@ -165,6 +164,18 @@ namespace Eden
 
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset = 0);
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
+
+		void CreateGraphicsPipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc);
+		void CreateComputePipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc);
+
+		void CreateCommands();
+
+		void BindRootParameter(const std::string& parameter_name, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle);
+
+		void SetTextureData(std::shared_ptr<Texture>& texture);
+
+		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
 	};
 
 	namespace Helpers
@@ -309,6 +320,35 @@ namespace Eden
 				return D3D12_CULL_MODE_BACK;
 			default:
 				return D3D12_CULL_MODE_NONE;
+			}
+		}
+
+		constexpr D3D12_RESOURCE_STATES ConvertResourceState(ResourceState state)
+		{
+			switch (state)
+			{
+			case ResourceState::COMMON:
+				return D3D12_RESOURCE_STATE_COMMON;
+			case ResourceState::RENDER_TARGET:
+				return D3D12_RESOURCE_STATE_RENDER_TARGET;
+			case ResourceState::PRESENT:
+				return D3D12_RESOURCE_STATE_PRESENT;
+			case ResourceState::UNORDERED_ACCESS:
+				return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			case ResourceState::PIXEL_SHADER:
+				return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			case ResourceState::READ:
+				return D3D12_RESOURCE_STATE_GENERIC_READ;
+			case ResourceState::COPY_DEST:
+				return D3D12_RESOURCE_STATE_COPY_DEST;
+			case ResourceState::COPY_SRC:
+				return D3D12_RESOURCE_STATE_COPY_SOURCE;
+			case ResourceState::DEPTH_READ:
+				return D3D12_RESOURCE_STATE_DEPTH_READ;
+			case ResourceState::DEPTH_WRITE:
+				return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			default:
+				return D3D12_RESOURCE_STATE_COMMON;
 			}
 		}
 	}

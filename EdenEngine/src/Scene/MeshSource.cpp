@@ -58,6 +58,7 @@ namespace Eden
 		black_desc.data = &black_texture_data;
 		black_desc.width = 1;
 		black_desc.height = 1;
+		black_desc.storage = false;
 		auto black_texture = rhi->CreateTexture(&black_desc);
 		
 
@@ -293,6 +294,7 @@ namespace Eden
 		desc.data = buffer;
 		desc.width = gltf_image.width;
 		desc.height = gltf_image.height;
+		desc.storage = false;
 		auto texture_id = rhi->CreateTexture(&desc);
 
 		if (delete_buffer)

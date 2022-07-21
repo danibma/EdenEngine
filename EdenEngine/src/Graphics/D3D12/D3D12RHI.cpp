@@ -100,12 +100,8 @@ namespace Eden
 		if (FAILED(D3D12MA::CreateAllocator(&allocator_desc, &m_Allocator)))
 			ED_ASSERT_MB(false, "Failed to create allocator!");
 
-		// Describe and create command queue
-		D3D12_COMMAND_QUEUE_DESC command_queue_desc = {};
-		command_queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-		command_queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		if (FAILED(m_Device->CreateCommandQueue(&command_queue_desc, IID_PPV_ARGS(&m_CommandQueue))))
-			ED_ASSERT_MB(false, "Failed to Create command queue!");
+		// Create commands
+		CreateCommands();
 
 		// Describe and create the swap chain
 		DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {};
@@ -130,20 +126,6 @@ namespace Eden
 
 		// Describe and create a shader resource view (SRV) heap for the texture.
 		m_SRVHeap = CreateDescriptorHeap(128, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-
-		//CreateBackBuffers( window->GetWidth(), window->GetHeight());
-
-		// Create command allocator
-		if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator))))
-		   ED_ASSERT_MB(false, "Failed to create command allocator!");
-
-		m_CommandAllocator->SetName(L"gfx_command_allocator");
-
-		// Create command list
-		if (FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList))))
-			ED_ASSERT_MB(false, "Failed to create command list!");
-
-		m_CommandList->SetName(L"gfx_command_list");
 
 		// Create synchronization objects
 		{
@@ -195,13 +177,17 @@ namespace Eden
 
 		switch (stage)
 		{
-		case Vertex:
+		case VS:
 			entry_point = L"VSMain";
 			stage_str = L"vs_6_0";
 			break;
-		case Pixel:
+		case PS:
 			entry_point = L"PSMain";
 			stage_str = L"ps_6_0";
+			break;
+		case CS:
+			entry_point = L"CSMain";
+			stage_str = L"cs_6_0";
 			break;
 		}
 
@@ -315,8 +301,16 @@ namespace Eden
 		std::vector<D3D12_DESCRIPTOR_RANGE1> descriptor_ranges;
 		std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
 		
-		uint32_t shader_count = 2; // For now this is always two because its only compiling vertex and pixel shader, in the future add a way to check this dynamically
-		for (uint32_t i = 0; i < shader_count; ++i)
+		std::vector<uint32_t> shader_counts;
+		if (internal_state->vertex_reflection)
+			shader_counts.emplace_back(ShaderStage::VS);
+		if (internal_state->pixel_reflection)
+			shader_counts.emplace_back(ShaderStage::PS);
+		if (internal_state->compute_reflection)
+			shader_counts.emplace_back(ShaderStage::CS);
+		uint32_t shader_count = static_cast<uint32_t>(shader_counts.size());
+
+		for (uint32_t i = shader_counts[0]; i < shader_counts[0] + shader_count; ++i)
 		{
 			ComPtr<ID3D12ShaderReflection> reflection;
 			D3D12_SHADER_VISIBILITY shader_visibility;
@@ -324,13 +318,17 @@ namespace Eden
 			// Get shader stage
 			switch (i)
 			{
-			case ShaderStage::Vertex:
+			case ShaderStage::VS:
 				reflection = internal_state->vertex_reflection;
 				shader_visibility = D3D12_SHADER_VISIBILITY_VERTEX;
 				break;
-			case ShaderStage::Pixel:
+			case ShaderStage::PS:
 				reflection = internal_state->pixel_reflection;
 				shader_visibility = D3D12_SHADER_VISIBILITY_PIXEL;
+				break;
+			case ShaderStage::CS:
+				reflection = internal_state->compute_reflection;
+				shader_visibility = D3D12_SHADER_VISIBILITY_ALL;
 				break;
 			default:
 				ED_LOG_ERROR("Shader stage is not yet implemented!");
@@ -392,6 +390,28 @@ namespace Eden
 						root_parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 						root_parameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+						pipeline->root_parameter_indices[desc.Name] = static_cast<uint32_t>(root_parameters.size()); // get the root parameter index
+						root_parameters.emplace_back(root_parameter);
+					}
+					break;
+				case D3D_SIT_UAV_RWTYPED:
+					{
+						auto root_parameter_index = pipeline->root_parameter_indices.find(desc.Name);
+						bool root_parameter_found = root_parameter_index != pipeline->root_parameter_indices.end();
+						if (root_parameter_found) continue;
+
+						D3D12_DESCRIPTOR_RANGE1 descriptor_range = {};
+						descriptor_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+						descriptor_range.NumDescriptors = desc.BindCount;
+						descriptor_range.BaseShaderRegister = desc.BindPoint;
+						descriptor_range.RegisterSpace = desc.Space;
+						descriptor_range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE; // check if this is needed
+						descriptor_range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+						descriptor_ranges.emplace_back(descriptor_range);
+
+						D3D12_ROOT_PARAMETER1 root_parameter = {};
+						root_parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+						root_parameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 						pipeline->root_parameter_indices[desc.Name] = static_cast<uint32_t>(root_parameters.size()); // get the root parameter index
 						root_parameters.emplace_back(root_parameter);
 					}
@@ -579,10 +599,12 @@ namespace Eden
 
 				D3D12_CLEAR_VALUE clear_value = { Helpers::ConvertFormat(format), { 0.f, 0.f, 0.f, 0.f } };
 
+				attachment->current_state = ResourceState::PIXEL_SHADER;
+
 				auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 				m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
 												  &desc,
-												  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clear_value,
+												  Helpers::ConvertResourceState(attachment->current_state), &clear_value,
 												  IID_PPV_ARGS(attachment_internal_state->resource.ReleaseAndGetAddressOf()));
 
 				m_Device->CreateRenderTargetView(attachment_internal_state->resource.Get(), nullptr, rtv_handle);
@@ -638,31 +660,16 @@ namespace Eden
 		}
 	}
 
-	std::shared_ptr<Pipeline> D3D12RHI::CreatePipeline(PipelineDesc* desc)
+	void D3D12RHI::CreateGraphicsPipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc)
 	{
-		ED_ASSERT(desc->render_pass);
-
-		ED_PROFILE_FUNCTION();
-
-		std::shared_ptr<Pipeline> pipeline = std::make_shared<Pipeline>();
-		auto internal_state = std::make_shared<D3D12Pipeline>();
-		pipeline->internal_state = internal_state;
-		pipeline->desc = *desc;
-
-		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&m_DxcUtils));
-		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_DxcCompiler));
-
-		// Create default include handler
-		m_DxcUtils->CreateDefaultIncludeHandler(&m_DxcIncludeHandler);
-
 		// Get shader file path
 		std::wstring shader_path = L"shaders/";
 		shader_path.append(std::wstring(desc->program_name.begin(), desc->program_name.end()));
 		shader_path.append(L".hlsl");
 
-		auto vertex_shader = CompileShader(shader_path, ShaderStage::Vertex);
+		auto vertex_shader = CompileShader(shader_path, ShaderStage::VS);
 		internal_state->vertex_reflection = vertex_shader.reflection;
-		auto pixel_shader = CompileShader(shader_path, ShaderStage::Pixel);
+		auto pixel_shader = CompileShader(shader_path, ShaderStage::PS);
 		internal_state->pixel_reflection = pixel_shader.reflection;
 
 		ED_LOG_INFO("Compiled program '{}' successfully!", desc->program_name);
@@ -691,21 +698,21 @@ namespace Eden
 			{
 			case D3D_REGISTER_COMPONENT_UINT32:
 				component_format = (component_count == 1 ? DXGI_FORMAT_R32_UINT :
-								   component_count == 2 ? DXGI_FORMAT_R32G32_UINT :
-								   component_count == 3 ? DXGI_FORMAT_R32G32B32_UINT :
-								   DXGI_FORMAT_R32G32B32A32_UINT);
+									component_count == 2 ? DXGI_FORMAT_R32G32_UINT :
+									component_count == 3 ? DXGI_FORMAT_R32G32B32_UINT :
+									DXGI_FORMAT_R32G32B32A32_UINT);
 				break;
 			case D3D_REGISTER_COMPONENT_SINT32:
 				component_format = (component_count == 1 ? DXGI_FORMAT_R32_SINT :
-								   component_count == 2 ? DXGI_FORMAT_R32G32_SINT :
-								   component_count == 3 ? DXGI_FORMAT_R32G32B32_SINT :
-								   DXGI_FORMAT_R32G32B32A32_SINT);
+									component_count == 2 ? DXGI_FORMAT_R32G32_SINT :
+									component_count == 3 ? DXGI_FORMAT_R32G32B32_SINT :
+									DXGI_FORMAT_R32G32B32A32_SINT);
 				break;
 			case D3D_REGISTER_COMPONENT_FLOAT32:
 				component_format = (component_count == 1 ? DXGI_FORMAT_R32_FLOAT :
-								   component_count == 2 ? DXGI_FORMAT_R32G32_FLOAT :
-								   component_count == 3 ? DXGI_FORMAT_R32G32B32_FLOAT :
-								   DXGI_FORMAT_R32G32B32A32_FLOAT);
+									component_count == 2 ? DXGI_FORMAT_R32G32_FLOAT :
+									component_count == 3 ? DXGI_FORMAT_R32G32B32_FLOAT :
+									DXGI_FORMAT_R32G32B32A32_FLOAT);
 				break;
 			default:
 				break;  // D3D_REGISTER_COMPONENT_UNKNOWN
@@ -770,6 +777,89 @@ namespace Eden
 		Utils::StringConvert(desc->program_name, pipeline_name);
 		pipeline_name.append(L"_PSO");
 		internal_state->pipeline_state->SetName(pipeline_name.c_str());
+	}
+
+	void D3D12RHI::CreateComputePipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc)
+	{
+		// Get shader file path
+		std::wstring shader_path = L"shaders/";
+		shader_path.append(std::wstring(desc->program_name.begin(), desc->program_name.end()));
+		shader_path.append(L".hlsl");
+
+		auto compute_shader = CompileShader(shader_path, ShaderStage::CS);
+		internal_state->compute_reflection = compute_shader.reflection;
+
+		ED_LOG_INFO("Compiled compute program '{}' successfully!", desc->program_name);
+
+		// Create the root signature
+		CreateRootSignature(pipeline);
+
+		// Describe and create pipeline state object(PSO)
+		D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+		pso_desc.pRootSignature = internal_state->root_signature.Get();
+		pso_desc.CS = { compute_shader.blob->GetBufferPointer(), compute_shader.blob->GetBufferSize() };
+		if (FAILED(m_Device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&internal_state->pipeline_state))))
+			ED_ASSERT_MB(false, "Failed to create compute pipeline state!");
+
+		std::wstring pipeline_name;
+		Utils::StringConvert(desc->program_name, pipeline_name);
+		pipeline_name.append(L"_PSO");
+		internal_state->pipeline_state->SetName(pipeline_name.c_str());
+	}
+
+	void D3D12RHI::CreateCommands()
+	{
+		// Describe and create graphics command queue
+		D3D12_COMMAND_QUEUE_DESC command_queue_desc = {};
+		command_queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		command_queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		if (FAILED(m_Device->CreateCommandQueue(&command_queue_desc, IID_PPV_ARGS(&m_CommandQueue))))
+			ED_ASSERT_MB(false, "Failed to create command queue!");
+
+		// Create graphics command allocator
+		if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator))))
+			ED_ASSERT_MB(false, "Failed to create command allocator!");
+		m_CommandAllocator->SetName(L"gfx_command_allocator");
+
+		// Create graphics command list
+		if (FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList))))
+			ED_ASSERT_MB(false, "Failed to create command list!");
+		m_CommandList->SetName(L"gfx_command_list");
+	}
+
+	void D3D12RHI::EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state)
+	{
+		if (resource->current_state != dest_resource_state)
+		{
+			ChangeResourceState(resource, resource->current_state, dest_resource_state);
+			resource->current_state = dest_resource_state;
+		}
+	}
+
+	std::shared_ptr<Pipeline> D3D12RHI::CreatePipeline(PipelineDesc* desc)
+	{
+		ED_PROFILE_FUNCTION();
+
+		std::shared_ptr<Pipeline> pipeline = std::make_shared<Pipeline>();
+		auto internal_state = std::make_shared<D3D12Pipeline>();
+		pipeline->internal_state = internal_state;
+		pipeline->desc = *desc;
+
+		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&m_DxcUtils));
+		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&m_DxcCompiler));
+
+		// Create default include handler
+		m_DxcUtils->CreateDefaultIncludeHandler(&m_DxcIncludeHandler);
+
+		if (desc->type == Graphics)
+		{
+			ED_ASSERT(desc->render_pass);
+			CreateGraphicsPipeline(pipeline, internal_state, desc);
+		}
+		else if (desc->type == Compute)
+		{
+			CreateComputePipeline(pipeline, internal_state, desc);
+		}
 
 		return pipeline;
 	}
@@ -778,7 +868,7 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
-		TextureDesc desc;
+		TextureDesc desc = {};
 		int width, height, nchannels;
 		if (stbi_is_hdr(file_path.c_str()))
 		{
@@ -808,6 +898,7 @@ namespace Eden
 			
 		desc.width = width;
 		desc.height = height;
+		desc.storage = false;
 
 		std::shared_ptr<Texture> texture = CreateTexture(&desc);
 		
@@ -818,7 +909,7 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
-		ED_ASSERT_LOG(desc->usage == TextureDesc::Texture2D, "Only texture2d is implemented!");
+		ED_ASSERT_LOG(desc->type == TextureDesc::Texture2D, "Only texture2d is implemented!");
 
 		std::shared_ptr<Texture> texture = std::make_shared<Texture>();
 		auto internal_state = std::make_shared<D3D12Texture>();
@@ -826,66 +917,46 @@ namespace Eden
 		texture->desc = *desc;
 		texture->image_format = texture->desc.srgb ? Format::RGBA32_FLOAT : Format::RGBA8_UNORM;
 
-		ComPtr<ID3D12Resource> texture_upload_heap;
-		D3D12MA::Allocation* upload_allocation;
-
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
 		ED_PROFILE_GPU_FUNCTION("D3D12RHI::CreateTexture");
 
-		// Create the texture
+		auto flags = D3D12_RESOURCE_FLAG_NONE;
+		if (desc->storage)
+			flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		auto dest_resource_state = ResourceState::PIXEL_SHADER;
+		if (desc->storage)
+			dest_resource_state = ResourceState::UNORDERED_ACCESS;
+		texture->current_state = dest_resource_state;
+
+		// Describe and create a texture2D
+		D3D12_RESOURCE_DESC texture_desc = {};
+		texture_desc.MipLevels = 1;
+		texture_desc.Format = Helpers::ConvertFormat(texture->image_format);
+		texture_desc.Width = texture->desc.width;
+		texture_desc.Height = texture->desc.height;
+		texture_desc.Flags = flags;
+		texture_desc.DepthOrArraySize = 1;
+		texture_desc.SampleDesc.Count = 1;
+		texture_desc.SampleDesc.Quality = 0;
+		texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+		D3D12MA::ALLOCATION_DESC allocation_desc = {};
+		allocation_desc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+		m_Allocator->CreateResource(&allocation_desc,
+									&texture_desc,
+									Helpers::ConvertResourceState(dest_resource_state),
+									nullptr,
+									&internal_state->allocation,
+									IID_PPV_ARGS(&internal_state->resource));
+
+		if (desc->data)
 		{
-			// Describe and create a texture2D
-			D3D12_RESOURCE_DESC texture_desc = {};
-			texture_desc.MipLevels = 1;
-			texture_desc.Format = Helpers::ConvertFormat(texture->image_format);
-			texture_desc.Width = texture->desc.width;
-			texture_desc.Height = texture->desc.height;
-			texture_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-			texture_desc.DepthOrArraySize = 1;
-			texture_desc.SampleDesc.Count = 1;
-			texture_desc.SampleDesc.Quality = 0;
-			texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-			D3D12MA::ALLOCATION_DESC allocation_desc = {};
-			allocation_desc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-
-			m_Allocator->CreateResource(&allocation_desc,
-										&texture_desc,
-										D3D12_RESOURCE_STATE_COPY_DEST,
-										nullptr,
-										&internal_state->allocation,
-										IID_PPV_ARGS(&internal_state->resource));
-
-			const uint64_t upload_buffer_size = GetRequiredIntermediateSize(internal_state->resource.Get(), 0, 1);
-
-			// Create the GPU upload buffer
-			D3D12MA::ALLOCATION_DESC upload_allocation_desc = {};
-			upload_allocation_desc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-
-			m_Allocator->CreateResource(&upload_allocation_desc,
-												  &CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
-												  D3D12_RESOURCE_STATE_GENERIC_READ,
-												  nullptr,
-												  &upload_allocation,
-												  IID_PPV_ARGS(&texture_upload_heap));
-
-			// Copy data to the intermediate upload heap and then schedule a copy 
-			// from the upload heap to the Texture2D.
-			D3D12_SUBRESOURCE_DATA texture_data = {};
-			texture_data.pData = texture->desc.data;
-			texture_data.RowPitch = texture->desc.width * 4;
-			if (desc->srgb)
-				texture_data.RowPitch *= sizeof(float);
-			texture_data.SlicePitch = texture->desc.height * texture_data.RowPitch;
-
-			UpdateSubresources(m_CommandList.Get(), internal_state->resource.Get(), texture_upload_heap.Get(), 0, 0, 1, &texture_data);
-			ChangeResourceState(internal_state->resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			EnsureResourceState(texture, ResourceState::COPY_DEST);
+			SetTextureData(texture);
+			EnsureResourceState(texture, dest_resource_state);
 		}
-
-		m_CommandList->Close();
-		ID3D12CommandList* command_lists[] = { m_CommandList.Get() };
-		m_CommandQueue->ExecuteCommandLists(_countof(command_lists), command_lists);
-		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
 
 		// Describe and create a Shader resource view(SRV) for the texture
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -897,18 +968,18 @@ namespace Eden
 		internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
 		m_Device->CreateShaderResourceView(internal_state->resource.Get(), &srv_desc, internal_state->cpu_handle);
 		internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
-
-		WaitForGPU();
-
-		upload_allocation->Release();
-
 		m_SRVHeapOffset++;
+
+		if (desc->storage)
+		{
+			auto cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+			m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, nullptr, cpu_handle);
+			m_SRVHeapOffset++;
+		}
 
 		// Enable the srv heap again
 		if (m_SRVHeap->is_set)
-		{
 			SetDescriptorHeap(m_SRVHeap);
-		}
 
 		return texture;
 	}
@@ -947,6 +1018,77 @@ namespace Eden
 		memcpy(buffer->mapped_data, data, buffer->size);
 	}
 
+	void D3D12RHI::ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width /*= 0*/, uint32_t height /*= 0*/)
+	{
+		if (width != 0 && height != 0)
+		{
+			texture->desc.width  = width;
+			texture->desc.height = height;
+		}
+
+		auto flags = D3D12_RESOURCE_FLAG_NONE;
+		if (texture->desc.storage)
+			flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		auto dest_resource_state = ResourceState::PIXEL_SHADER;
+		if (texture->desc.storage)
+			dest_resource_state = ResourceState::UNORDERED_ACCESS;
+		texture->current_state = dest_resource_state;
+
+		// Release previous texture
+		auto internal_state = ToInternal(texture.get());
+		internal_state->allocation->Release();
+		internal_state->resource->Release();
+
+		D3D12_RESOURCE_DESC texture_desc = {};
+		texture_desc.MipLevels = 1;
+		texture_desc.Format = Helpers::ConvertFormat(texture->image_format);
+		texture_desc.Width = texture->desc.width;
+		texture_desc.Height = texture->desc.height;
+		texture_desc.Flags = flags;
+		texture_desc.DepthOrArraySize = 1;
+		texture_desc.SampleDesc.Count = 1;
+		texture_desc.SampleDesc.Quality = 0;
+		texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+		D3D12MA::ALLOCATION_DESC allocation_desc = {};
+		allocation_desc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+		m_Allocator->CreateResource(&allocation_desc,
+									&texture_desc,
+									Helpers::ConvertResourceState(dest_resource_state),
+									nullptr,
+									&internal_state->allocation,
+									IID_PPV_ARGS(&internal_state->resource));
+
+		if (texture->desc.data)
+		{
+			EnsureResourceState(texture, ResourceState::COPY_DEST);
+			SetTextureData(texture);
+			EnsureResourceState(texture, dest_resource_state);
+		}
+
+		// Describe and create a Shader resource view(SRV) for the texture
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srv_desc.Format = Helpers::ConvertFormat(texture->image_format);
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
+
+		m_Device->CreateShaderResourceView(internal_state->resource.Get(), &srv_desc, internal_state->cpu_handle);
+
+		if (texture->desc.storage)
+		{
+			auto cpu_handle = internal_state->cpu_handle;
+			cpu_handle.ptr += static_cast<uint64_t>(m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+			m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, nullptr, cpu_handle);
+		}
+
+		// Enable the srv heap again
+		if (m_SRVHeap->is_set)
+			SetDescriptorHeap(m_SRVHeap);
+	}
+
 	uint64_t D3D12RHI::GetTextureID(std::shared_ptr<Texture>& texture)
 	{
 		auto internal_state = ToInternal(texture.get());
@@ -979,16 +1121,21 @@ namespace Eden
 	{
 		auto internal_state = ToInternal(pipeline.get());
 
+		if (pipeline->desc.type == Graphics)
+			m_CommandList->SetGraphicsRootSignature(internal_state->root_signature.Get());
+		else if (pipeline->desc.type == Compute)
+			m_CommandList->SetComputeRootSignature(internal_state->root_signature.Get());
+		
 		m_CommandList->SetPipelineState(internal_state->pipeline_state.Get());
-		m_CommandList->SetGraphicsRootSignature(internal_state->root_signature.Get());
 		m_BoundPipeline = pipeline;
 	}
 
 	void D3D12RHI::BindVertexBuffer(std::shared_ptr<Buffer>& vertex_buffer)
 	{
 		auto internal_state = ToInternal(vertex_buffer.get());
-
 		ED_ASSERT_LOG(internal_state->resource != nullptr, "Can't bind a empty vertex buffer!");
+		ED_ASSERT_LOG(m_BoundPipeline->desc.type == Graphics, "Can't bind a vertex buffer on a compute pipeline!");
+
 		m_BoundVertexBuffer.BufferLocation	= internal_state->resource->GetGPUVirtualAddress();
 		m_BoundVertexBuffer.SizeInBytes		= vertex_buffer->size;
 		m_BoundVertexBuffer.StrideInBytes	= vertex_buffer->desc.stride;
@@ -997,27 +1144,85 @@ namespace Eden
 	void D3D12RHI::BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer)
 	{
 		auto internal_state = ToInternal(index_buffer.get());
-
 		ED_ASSERT_LOG(internal_state->resource != nullptr, "Can't bind a empty index buffer!");
+		ED_ASSERT_LOG(m_BoundPipeline->desc.type == Graphics, "Can't bind a index buffer on a compute pipeline!");
+
 		m_BoundIndexBuffer.BufferLocation	= internal_state->resource->GetGPUVirtualAddress();
 		m_BoundIndexBuffer.SizeInBytes		= index_buffer->size;
 		m_BoundIndexBuffer.Format			= DXGI_FORMAT_R32_UINT;
 	}
 
-	void D3D12RHI::BindParameter(const std::string& parameter_name, const std::shared_ptr<Buffer>& buffer)
+	void D3D12RHI::BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer)
 	{
 		auto internal_state = ToInternal(buffer.get());
-
-		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, internal_state->gpu_handle);
+		BindRootParameter(parameter_name, internal_state->gpu_handle);
 	}
 
-	void D3D12RHI::BindParameter(const std::string& parameter_name, const std::shared_ptr<Texture>& texture)
+	void D3D12RHI::BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage)
 	{
 		auto internal_state = ToInternal(texture.get());
 
+		auto gpu_handle = internal_state->gpu_handle;
+		if (usage == kReadWrite)
+		{
+			gpu_handle.ptr += static_cast<uint64_t>(m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+
+			EnsureResourceState(texture, ResourceState::UNORDERED_ACCESS);
+		}
+		else
+		{
+			EnsureResourceState(texture, ResourceState::PIXEL_SHADER);
+		}
+		BindRootParameter(parameter_name, gpu_handle);
+	}
+
+	void D3D12RHI::BindRootParameter(const std::string& parameter_name, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+	{
 		uint32_t root_parameter_index = GetRootParameterIndex(parameter_name);
-		m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, internal_state->gpu_handle);
+		if (m_BoundPipeline->desc.type == Graphics)
+			m_CommandList->SetGraphicsRootDescriptorTable(root_parameter_index, gpu_handle);
+		else if (m_BoundPipeline->desc.type == Compute)
+			m_CommandList->SetComputeRootDescriptorTable(root_parameter_index, gpu_handle);
+	}
+
+	void D3D12RHI::SetTextureData(std::shared_ptr<Texture>& texture)
+	{
+		auto internal_state = ToInternal(texture.get());
+
+		ComPtr<ID3D12Resource> texture_upload_heap;
+		D3D12MA::Allocation* upload_allocation;
+		const uint64_t upload_buffer_size = GetRequiredIntermediateSize(internal_state->resource.Get(), 0, 1);
+
+		// Create the GPU upload buffer
+		D3D12MA::ALLOCATION_DESC upload_allocation_desc = {};
+		upload_allocation_desc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+
+		m_Allocator->CreateResource(&upload_allocation_desc,
+									&CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
+									D3D12_RESOURCE_STATE_GENERIC_READ,
+									nullptr,
+									&upload_allocation,
+									IID_PPV_ARGS(&texture_upload_heap));
+
+		// Copy data to the intermediate upload heap and then schedule a copy 
+		// from the upload heap to the Texture2D.
+		D3D12_SUBRESOURCE_DATA texture_data = {};
+		texture_data.pData = texture->desc.data;
+		texture_data.RowPitch = texture->desc.width * 4;
+		if (texture->desc.srgb)
+			texture_data.RowPitch *= sizeof(float);
+		texture_data.SlicePitch = texture->desc.height * texture_data.RowPitch;
+
+		UpdateSubresources(m_CommandList.Get(), internal_state->resource.Get(), texture_upload_heap.Get(), 0, 0, 1, &texture_data);
+
+		m_CommandList->Close();
+		ID3D12CommandList* command_lists[] = { m_CommandList.Get() };
+		m_CommandQueue->ExecuteCommandLists(_countof(command_lists), command_lists);
+		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
+
+		WaitForGPU();
+
+		upload_allocation->Release();
 	}
 
 	void D3D12RHI::BeginRender()
@@ -1034,9 +1239,8 @@ namespace Eden
 		D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = GetCPUHandle(internal_state->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 		if (render_pass->desc.swapchain_target)
 		{
-			auto current_render_target = GetCurrentRenderTarget(render_pass);
 			rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
-			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			EnsureResourceState(render_pass->color_attachments[m_FrameIndex], ResourceState::RENDER_TARGET);
 		}
 		else
 		{
@@ -1047,10 +1251,8 @@ namespace Eden
 				{
 					CreateAttachments(render_pass, render_pass->width, render_pass->height);
 				}
-				auto rt_internal_state = ToInternal(attachment.get());
-				auto current_render_target = rt_internal_state->resource.Get();
 				rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
-				ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				EnsureResourceState(attachment, ResourceState::RENDER_TARGET);
 			}
 		}
 
@@ -1101,17 +1303,12 @@ namespace Eden
 
 		if (render_pass->desc.swapchain_target)
 		{
-			auto current_render_target = GetCurrentRenderTarget(render_pass);
-			ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+			EnsureResourceState(render_pass->color_attachments[m_FrameIndex], ResourceState::PRESENT);
 		}
 		else
 		{
 			for (auto& attachment : render_pass->color_attachments)
-			{
-				auto rt_internal_state = ToInternal(attachment.get());
-				auto current_render_target = rt_internal_state->resource.Get();
-				ChangeResourceState(current_render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			}
+				EnsureResourceState(attachment, ResourceState::PIXEL_SHADER);
 		}
 	}
 
@@ -1155,6 +1352,11 @@ namespace Eden
 		m_CommandList->IASetVertexBuffers(0, 1, &m_BoundVertexBuffer);
 		m_CommandList->IASetIndexBuffer(&m_BoundIndexBuffer);
 		m_CommandList->DrawIndexedInstanced(index_count, instance_count, start_index_location, base_vertex_location, start_instance_location);
+	}
+
+	void D3D12RHI::Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+	{
+		m_CommandList->Dispatch(group_count_x, group_count_y, group_count_z);
 	}
 
 	void D3D12RHI::GetHardwareAdapter()
@@ -1275,19 +1477,14 @@ namespace Eden
 		}
 	}
 
-	ID3D12Resource* D3D12RHI::GetCurrentRenderTarget(std::shared_ptr<RenderPass>& render_pass)
+	void D3D12RHI::ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state)
 	{
-		ED_ASSERT_LOG(render_pass->desc.swapchain_target, "Can't get the current render target of a render pass that isn't the swapchain target!");
+		auto internal_state = ToInternal(resource.get());
 
-		auto internal_state = ToInternal(render_pass->color_attachments[m_FrameIndex].get());
-		return internal_state->resource.Get();
-	}
-
-	void D3D12RHI::ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES desired_state)
-	{
-		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("D3D12RHI::ChangeResourceState");
-		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, current_state, desired_state));
+		m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+												internal_state->resource.Get(), 
+												Helpers::ConvertResourceState(current_state),
+												Helpers::ConvertResourceState(desired_state)));
 	}
 
 	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset /*= 0*/)
