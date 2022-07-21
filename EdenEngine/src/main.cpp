@@ -45,7 +45,7 @@ class EdenApplication : public Application
 	//==================
 	struct ComputeData
 	{
-		glm::vec4 max_thread_iter;
+		alignas(16) glm::vec2 resolution;
 		float time;
 	} m_ComputeData;
 	std::shared_ptr<Buffer> m_ComputeBuffer;
@@ -232,7 +232,7 @@ public:
 		m_SceneSettingsBuffer = rhi->CreateBuffer(&scene_settings_desc, &m_SceneSettings);
 
 		// Compute shader
-		m_ComputeData.max_thread_iter = glm::vec4(m_ViewportSize.x, m_ViewportSize.y, 300, 0);
+		m_ComputeData.resolution = glm::vec2(m_ViewportSize.x, m_ViewportSize.y);
 		BufferDesc compute_data_desc = {};
 		compute_data_desc.element_count = 1;
 		compute_data_desc.stride = sizeof(SceneData);
@@ -434,6 +434,7 @@ public:
 		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
 		ImGui::Text("Viewport Size: %.0fx%.0f", m_ViewportSize.x, m_ViewportSize.y);
 
+		ImGui::Text("Compute Shader test:");
 		ImVec2 image_size(320, 180);
 		if (m_OutputTexture->desc.width != image_size.x || m_OutputTexture->desc.height != image_size.y)
 		{
@@ -706,13 +707,13 @@ public:
 
 		// Compute shader test
 		rhi->BindPipeline(m_Pipelines["CS Test"]);
-		m_ComputeData.max_thread_iter = glm::vec4(m_ViewportSize.x, m_ViewportSize.y, 300, 0);
+		m_ComputeData.resolution = glm::vec2(m_OutputTexture->desc.width, m_OutputTexture->desc.height);
 		m_ComputeData.time = creation_time;
 		rhi->UpdateBufferData(m_ComputeBuffer, &m_ComputeData);
 		rhi->BindParameter("cb0", m_ComputeBuffer);
 		rhi->BindParameter("OutputTexture", m_OutputTexture, kReadWrite);
 		//! 8 is the num of threads, changing in there requires to change in shader
-		rhi->Dispatch(static_cast<uint32_t>(m_ViewportSize.x / 8), static_cast<uint32_t>(m_ViewportSize.x / 8), 1); // TODO: abstract the num of threads in some way
+		rhi->Dispatch(static_cast<uint32_t>(m_OutputTexture->desc.width / 8), static_cast<uint32_t>(m_OutputTexture->desc.height / 8), 1); // TODO: abstract the num of threads in some way
 		
 		rhi->BeginRenderPass(m_GBuffer);
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
