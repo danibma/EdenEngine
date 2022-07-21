@@ -24,6 +24,7 @@ namespace Eden
 		rhi = std::make_shared<D3D12RHI>();
 		rhi->Init(window);
 
+		m_CreationTimer.Record();
 		s_Instance = this;
 	}
 
@@ -45,8 +46,9 @@ namespace Eden
 			window->UpdateEvents();
 
 			// Update timers
-			delta_time = (float)timer.ElapsedSeconds();
-			timer.Record();
+			delta_time = m_DeltaTimer.ElapsedSeconds();
+			m_DeltaTimer.Record();
+			creation_time = m_CreationTimer.ElapsedSeconds();
 
 			if (!window->IsMinimized())
 			{

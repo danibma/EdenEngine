@@ -46,6 +46,7 @@ class EdenApplication : public Application
 	struct ComputeData
 	{
 		glm::vec4 max_thread_iter;
+		float time;
 	} m_ComputeData;
 	std::shared_ptr<Buffer> m_ComputeBuffer;
 	std::shared_ptr<Texture> m_OutputTexture;
@@ -706,6 +707,7 @@ public:
 		// Compute shader test
 		rhi->BindPipeline(m_Pipelines["CS Test"]);
 		m_ComputeData.max_thread_iter = glm::vec4(m_ViewportSize.x, m_ViewportSize.y, 300, 0);
+		m_ComputeData.time = creation_time;
 		rhi->UpdateBufferData(m_ComputeBuffer, &m_ComputeData);
 		rhi->BindParameter("cb0", m_ComputeBuffer);
 		rhi->BindParameter("OutputTexture", m_OutputTexture, kReadWrite);

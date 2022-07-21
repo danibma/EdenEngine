@@ -15,12 +15,14 @@ namespace Eden
 		Window* window;
 		std::shared_ptr<IRHI> rhi;
 
-		// Timer stuff
-		Timer timer;
 		float delta_time = 0.0f;
+		float creation_time = 0.0f; // Time since the application creation
 
 	private:
 		static Application* s_Instance;
+
+		Timer m_DeltaTimer;
+		Timer m_CreationTimer;
 
 	public:
 		Application();

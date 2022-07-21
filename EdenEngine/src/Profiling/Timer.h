@@ -15,24 +15,17 @@ namespace Eden
 		}
 
 		// Elapsed time in seconds since the Timer creation or last call to record()
-		inline double ElapsedSeconds()
+		inline float ElapsedSeconds()
 		{
 			auto timestamp2 = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(timestamp2 - timestamp);
+			std::chrono::duration<float> time_span = std::chrono::duration_cast<std::chrono::duration<float>>(timestamp2 - timestamp);
 			return time_span.count();
 		}
 
 		// Elapsed time in milliseconds since the Timer creation or last call to record()
-		inline double ElapsedMilliseconds()
+		inline float ElapsedMilliseconds()
 		{
-			return ElapsedSeconds() * 1000.0;
+			return ElapsedSeconds() * 1000.0f;
 		}
-
-		// Elapsed time in milliseconds since the Timer creation or last call to record()
-		inline double Elapsed()
-		{
-			return ElapsedMilliseconds();
-		}
-
 	};
 }
