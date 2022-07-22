@@ -286,7 +286,7 @@ namespace Eden
 
 			dl.direction = glm::vec4(transform.rotation, 1.0f);
 
-			UI::DrawProperty("Intensity", dl.intensity, 0.5f, 0.01f, 0.0f);
+			UI::DrawProperty("Intensity", dl.intensity, 0.1f, 0.01f, 0.0f);
 		});
 
 	end: // goto end

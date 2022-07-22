@@ -1,6 +1,6 @@
 # **Features**
 ## **Graphics**
-### Phong Lighting
+### Blinn-Phong Lighting
 ![Phong Lighting Image](img/phong_lighting.png)
 
 ### Cubemaps through HDR file format
@@ -8,6 +8,9 @@
 
 ### Multiple Lights support
 ![Multiple Lights](img/multiple_lights.png)
+
+### HDR Pipeline with Gamma Correction
+| ![ECS UI](img/editor_ui.png) | ![ECS UI](img/editor_ui.png)
 
 ## **Editor**
 ### Scene Serialization
