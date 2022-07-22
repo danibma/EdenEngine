@@ -10,7 +10,10 @@
 ![Multiple Lights](img/multiple_lights.png)
 
 ### HDR Pipeline with Gamma Correction
-| ![ECS UI](img/editor_ui.png) | ![ECS UI](img/editor_ui.png)
+| On | Off |
+|----|-----|
+| ![Multiple Lights](img/hdr_on.png) | ![Multiple Lights](img/hdr_off.png) |
+
 
 ## **Editor**
 ### Scene Serialization
