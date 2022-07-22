@@ -40,6 +40,11 @@ namespace Eden
 		return static_cast<D3D12RenderPass*>(render_pass->internal_state.get());
 	}
 
+	D3D12GPUTimer* ToInternal(const GPUTimer* gpu_timer)
+	{
+		return static_cast<D3D12GPUTimer*>(gpu_timer->internal_state.get());
+	}
+
 	constexpr D3D_FEATURE_LEVEL s_FeatureLevel = D3D_FEATURE_LEVEL_12_1;
 
 	void D3D12RHI::Init(Window* window)
@@ -477,12 +482,22 @@ namespace Eden
 		if (buffer->desc.usage == BufferDesc::Uniform)
 			buffer->size = ALIGN(buffer->size, 256);
 
+		auto heap_type = D3D12_HEAP_TYPE_UPLOAD;
+		auto state = ResourceState::READ;
+		if (buffer->desc.usage == BufferDesc::Readback)
+		{
+			heap_type = D3D12_HEAP_TYPE_READBACK;
+			state = ResourceState::COPY_DEST;
+			ED_ASSERT_LOG(!initial_data, "A readback buffer cannot have initial data!");
+			initial_data = nullptr;
+		}
+
 		D3D12MA::ALLOCATION_DESC allocation_desc = {};
-		allocation_desc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+		allocation_desc.HeapType = heap_type;
 
 		m_Allocator->CreateResource(&allocation_desc,
 									&CD3DX12_RESOURCE_DESC::Buffer(buffer->size),
-									D3D12_RESOURCE_STATE_GENERIC_READ,
+									Helpers::ConvertResourceState(state),
 									nullptr,
 									&internal_state->allocation,
 									IID_PPV_ARGS(&internal_state->resource));
@@ -780,6 +795,7 @@ namespace Eden
 		Utils::StringConvert(desc->program_name, pipeline_name);
 		pipeline_name.append(L"_PSO");
 		internal_state->pipeline_state->SetName(pipeline_name.c_str());
+		Utils::StringConvert(pipeline_name, pipeline->debug_name);
 	}
 
 	void D3D12RHI::CreateComputePipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc)
@@ -808,6 +824,7 @@ namespace Eden
 		Utils::StringConvert(desc->program_name, pipeline_name);
 		pipeline_name.append(L"_PSO");
 		internal_state->pipeline_state->SetName(pipeline_name.c_str());
+		Utils::StringConvert(pipeline_name, pipeline->debug_name);
 	}
 
 	void D3D12RHI::CreateCommands()
@@ -1010,6 +1027,61 @@ namespace Eden
 		CreateAttachments(render_pass, render_pass->width, render_pass->height);
 
 		return render_pass;
+	}
+
+	std::shared_ptr<GPUTimer> D3D12RHI::CreateGPUTimer()
+	{
+		std::shared_ptr<GPUTimer> timer = std::make_shared<GPUTimer>();
+		auto internal_state = std::make_shared<D3D12GPUTimer>();
+		timer->internal_state = internal_state;
+
+		D3D12_QUERY_HEAP_DESC heapDesc = { };
+		heapDesc.Count = 2;
+		heapDesc.NodeMask = 0;
+		heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+		m_Device->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(&internal_state->query_heap));
+
+		BufferDesc readback_desc = {};
+		readback_desc.element_count = 2;
+		readback_desc.stride = sizeof(uint64_t);
+		readback_desc.usage = BufferDesc::Readback;
+		timer->readback_buffer = CreateBuffer(&readback_desc, nullptr);
+
+		return timer;
+	}
+
+	void D3D12RHI::BeginGPUTimer(std::shared_ptr<GPUTimer>& timer)
+	{
+		auto internal_state = ToInternal(timer.get());
+
+		m_CommandList->EndQuery(internal_state->query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+	}
+
+	void D3D12RHI::EndGPUTimer(std::shared_ptr<GPUTimer>& timer)
+	{
+		auto internal_state = ToInternal(timer.get());
+		auto readback_internal_state = ToInternal(timer->readback_buffer.get());
+
+		uint64_t gpu_frequency;
+		m_CommandQueue->GetTimestampFrequency(&gpu_frequency);
+
+		// Insert the end timestamp
+		m_CommandList->EndQuery(internal_state->query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+
+		// Resolve the data
+		m_CommandList->ResolveQueryData(internal_state->query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, readback_internal_state->resource.Get(), 0);
+
+		// Get the query data
+		uint64_t* query_data = reinterpret_cast<uint64_t*>(timer->readback_buffer->mapped_data);
+		uint64_t start_time = query_data[0];
+		uint64_t end_time = query_data[1];
+
+		if (end_time > start_time)
+		{
+			uint64_t delta = end_time - start_time;
+			double frequency = double(gpu_frequency);
+			timer->elapsed_time = (delta / frequency) * 1000.0;
+		}
 	}
 
 	void D3D12RHI::UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count)

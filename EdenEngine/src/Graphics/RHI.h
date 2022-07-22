@@ -148,7 +148,8 @@ namespace Eden
 		{
 			Vertex_Index,
 			Uniform, // ConstantBuffer in D3D12
-			Storage // Structured, UAV, RWBuffer in D3D12
+			Storage, // Structured, UAV, RWBuffer in D3D12
+			Readback
 		};
 
 		uint32_t stride;
@@ -224,6 +225,13 @@ namespace Eden
 		std::unordered_map<std::string, uint32_t> root_parameter_indices;
 	};
 
+	struct GPUTimer : GraphicsChild
+	{
+		double elapsed_time = 0.0f;
+
+		std::shared_ptr<Buffer> readback_buffer;
+	};
+
 	class IRHI
 	{
 	protected:
@@ -245,6 +253,10 @@ namespace Eden
 		virtual std::shared_ptr<Texture> CreateTexture(std::string path) = 0;
 		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) = 0;
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) = 0;
+		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() = 0;
+
+		virtual void BeginGPUTimer(std::shared_ptr<GPUTimer>& timer) = 0;
+		virtual void EndGPUTimer(std::shared_ptr<GPUTimer>& timer) = 0;
 
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) = 0;
 		virtual void ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width = 0, uint32_t height = 0) = 0;

@@ -71,6 +71,11 @@ namespace Eden
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsv_desc;
 	};
 
+	struct D3D12GPUTimer
+	{
+		ComPtr<ID3D12QueryHeap> query_heap;
+	};
+
 	class D3D12RHI final : public IRHI
 	{
 		ComPtr<ID3D12Device> m_Device;
@@ -119,6 +124,10 @@ namespace Eden
 		virtual std::shared_ptr<Texture> CreateTexture(std::string path) override;
 		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) override;
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) override;
+		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() override;
+
+		virtual void BeginGPUTimer(std::shared_ptr<GPUTimer>& timer) override;
+		virtual void EndGPUTimer(std::shared_ptr<GPUTimer>& timer) override;
 
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) override;
 		virtual void ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width = 0, uint32_t height = 0) override;

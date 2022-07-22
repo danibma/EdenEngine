@@ -74,7 +74,7 @@ class EdenApplication : public Application
 	bool m_SkyboxEnable = true;
 
 	// UI
-	bool m_OpenDebugWindow = true;
+	bool m_OpenStatisticsWindow = true;
 	bool m_OpenSceneProperties = true;
 	bool m_OpenPipelinesPanel = true;
 	bool m_OpenMemoryPanel = true;
@@ -93,6 +93,8 @@ class EdenApplication : public Application
 	std::shared_ptr<RenderPass> m_ImGuiPass;
 	std::shared_ptr<RenderPass> m_SceneComposite;
 	std::shared_ptr<Buffer> m_QuadBuffer;
+	std::shared_ptr<GPUTimer> m_RenderTimer;
+	std::shared_ptr<GPUTimer> m_ComputeTimer;
 
 	struct SceneSettings
 	{
@@ -244,6 +246,9 @@ public:
 		compute_output_desc.height = static_cast<uint32_t>(m_ViewportSize.y);
 		compute_output_desc.storage = true;
 		m_OutputTexture = rhi->CreateTexture(&compute_output_desc);
+
+		m_RenderTimer = rhi->CreateGPUTimer();
+		m_ComputeTimer = rhi->CreateGPUTimer();
 	}
 
 	void PrepareScene()
@@ -380,12 +385,12 @@ public:
 
 			if (ImGui::BeginMenu("View"))
 			{
-				ImGui::MenuItem("Debug", NULL, &m_OpenDebugWindow);
+				ImGui::MenuItem("Statistics", NULL, &m_OpenStatisticsWindow);
 				ImGui::MenuItem("Entity Properties", NULL, &m_SceneHierarchy->open_entity_properties);
 				ImGui::MenuItem("Scene Hierarchy", NULL, &m_SceneHierarchy->open_scene_hierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
 				ImGui::MenuItem("Pipelines Panel", NULL, &m_OpenPipelinesPanel);
-				ImGui::MenuItem("ContentBrowser", NULL, &m_ContentBrowserPanel->open_content_browser);
+				ImGui::MenuItem("Content Browser", NULL, &m_ContentBrowserPanel->open_content_browser);
 
 				ImGui::EndMenu();
 			}
@@ -422,19 +427,6 @@ public:
 	void UI_SceneProperties()
 	{
 		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
-		ImGui::Checkbox("Enable Skybox", &m_SkyboxEnable);
-		ImGui::Separator();
-		UI::DrawProperty("Exposure", m_SceneSettings.exposure, 0.1f, 0.1f, 5.0f);
-		ImGui::End();
-	}
-
-	void UI_DebugWindow()
-	{
-		ImGui::Begin("Debug", &m_OpenDebugWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-
-		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
-		ImGui::Text("Viewport Size: %.0fx%.0f", m_ViewportSize.x, m_ViewportSize.y);
-
 		ImGui::Text("Compute Shader test:");
 		ImVec2 image_size(320, 180);
 		if (m_OutputTexture->desc.width != image_size.x || m_OutputTexture->desc.height != image_size.y)
@@ -448,7 +440,20 @@ public:
 		}
 		rhi->EnsureResourceState(m_OutputTexture, ResourceState::PIXEL_SHADER);
 		ImGui::Image((ImTextureID)rhi->GetTextureID(m_OutputTexture), image_size);
+		ImGui::Separator();
 
+		ImGui::Checkbox("Enable Skybox", &m_SkyboxEnable);
+		ImGui::Separator();
+		UI::DrawProperty("Exposure", m_SceneSettings.exposure, 0.1f, 0.1f, 5.0f);
+		ImGui::End();
+	}
+
+	void UI_StatisticsWindow()
+	{
+		ImGui::Begin("Statistcs", &m_OpenStatisticsWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
+		ImGui::Text("GPU frame time: %.3fms", m_RenderTimer->elapsed_time);
+		ImGui::Text("Compute test time: %.3fms", m_ComputeTimer->elapsed_time);
 		ImGui::End();
 	}
 
@@ -604,14 +609,14 @@ public:
 		UI_Viewport();
 		m_ContentBrowserPanel->Render();
 		m_SceneHierarchy->Render();
-		if (m_OpenDebugWindow)
-			UI_DebugWindow();
-		if (m_OpenSceneProperties)
-			UI_SceneProperties();
+		if (m_OpenStatisticsWindow)
+			UI_StatisticsWindow();
 		if (m_CurrentScene->GetSelectedEntity())
 			UI_DrawGizmo();
 		if (m_OpenPipelinesPanel)
 			UI_PipelinesPanel();
+		if (m_OpenSceneProperties)
+			UI_SceneProperties();
 		if (m_OpenMemoryPanel)
 			UI_MemoryPanel();
 	}
@@ -686,6 +691,7 @@ public:
 		ED_PROFILE_FUNCTION();
 
 		rhi->BeginRender();
+		rhi->BeginGPUTimer(m_RenderTimer);
 
 	#if !WITH_EDITOR
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
@@ -708,6 +714,7 @@ public:
 		UpdatePointLights();
 
 		// Compute shader test
+		rhi->BeginGPUTimer(m_ComputeTimer);
 		rhi->BindPipeline(m_Pipelines["Cubes Test"]);
 		m_ComputeData.resolution = glm::vec2(m_OutputTexture->desc.width, m_OutputTexture->desc.height);
 		m_ComputeData.time = creation_time;
@@ -716,6 +723,7 @@ public:
 		rhi->BindParameter("OutputTexture", m_OutputTexture, kReadWrite);
 		//! 8 is the num of threads, changing in there requires to change in shader
 		rhi->Dispatch(static_cast<uint32_t>(m_OutputTexture->desc.width / 8), static_cast<uint32_t>(m_OutputTexture->desc.height / 8), 1); // TODO: abstract the num of threads in some way
+		rhi->EndGPUTimer(m_ComputeTimer);
 		
 		rhi->BeginRenderPass(m_GBuffer);
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
@@ -785,6 +793,7 @@ public:
 		rhi->EndRenderPass(m_ImGuiPass);
 	#endif
 
+		rhi->EndGPUTimer(m_RenderTimer);
 		rhi->EndRender();
 		rhi->Render();
 	}
