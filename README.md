@@ -14,6 +14,11 @@
 |----|-----|
 | ![Multiple Lights](img/hdr_on.png) | ![Multiple Lights](img/hdr_off.png) |
 
+### Mip chain generation
+| On | Off |
+|----|-----|
+| ![Multiple Lights](img/mips_on.png) | ![Multiple Lights](img/mips_off.png) |
+
 
 ## **Editor**
 ### Scene Serialization
