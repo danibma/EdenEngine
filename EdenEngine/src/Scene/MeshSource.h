@@ -48,7 +48,6 @@ namespace Eden
 		uint32_t index_count;
 		std::shared_ptr<Buffer> mesh_vb;
 		std::shared_ptr<Buffer> mesh_ib;
-		std::shared_ptr<Buffer> transform_cb;
 		std::vector<std::shared_ptr<Mesh>> meshes;
 		bool has_mesh = false;
 		bool textured = false;

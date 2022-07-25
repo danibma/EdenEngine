@@ -24,7 +24,6 @@ PSInput VSMain(float3 position : POSITION)
 }
 
 Texture2D g_cubemapTexture: register(t0);
-SamplerState g_linearSampler : register(s0);
 
 
 float2 SampleSphericalMap(float3 v)
@@ -42,7 +41,7 @@ float2 SampleSphericalMap(float3 v)
 float4 PSMain(PSInput input) : SV_Target
 {
     float2 uv = SampleSphericalMap(normalize(input.uv));
-    float4 color = g_cubemapTexture.Sample(g_linearSampler, uv);
+    float4 color = g_cubemapTexture.Sample(LinearWrap, uv);
 
     return color;
 }

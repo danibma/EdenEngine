@@ -25,12 +25,10 @@ namespace Eden
 		if (has_mesh)
 			Destroy();
 
-		glm::mat4 identity = glm::mat4(1.0f);
 		BufferDesc desc;
 		desc.usage = BufferDesc::Uniform;
 		desc.element_count = 1;
 		desc.stride = sizeof(glm::mat4);
-		transform_cb = rhi->CreateBuffer(&desc, &identity);
 
 		tinygltf::Model gltf_model;
 		tinygltf::TinyGLTF loader;
@@ -59,8 +57,8 @@ namespace Eden
 		black_desc.width = 1;
 		black_desc.height = 1;
 		black_desc.storage = false;
+		black_desc.generate_mips = false;
 		auto black_texture = rhi->CreateTexture(&black_desc);
-		
 
 		std::string parent_path = file.parent_path().string() + "/";
 
@@ -217,6 +215,7 @@ namespace Eden
 					auto texture_index = gltf_model.textures[material_index].source;
 
 					submesh->diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
+					rhi->SetName(submesh->diffuse_texture, std::string(file.stem().string() + "_diffuse"));
 				}
 
 				if (gltf_material.emissiveTexture.index > -1)
@@ -225,6 +224,7 @@ namespace Eden
 					auto texture_index = gltf_model.textures[material_index].source;
 
 					submesh->emissive_texture = LoadImage(rhi, gltf_model, texture_index);
+					rhi->SetName(submesh->emissive_texture, std::string(file.stem().string() + "_emissive"));
 				}
 
 				mesh->submeshes.emplace_back(submesh);

@@ -98,7 +98,7 @@ class EdenApplication : public Application
 
 	struct SceneSettings
 	{
-		float exposure = 0.8f;
+		float exposure = 0.6f;
 	} m_SceneSettings;
 	std::shared_ptr<Buffer> m_SceneSettingsBuffer;
 
@@ -121,7 +121,7 @@ public:
 		m_SceneDataCB = rhi->CreateBuffer(&scene_data_desc, &m_SceneData);
 
 		m_CurrentScene = enew Scene();
-		std::string default_scene = "assets/scenes/demo.escene";
+		std::string default_scene = "assets/scenes/sponza.escene";
 		OpenScene(default_scene);
 
 		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/studio_garden.hdr");
@@ -242,9 +242,10 @@ public:
 
 		TextureDesc compute_output_desc = {};
 		compute_output_desc.data = nullptr;
-		compute_output_desc.width = static_cast<uint32_t>(m_ViewportSize.x);
-		compute_output_desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+		compute_output_desc.width = static_cast<uint32_t>(320);
+		compute_output_desc.height = static_cast<uint32_t>(180);
 		compute_output_desc.storage = true;
+		compute_output_desc.generate_mips = false;
 		m_OutputTexture = rhi->CreateTexture(&compute_output_desc);
 
 		m_RenderTimer = rhi->CreateGPUTimer();
@@ -428,16 +429,9 @@ public:
 	{
 		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
 		ImGui::Text("Compute Shader test:");
-		ImVec2 image_size(320, 180);
-		if (m_OutputTexture->desc.width != image_size.x || m_OutputTexture->desc.height != image_size.y)
-		{
-			m_OutputTexture->desc.width = static_cast<uint32_t>(image_size.x);
-			m_OutputTexture->desc.height = static_cast<uint32_t>(image_size.y);
-
-			m_CurrentScene->AddPreparation([&]() {
-				rhi->ResizeTexture(m_OutputTexture);
-			});
-		}
+		ImVec2 image_size;
+		image_size.x = static_cast<float>(m_OutputTexture->desc.width);
+		image_size.y = static_cast<float>(m_OutputTexture->desc.height);
 		rhi->EnsureResourceState(m_OutputTexture, ResourceState::PIXEL_SHADER);
 		ImGui::Image((ImTextureID)rhi->GetTextureID(m_OutputTexture), image_size);
 		ImGui::Separator();
@@ -731,28 +725,22 @@ public:
 		{
 			Entity e = { entity, m_CurrentScene };
 			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
-			if (!ms->transform_cb) continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 			if (ms->textured)
 				rhi->BindPipeline(m_Pipelines["Object Textured"]);
 			else
 				rhi->BindPipeline(m_Pipelines["Object Simple"]);
 		
-			rhi->UpdateBufferData(ms->transform_cb, &tc.GetTransform());
-		
 			rhi->BindVertexBuffer(ms->mesh_vb);
 			rhi->BindIndexBuffer(ms->mesh_ib);
 			for (auto& mesh : ms->meshes)
 			{
+				auto& transform = tc.GetTransform();
 				if (mesh->gltf_matrix != glm::mat4(1.0f))
-				{
-					auto& transform = tc.GetTransform();
 					transform *= mesh->gltf_matrix;
-					rhi->UpdateBufferData(ms->transform_cb, &transform);
-				}
 		
 				rhi->BindParameter("SceneData", m_SceneDataCB);
-				rhi->BindParameter("Transform", ms->transform_cb);
+				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
 				rhi->BindParameter("DirectionalLights", m_DirectionalLightsBuffer);
 				rhi->BindParameter("PointLights", m_PointLightsBuffer);
 		

@@ -3,7 +3,6 @@
 
 Texture2D g_textureDiffuse : register(t0);
 Texture2D g_textureEmissive : register(t1);
-SamplerState g_linearSampler : register(s0);
 
 // Lights
 StructuredBuffer<DirectionalLight> DirectionalLights;
@@ -33,9 +32,9 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 //=================
 float4 PSMain(Vertex vertex) : SV_TARGET
 {
-    float4 diffuse_texture = g_textureDiffuse.Sample(g_linearSampler, vertex.uv);
+    float4 diffuse_texture = g_textureDiffuse.Sample(LinearWrap, vertex.uv);
     float alpha = diffuse_texture.a;
-    float4 emissive = g_textureEmissive.Sample(g_linearSampler, vertex.uv);
+    float4 emissive = g_textureEmissive.Sample(LinearWrap, vertex.uv);
     
     if (alpha < 0.01f)
         discard;

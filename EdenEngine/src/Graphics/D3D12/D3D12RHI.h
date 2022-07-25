@@ -20,32 +20,28 @@ using namespace Microsoft::WRL;
 
 namespace Eden
 {
-	struct D3D12Buffer
+	struct D3D12Resource
 	{
 		ComPtr<ID3D12Resource> resource;
 		D3D12MA::Allocation* allocation = nullptr;
 		D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
 		D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
 
-		~D3D12Buffer()
+		~D3D12Resource()
 		{
 			if (allocation != nullptr)
 				allocation->Release();
 		}
 	};
 
-	struct D3D12Texture
+	struct D3D12Buffer : public D3D12Resource
 	{
-		ComPtr<ID3D12Resource> resource;
-		D3D12MA::Allocation* allocation = nullptr;
-		D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
+		//! Created in case we need things for the buffer
+	};
 
-		~D3D12Texture()
-		{
-			if (allocation != nullptr)
-				allocation->Release();
-		}
+	struct D3D12Texture : public D3D12Resource
+	{
+		//! Created in case we need things specific for the texture
 	};
 
 	struct D3D12Pipeline
@@ -78,6 +74,8 @@ namespace Eden
 
 	class D3D12RHI final : public IRHI
 	{
+		DWORD m_MessageCallbackCookie;
+		ComPtr<ID3D12InfoQueue> m_InfoQueue;
 		ComPtr<ID3D12Device> m_Device;
 		ComPtr<IDXGIFactory4> m_Factory;
 		ComPtr<IDXGIAdapter1> m_Adapter;
@@ -115,24 +113,30 @@ namespace Eden
 
 		std::shared_ptr<RenderPass> m_SwapchainTarget;
 
+		// temp until I found another solution
+		std::shared_ptr<Pipeline> m_MipsPipeline;
+		std::shared_ptr<Buffer> m_MipsSize;
+
 	public:
 		virtual void Init(Window* window) override;
 		virtual void Shutdown() override;
 
 		virtual std::shared_ptr<Buffer> CreateBuffer(BufferDesc* desc, const void* data) override;
 		virtual std::shared_ptr<Pipeline> CreatePipeline(PipelineDesc* desc) override;
-		virtual std::shared_ptr<Texture> CreateTexture(std::string path) override;
+		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool generate_mips) override;
 		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) override;
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) override;
 		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() override;
+
+		virtual void SetName(std::shared_ptr<Resource> child, std::string& name) override;
 
 		virtual void BeginGPUTimer(std::shared_ptr<GPUTimer>& timer) override;
 		virtual void EndGPUTimer(std::shared_ptr<GPUTimer>& timer) override;
 
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) override;
-		virtual void ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width = 0, uint32_t height = 0) override;
+		virtual void GenerateMips(std::shared_ptr<Texture>& texture) override;
 
-		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state) override;
+		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state, int subresource = -1) override;
 		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state) override;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) override;
@@ -147,6 +151,7 @@ namespace Eden
 		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer) override;
 		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer) override;
 		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) override;
+		virtual void BindParameter(const std::string& parameter_name, void* data, size_t size) override;
 
 		virtual void BeginRender() override;
 		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
@@ -169,7 +174,7 @@ namespace Eden
 		uint32_t GetRootParameterIndex(const std::string& parameter_name);
 		void CreateRootSignature(std::shared_ptr<Pipeline>& pipeline);
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);
-		D3D12_STATIC_SAMPLER_DESC CreateStaticSamplerDesc(uint32_t shader_register, uint32_t register_space, D3D12_SHADER_VISIBILITY shader_visibility);
+		D3D12_STATIC_SAMPLER_DESC CreateSamplerDesc(uint32_t shader_register, uint32_t register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_TEXTURE_ADDRESS_MODE address_mode);
 
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset = 0);
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
@@ -346,6 +351,8 @@ namespace Eden
 				return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 			case ResourceState::PIXEL_SHADER:
 				return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			case ResourceState::NON_PIXEL_SHADER:
+				return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 			case ResourceState::READ:
 				return D3D12_RESOURCE_STATE_GENERIC_READ;
 			case ResourceState::COPY_DEST:

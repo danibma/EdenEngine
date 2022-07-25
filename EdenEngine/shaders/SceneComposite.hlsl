@@ -1,11 +1,11 @@
 #include "Global.hlsli"
 
 Texture2D g_sceneTexture : register(t0);
-SamplerState g_linearSampler : register(s0);
 
 cbuffer SceneSettings
 {
     float exposure;
+    float padding; // This is here only because I don't want this to be considered a Constant by the root signature
 };
 
 float3 GammaCorrect(float3 color, float gamma)
@@ -42,7 +42,7 @@ float4 PSMain(Vertex vertex) : SV_TARGET
 {
     const float gamma = 2.2f;
     
-    float3 final_color = g_sceneTexture.Sample(g_linearSampler, vertex.uv).rgb;
+    float3 final_color = g_sceneTexture.Sample(LinearWrap, vertex.uv).rgb;
     
     final_color *= exposure;
     final_color = AcesFilm(final_color);

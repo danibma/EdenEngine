@@ -12,9 +12,9 @@ namespace Eden
 	{
 		m_RHI = rhi;
 
-		m_EditorIcons["File"] = rhi->CreateTexture("assets/editor/file.png");
-		m_EditorIcons["Folder"] = rhi->CreateTexture("assets/editor/folder.png");
-		m_EditorIcons["Back"] = rhi->CreateTexture("assets/editor/icon_back.png");
+		m_EditorIcons["File"] = rhi->CreateTexture("assets/editor/file.png", false);
+		m_EditorIcons["Folder"] = rhi->CreateTexture("assets/editor/folder.png", false);
+		m_EditorIcons["Back"] = rhi->CreateTexture("assets/editor/icon_back.png", false);
 
 		m_EdenExtensions.emplace_back(SceneSerializer::DefaultExtension);
 		m_EdenExtensions.emplace_back(".gltf");

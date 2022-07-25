@@ -1,5 +1,9 @@
 #pragma once
 
+// Samplers
+SamplerState LinearClamp : register(s0);
+SamplerState LinearWrap : register(s1);
+
 struct Vertex
 {
     float4 position : SV_POSITION;

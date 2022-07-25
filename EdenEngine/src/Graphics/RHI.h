@@ -5,12 +5,14 @@
 #include <unordered_map>
 #include <memory>
 
-#include "Core/Window.h"
+#include <glm/glm.hpp>
 
+#include "Core/Window.h"
+ 
 namespace Eden
 {
 	constexpr uint32_t s_FrameCount = 2;
-	constexpr uint32_t s_SRVDescriptorCount = 512; // TODO: In the future make this less, 
+	constexpr uint32_t s_SRVDescriptorCount = 10000; // TODO: In the future make this less, 
 												   // and fix a problem where the descriptors are never deallocated, so the number is always increasing
 
 	enum ShaderStage
@@ -102,6 +104,7 @@ namespace Eden
 		PRESENT,
 		UNORDERED_ACCESS,
 		PIXEL_SHADER,
+		NON_PIXEL_SHADER,
 		READ,
 		COPY_DEST,
 		COPY_SRC,
@@ -128,6 +131,7 @@ namespace Eden
 
 	struct GraphicsChild
 	{
+		std::string debug_name;
 		std::shared_ptr<void> internal_state;
 		bool IsValid() { return internal_state.get() != nullptr; }
 		operator bool()
@@ -178,12 +182,14 @@ namespace Eden
 		uint32_t height;
 		bool srgb = false;
 		bool storage = false;
+		bool generate_mips = true;
 		TextureType type = Texture2D;
 	};
 
 	struct Texture: public Resource
 	{
 		Format image_format;
+		uint32_t mip_count;
 		TextureDesc desc;
 	};
 
@@ -217,7 +223,6 @@ namespace Eden
 
 	struct Pipeline : GraphicsChild
 	{
-		std::string debug_name;
 		PipelineDesc desc;
 
 		// Shader Reflection data
@@ -250,18 +255,20 @@ namespace Eden
 
 		virtual std::shared_ptr<Buffer> CreateBuffer(BufferDesc* desc, const void* initial_data) = 0;
 		virtual std::shared_ptr<Pipeline> CreatePipeline(PipelineDesc* desc) = 0;
-		virtual std::shared_ptr<Texture> CreateTexture(std::string path) = 0;
+		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool generate_mips) = 0;
 		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) = 0;
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) = 0;
 		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() = 0;
+
+		virtual void SetName(std::shared_ptr<Resource> child, std::string& name) = 0;
 
 		virtual void BeginGPUTimer(std::shared_ptr<GPUTimer>& timer) = 0;
 		virtual void EndGPUTimer(std::shared_ptr<GPUTimer>& timer) = 0;
 
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) = 0;
-		virtual void ResizeTexture(std::shared_ptr<Texture>& texture, uint32_t width = 0, uint32_t height = 0) = 0;
+		virtual void GenerateMips(std::shared_ptr<Texture>& texture) = 0;
 
-		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state) = 0;
+		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state, int subresource = -1) = 0;
 		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state) = 0;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) = 0;
@@ -276,6 +283,7 @@ namespace Eden
 		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer) = 0;
 		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer) = 0;
 		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) = 0;
+		virtual void BindParameter(const std::string& parameter_name, void* data, size_t size) = 0; // Use only for constants
 
 		virtual void BeginRender() = 0;
 		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
@@ -311,6 +319,11 @@ namespace Eden
 				return true;
 			}
 			return false;
+		}
+
+		uint32_t CalculateMipCount(uint32_t width, uint32_t height)
+		{
+			return (uint32_t)std::floor(std::log2(glm::min<uint32_t>(width, height))) + 1;
 		}
 	};
 
