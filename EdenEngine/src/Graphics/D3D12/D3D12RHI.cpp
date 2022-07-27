@@ -17,6 +17,10 @@
 #include "Profiling/Profiler.h"
 #include "UI/ImGuizmo.h"
 
+// From Guillaume Boissé "gfx" https://github.com/gboisse/gfx/blob/b83878e562c2c205000b19c99cf24b13973dedb2/gfx_core.h#L77
+#define ALIGN(VAL, ALIGN)   \
+    (((VAL) + (static_cast<decltype(VAL)>(ALIGN) - 1)) & ~(static_cast<decltype(VAL)>(ALIGN) - 1))
+
 namespace Eden
 {
 	// Globals
@@ -206,11 +210,6 @@ namespace Eden
 		mips_desc.program_name = "GenerateMips";
 		mips_desc.type = Compute;
 		m_MipsPipeline = CreatePipeline(&mips_desc);
-
-		BufferDesc mips_size_desc = {};
-		mips_size_desc.stride = sizeof(float);
-		mips_size_desc.element_count = 2;
-		m_MipsSize = CreateBuffer(&mips_size_desc, nullptr);
 	}
 
 	void D3D12RHI::Shutdown()
@@ -545,7 +544,7 @@ namespace Eden
 			ED_LOG_ERROR("Failed to create root signature");
 	}
 
-	std::shared_ptr<Eden::Buffer> D3D12RHI::CreateBuffer(BufferDesc* desc, const void* initial_data)
+	std::shared_ptr<Buffer> D3D12RHI::CreateBuffer(BufferDesc* desc, const void* initial_data)
 	{
 		std::shared_ptr<Buffer> buffer = std::make_shared<Buffer>();
 		auto internal_state = std::make_shared<D3D12Buffer>();
@@ -1069,10 +1068,6 @@ namespace Eden
 			m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, nullptr, cpu_handle);
 		}
 
-		// Enable the srv heap again
-		if (m_SRVHeap->is_set)
-			SetDescriptorHeap(m_SRVHeap);
-
 		return texture;
 	}
 
@@ -1229,12 +1224,6 @@ namespace Eden
 
 			ChangeResourceState(texture, ResourceState::NON_PIXEL_SHADER, ResourceState::UNORDERED_ACCESS, (int)src_texture);
 		}
-
-		m_CommandList->Close();
-		ID3D12CommandList* command_lists[] = { m_CommandList.Get() };
-		m_CommandQueue->ExecuteCommandLists(_countof(command_lists), command_lists);
-		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
-		WaitForGPU();
 	}
 
 	uint64_t D3D12RHI::GetTextureID(std::shared_ptr<Texture>& texture)
@@ -1251,9 +1240,10 @@ namespace Eden
 	void D3D12RHI::EnableImGui()
 	{
 		// Setup imgui
-		ImGui_ImplDX12_Init(m_Device.Get(), s_FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_SRVHeap->heap.Get(), m_SRVHeap->heap->GetCPUDescriptorHandleForHeapStart(), m_SRVHeap->heap->GetGPUDescriptorHandleForHeapStart());
+		auto offset = AllocateHandle(m_SRVHeap);
+		ImGui_ImplDX12_Init(m_Device.Get(), s_FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_SRVHeap->heap.Get(),
+							GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset), GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset));
 		m_ImguiInitialized = true;
-		m_SRVHeap->offset++;
 
 		ImGuiNewFrame();
 	}
@@ -1706,7 +1696,6 @@ namespace Eden
 		// Right now this is ok to use because we are not using more than one desriptor heap
 		ID3D12DescriptorHeap* heaps[] = { descriptor_heap->heap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-		descriptor_heap->is_set = true;
 	}
 
 	void D3D12RHI::WaitForGPU()

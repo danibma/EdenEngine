@@ -12,8 +12,8 @@
 namespace Eden
 {
 	constexpr uint32_t s_FrameCount = 2;
-	constexpr uint32_t s_SRVDescriptorCount = 10000; // TODO: In the future make this less, 
-												   // and fix a problem where the descriptors are never deallocated, so the number is always increasing
+	// TODO: Right now just use a huge number here, and refactor when bindless descriptors are added
+	constexpr uint32_t s_SRVDescriptorCount = 10000; 
 
 	enum ShaderStage
 	{

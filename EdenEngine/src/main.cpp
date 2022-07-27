@@ -51,9 +51,9 @@ class EdenApplication : public Application
 	std::shared_ptr<Buffer> m_ComputeBuffer;
 	std::shared_ptr<Texture> m_OutputTexture;
 
-	static const int MAX_DIRECTIONAL_LIGHTS = 16;
+	static constexpr int MAX_DIRECTIONAL_LIGHTS = 16;
 	std::shared_ptr<Buffer> m_DirectionalLightsBuffer;
-	static const int MAX_POINT_LIGHTS = 32;
+	static constexpr int MAX_POINT_LIGHTS = 32;
 	std::shared_ptr<Buffer> m_PointLightsBuffer;
 
 	std::unordered_map<const char*, std::shared_ptr<Pipeline>> m_Pipelines;
@@ -573,7 +573,8 @@ public:
 		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
 		{
 			m_CurrentScene->AddPreparation([&]() {
-				m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
+				auto selected_entity = m_CurrentScene->GetSelectedEntity();
+				m_CurrentScene->DeleteEntity(selected_entity);
 			});
 		}
 
@@ -657,7 +658,6 @@ public:
 		}
 
 		const void* data = point_light_components.data();
-		uint32_t count = static_cast<uint32_t>(point_light_components.size());
 		rhi->UpdateBufferData(m_PointLightsBuffer, data);
 	}
 

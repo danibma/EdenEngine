@@ -14,10 +14,6 @@
 
 using namespace Microsoft::WRL;
 
-// From Guillaume Boissé "gfx" https://github.com/gboisse/gfx/blob/b83878e562c2c205000b19c99cf24b13973dedb2/gfx_core.h#L77
-#define ALIGN(VAL, ALIGN)   \
-    (((VAL) + (static_cast<decltype(VAL)>(ALIGN) - 1)) & ~(static_cast<decltype(VAL)>(ALIGN) - 1))
-
 namespace Eden
 {
 	struct D3D12Resource
@@ -56,7 +52,6 @@ namespace Eden
 	struct DescriptorHeap
 	{
 		ComPtr<ID3D12DescriptorHeap> heap;
-		bool is_set = false;
 		uint32_t offset = 0;
 	};
 
@@ -114,7 +109,6 @@ namespace Eden
 
 		// temp until I found another solution
 		std::shared_ptr<Pipeline> m_MipsPipeline;
-		std::shared_ptr<Buffer> m_MipsSize;
 
 	public:
 		virtual void Init(Window* window) override;
