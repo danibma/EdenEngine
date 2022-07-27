@@ -7,11 +7,9 @@ namespace Eden
 {
 
 	Skybox::Skybox(std::shared_ptr<IRHI>& rhi, const char* texture_path)
+		: m_SkyboxTexturePath(texture_path)
 	{
 		m_ViewProjection = glm::mat4(1.0f);
-
-		BufferDesc skybox_data_desc;
-		skybox_data_desc.element_count = 1;
 
 		m_SkyboxCube = std::make_unique<MeshSource>();
 		m_SkyboxCube->LoadGLTF(rhi, "assets/models/basic/cube.glb");

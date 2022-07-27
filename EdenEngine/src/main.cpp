@@ -124,7 +124,7 @@ public:
 		std::string default_scene = "assets/scenes/sponza.escene";
 		OpenScene(default_scene);
 
-		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/studio_garden.hdr");
+		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/san_giuseppe_bridge.hdr");
 
 		// Lights
 		BufferDesc dl_desc = {};
@@ -685,9 +685,6 @@ public:
 	{
 		ED_PROFILE_FUNCTION();
 
-		rhi->BeginRender();
-		rhi->BeginGPUTimer(m_RenderTimer);
-
 	#if !WITH_EDITOR
 		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
 	#endif
@@ -707,6 +704,9 @@ public:
 		
 		UpdateDirectionalLights();
 		UpdatePointLights();
+
+		rhi->BeginRender();
+		rhi->BeginGPUTimer(m_RenderTimer);
 
 		// Compute shader test
 		rhi->BeginGPUTimer(m_ComputeTimer);

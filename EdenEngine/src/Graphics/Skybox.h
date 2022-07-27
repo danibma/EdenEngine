@@ -14,7 +14,7 @@ namespace Eden
 	{
 		std::unique_ptr<MeshSource> m_SkyboxCube;
 		std::shared_ptr<Texture> m_SkyboxTexture;
-		std::string m_SkyboxTexturePath = "assets/skyboxes/studio_garden.hdr";
+		std::string m_SkyboxTexturePath;
 		glm::mat4 m_ViewProjection;
 
 	public:
