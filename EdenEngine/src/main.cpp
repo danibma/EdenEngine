@@ -299,6 +299,7 @@ public:
 	{
 		m_CurrentScene->SetScenePath(path);
 		m_CurrentScene->SetSceneLoaded(false);
+		m_Camera = Camera(window->GetWidth(), window->GetHeight()); // Reset camera
 	}
 
 	void OpenSceneDialog()

@@ -596,11 +596,10 @@ namespace Eden
 			srv_desc.Buffer.StructureByteStride = buffer->desc.stride;
 			srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
-			internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+			auto offset = AllocateHandle(m_SRVHeap);
+			internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
 			m_Device->CreateShaderResourceView(internal_state->resource.Get(), &srv_desc, internal_state->cpu_handle);
-			internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
-			m_SRVHeapOffset++;
+			internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
 		}
 		break;
 		case BufferDesc::Uniform:
@@ -609,11 +608,10 @@ namespace Eden
 			cbv_desc.BufferLocation = internal_state->resource->GetGPUVirtualAddress();
 			cbv_desc.SizeInBytes = buffer->size;
 
-			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
-			internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+			auto offset = AllocateHandle(m_SRVHeap);
+			internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
 			m_Device->CreateConstantBufferView(&cbv_desc, internal_state->cpu_handle);
-			internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
-			m_SRVHeapOffset++;
+			internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
 		}
 		break;
 		}
@@ -674,15 +672,14 @@ namespace Eden
 				}
 				else
 				{
+					auto offset = AllocateHandle(m_SRVHeap);
 					attachment = std::make_shared<Texture>();
 					attachment->internal_state = std::make_shared<D3D12Texture>();
 					attachment->image_format = format;
 					attachment_internal_state = ToInternal(attachment.get());
-					attachment_internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
-					attachment_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
+					attachment_internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
+					attachment_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
 					render_pass->color_attachments.emplace_back(attachment);
-					ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
-					m_SRVHeapOffset++;
 				}
 				
 				D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(format),
@@ -1060,18 +1057,16 @@ namespace Eden
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = texture->mip_count;
 
-		ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
-		internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+		auto srv_offset = AllocateHandle(m_SRVHeap);
+		internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srv_offset);
 		m_Device->CreateShaderResourceView(internal_state->resource.Get(), &srv_desc, internal_state->cpu_handle);
-		internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, m_SRVHeapOffset);
-		m_SRVHeapOffset++;
+		internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srv_offset);
 
 		if (desc->storage)
 		{
-			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
-			auto cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset);
+			auto uav_offset = AllocateHandle(m_SRVHeap);
+			auto cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uav_offset);
 			m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, nullptr, cpu_handle);
-			m_SRVHeapOffset++;
 		}
 
 		// Enable the srv heap again
@@ -1191,10 +1186,6 @@ namespace Eden
 		D3D12_UNORDERED_ACCESS_VIEW_DESC dest_texture_uav_desc = {};
 		dest_texture_uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
-		UINT descriptor_size = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		auto current_cpu_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SRVHeapOffset));
-		auto current_gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(GetGPUHandle(m_SRVHeap, m_SRVHeapOffset));
-
 		BindPipeline(m_MipsPipeline);
 		SetDescriptorHeap(m_SRVHeap);
 		EnsureResourceState(texture, ResourceState::UNORDERED_ACCESS);
@@ -1210,29 +1201,26 @@ namespace Eden
 			glm::vec2 texel_size = { 1.0f / width, 1.0f / height };
 
 			//Create shader resource view for the source texture in the descriptor heap
-			src_texture_srv_desc.Format = Helpers::ConvertFormat(texture->image_format);
-			src_texture_srv_desc.Texture2D.MipLevels = 1;
-			src_texture_srv_desc.Texture2D.MostDetailedMip = i;
-			m_Device->CreateShaderResourceView(internal_state->resource.Get(), &src_texture_srv_desc, current_cpu_handle);
-			current_cpu_handle.Offset(1, descriptor_size);
-			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed");
-			m_SRVHeapOffset++;
+			{
+				auto srv_offset = AllocateHandle(m_SRVHeap);
+				src_texture_srv_desc.Format = Helpers::ConvertFormat(texture->image_format);
+				src_texture_srv_desc.Texture2D.MipLevels = 1;
+				src_texture_srv_desc.Texture2D.MostDetailedMip = i;
+				m_Device->CreateShaderResourceView(internal_state->resource.Get(), &src_texture_srv_desc, GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srv_offset));
+				BindRootParameter("SrcTexture", GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srv_offset));
+			}
 
 			//Create unordered access view for the destination texture in the descriptor heap
-			dest_texture_uav_desc.Format = Helpers::ConvertFormat(texture->image_format);
-			dest_texture_uav_desc.Texture2D.MipSlice = i + 1;
-			m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, &dest_texture_uav_desc, current_cpu_handle);
-			current_cpu_handle.Offset(1, descriptor_size);
-			ED_ASSERT_LOG(m_SRVHeapOffset < s_SRVDescriptorCount, "Allocated more SRV's than allowed"); // TODO: find a way to automate this, like a CreateResourceView, something like that,
-			m_SRVHeapOffset++;																			//       so we can create resource views more easily
+			{
+				auto uav_offset = AllocateHandle(m_SRVHeap);
+				dest_texture_uav_desc.Format = Helpers::ConvertFormat(texture->image_format);
+				dest_texture_uav_desc.Texture2D.MipSlice = i + 1;
+				m_Device->CreateUnorderedAccessView(internal_state->resource.Get(), nullptr, &dest_texture_uav_desc, GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uav_offset));
+				BindRootParameter("DstTexture", GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, uav_offset));
+			}
 
 			//Pass the destination texture pixel size to the shader as constants
 			BindParameter("TexelSize", &texel_size, sizeof(glm::vec2));
-			//Pass the source and destination texture views to the shader via descriptor tables
-			m_CommandList->SetComputeRootDescriptorTable(1, current_gpu_handle);
-			current_gpu_handle.Offset(1, descriptor_size);
-			m_CommandList->SetComputeRootDescriptorTable(2, current_gpu_handle);
-			current_gpu_handle.Offset(1, descriptor_size);
 
 			m_CommandList->Dispatch(std::max<uint32_t>(width / 8, 1u), std::max<uint32_t>(height / 8, 1u), 1);
 			
@@ -1265,6 +1253,7 @@ namespace Eden
 		// Setup imgui
 		ImGui_ImplDX12_Init(m_Device.Get(), s_FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, m_SRVHeap->heap.Get(), m_SRVHeap->heap->GetCPUDescriptorHandleForHeapStart(), m_SRVHeap->heap->GetGPUDescriptorHandleForHeapStart());
 		m_ImguiInitialized = true;
+		m_SRVHeap->offset++;
 
 		ImGuiNewFrame();
 	}
@@ -1671,10 +1660,10 @@ namespace Eden
 												sub));
 	}
 
-	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset /*= 0*/)
+	D3D12_GPU_DESCRIPTOR_HANDLE D3D12RHI::GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type /*= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV*/, int32_t offset /*= 0*/)
 	{
 		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(descriptor_heap->heap->GetGPUDescriptorHandleForHeapStart());
-		handle.Offset(offset, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		handle.Offset(offset, m_Device->GetDescriptorHandleIncrementSize(heap_type));
 
 		return handle;
 	}
@@ -1685,6 +1674,16 @@ namespace Eden
 		handle.Offset(offset, m_Device->GetDescriptorHandleIncrementSize(heap_type));
 
 		return handle;
+	}
+
+	uint32_t D3D12RHI::AllocateHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type /*= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV*/)
+	{
+		if (heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+			ED_ASSERT_LOG(descriptor_heap->offset < s_SRVDescriptorCount, "This SRV Descriptor heap is full!");
+
+		auto handle_offset = descriptor_heap->offset;
+		descriptor_heap->offset++;
+		return handle_offset;
 	}
 
 	std::shared_ptr<DescriptorHeap> D3D12RHI::CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags /*= D3D12_DESCRIPTOR_HEAP_FLAG_NONE*/)

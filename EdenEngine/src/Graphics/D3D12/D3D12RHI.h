@@ -57,6 +57,7 @@ namespace Eden
 	{
 		ComPtr<ID3D12DescriptorHeap> heap;
 		bool is_set = false;
+		uint32_t offset = 0;
 	};
 
 	struct D3D12RenderPass
@@ -102,8 +103,6 @@ namespace Eden
 		D3D12_VERTEX_BUFFER_VIEW m_BoundVertexBuffer;
 		D3D12_INDEX_BUFFER_VIEW m_BoundIndexBuffer;
 		std::shared_ptr<Pipeline> m_BoundPipeline;
-
-		uint32_t m_SRVHeapOffset = 1;
 
 		struct ShaderResult
 		{
@@ -176,8 +175,9 @@ namespace Eden
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);
 		D3D12_STATIC_SAMPLER_DESC CreateSamplerDesc(uint32_t shader_register, uint32_t register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_TEXTURE_ADDRESS_MODE address_mode);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, int32_t offset = 0);
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
+		uint32_t AllocateHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		void CreateGraphicsPipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc);
 		void CreateComputePipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc);
