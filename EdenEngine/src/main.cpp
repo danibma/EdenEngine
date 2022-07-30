@@ -51,7 +51,8 @@ class EdenApplication : public Application
 	std::shared_ptr<Buffer> m_ComputeBuffer;
 	std::shared_ptr<Texture> m_OutputTexture;
 
-	static constexpr int MAX_DIRECTIONAL_LIGHTS = 16;
+	// TODO: Put this into the renderer and add a validation when adding directional lights on the editor
+	static constexpr int MAX_DIRECTIONAL_LIGHTS = 2;
 	std::shared_ptr<Buffer> m_DirectionalLightsBuffer;
 	static constexpr int MAX_POINT_LIGHTS = 32;
 	std::shared_ptr<Buffer> m_PointLightsBuffer;
@@ -107,6 +108,9 @@ public:
 
 	void OnInit() override
 	{
+		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
+		m_ViewportPos = { 0, 0 };
+
 		m_Camera = Camera(window->GetWidth(), window->GetHeight());
 
 		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
@@ -141,75 +145,84 @@ public:
 		m_PointLightsBuffer = rhi->CreateBuffer(&pl_desc, nullptr);
 		UpdatePointLights();
 
-		// Rendering
+		// GBuffer
+		{
+			RenderPassDesc desc = {};
+			desc.debug_name = "GBuffer_";
+			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
+			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+			m_GBuffer = rhi->CreateRenderPass(&desc);
+
+			PipelineDesc phong_lighting_desc = {};
+			phong_lighting_desc.enable_blending = true;
+			phong_lighting_desc.program_name = "PhongLighting";
+			phong_lighting_desc.render_pass = m_GBuffer;
+			m_Pipelines["Phong Lighting"] = rhi->CreatePipeline(&phong_lighting_desc);
+
+			PipelineDesc skybox_desc = {};
+			skybox_desc.cull_mode = CullMode::NONE;
+			skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
+			skybox_desc.min_depth = 1.0f;
+			skybox_desc.program_name = "Skybox";
+			skybox_desc.render_pass = m_GBuffer;
+			m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
+		}
+
 	#if WITH_EDITOR
-		RenderPassDesc gbuffer_desc = {};
-		gbuffer_desc.debug_name = "GBuffer_";
-		gbuffer_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
-		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
+		// Scene Composite
+		{
+			RenderPassDesc desc = {};
+			desc.debug_name = "SceneComposite_";
+			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
+			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+			m_SceneComposite = rhi->CreateRenderPass(&desc);
 
-		RenderPassDesc sc_desc = {};
-		sc_desc.debug_name = "SceneComposite_";
-		sc_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
-		m_SceneComposite = rhi->CreateRenderPass(&sc_desc);
+			PipelineDesc scene_composite_desc = {};
+			scene_composite_desc.program_name = "SceneComposite";
+			scene_composite_desc.render_pass = m_SceneComposite;
+			m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
+		}
 
-		RenderPassDesc imguipass_desc = {};
-		imguipass_desc.debug_name = "ImGuiPass_";
-		imguipass_desc.attachments_formats = { Format::DEPTH32_FLOAT };
-		imguipass_desc.swapchain_target = true;
-		imguipass_desc.imgui_pass = true;
-		m_ImGuiPass = rhi->CreateRenderPass(&imguipass_desc);
-		rhi->SetSwapchainTarget(m_ImGuiPass);
-		rhi->EnableImGui();
+		{
+			RenderPassDesc desc = {};
+			desc.debug_name = "ImGuiPass_";
+			desc.attachments_formats = { Format::Depth };
+			desc.swapchain_target = true;
+			desc.imgui_pass = true;
+			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
+			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+			m_ImGuiPass = rhi->CreateRenderPass(&desc);
+			rhi->SetSwapchainTarget(m_ImGuiPass);
+			rhi->EnableImGui();
+		}
 
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>(rhi);
 		m_SceneHierarchy = std::make_unique<SceneHierarchy>(rhi, m_CurrentScene);
 	#else
-		RenderPassDesc gbuffer_desc = {};
-		gbuffer_desc.debug_name = "GBuffer_";
-		gbuffer_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
-		m_GBuffer = rhi->CreateRenderPass(&gbuffer_desc);
+		// Scene Composite
+		{
+			RenderPassDesc desc = {};
+			desc.debug_name = "SceneComposite_";
+			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.swapchain_target = true;
+			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
+			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+			m_SceneComposite = rhi->CreateRenderPass(&desc);
+			rhi->SetSwapchainTarget(m_SceneComposite);
 
-		RenderPassDesc sc_desc = {};
-		sc_desc.debug_name = "SceneComposite_";
-		sc_desc.attachments_formats = { Format::RGBA32_FLOAT, Format::DEPTH32_FLOAT };
-		sc_desc.swapchain_target = true;
-		m_SceneComposite = rhi->CreateRenderPass(&sc_desc);
-
-		rhi->SetSwapchainTarget(m_SceneComposite);
+			PipelineDesc scene_composite_desc = {};
+			scene_composite_desc.program_name = "SceneComposite";
+			scene_composite_desc.render_pass = m_SceneComposite;
+			m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
+		}
 	#endif
-
-		PipelineDesc object_texture_desc = {};
-		object_texture_desc.enable_blending = true;
-		object_texture_desc.program_name = "ObjectTextured";
-		object_texture_desc.render_pass = m_GBuffer;
-		m_Pipelines["Object Textured"] = rhi->CreatePipeline(&object_texture_desc);
-
-		PipelineDesc object_simple_desc = {};
-		object_simple_desc.program_name = "ObjectSimple";
-		object_simple_desc.render_pass = m_GBuffer;
-		m_Pipelines["Object Simple"] = rhi->CreatePipeline(&object_simple_desc);
-
-		PipelineDesc skybox_desc = {};
-		skybox_desc.cull_mode = CullMode::NONE;
-		skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
-		skybox_desc.min_depth = 1.0f;
-		skybox_desc.program_name = "Skybox";
-		skybox_desc.render_pass = m_GBuffer;
-		m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
-
-		PipelineDesc scene_composite_desc = {};
-		scene_composite_desc.program_name = "SceneComposite";
-		scene_composite_desc.render_pass = m_SceneComposite;
-		m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
 
 		PipelineDesc cubes_test_desc = {};
 		cubes_test_desc.program_name = "CubesCS";
 		cubes_test_desc.type = Compute;
 		m_Pipelines["Cubes Test"] = rhi->CreatePipeline(&cubes_test_desc);
-
-		m_ViewportSize = { window->GetWidth(), window->GetHeight() };
-		m_ViewportPos = { 0, 0 };
 
 		float quad_vertices[] = {
 			// positions   // texCoords
@@ -523,10 +536,10 @@ public:
 		if (m_ViewportSize != *(glm::vec2*)&viewport_size)
 		{
 			m_ViewportSize = { viewport_size.x, viewport_size.y };
-			m_GBuffer->width = (uint32_t)m_ViewportSize.x;
-			m_GBuffer->height = (uint32_t)m_ViewportSize.y;
-			m_SceneComposite->width = (uint32_t)m_ViewportSize.x;
-			m_SceneComposite->height = (uint32_t)m_ViewportSize.y;
+			m_GBuffer->desc.width = (uint32_t)m_ViewportSize.x;
+			m_GBuffer->desc.height = (uint32_t)m_ViewportSize.y;
+			m_SceneComposite->desc.width = (uint32_t)m_ViewportSize.x;
+			m_SceneComposite->desc.height = (uint32_t)m_ViewportSize.y;
 			m_Camera.SetViewportSize(m_ViewportSize);
 		}
 		auto viewport_pos = ImGui::GetWindowPos();
@@ -677,6 +690,9 @@ public:
 			directional_light_components[i] = pl;
 		}
 
+		if (directional_lights.size() > 0)
+			m_DirectionalLight = { directional_lights[0], m_CurrentScene };
+
 		const void* data = directional_light_components.data();
 		rhi->UpdateBufferData(m_DirectionalLightsBuffer, data);
 	}
@@ -694,7 +710,7 @@ public:
 		// Update camera and scene data
 		m_Camera.Update(delta_time);
 		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
-		m_ProjectionMatrix = glm::perspectiveFovLH_ZO(glm::radians(70.0f), m_ViewportSize.x, m_ViewportSize.y, 0.1f, 2000.0f);
+		m_ProjectionMatrix = glm::perspectiveFovLH(glm::radians(70.0f), m_ViewportSize.x, m_ViewportSize.y, 0.1f, 200.0f);
 		m_SceneData.view = m_ViewMatrix;
 		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
@@ -719,27 +735,26 @@ public:
 		//! 8 is the num of threads, changing in there requires to change in shader
 		rhi->Dispatch(static_cast<uint32_t>(m_OutputTexture->desc.width / 8), static_cast<uint32_t>(m_OutputTexture->desc.height / 8), 1); // TODO: abstract the num of threads in some way
 		rhi->EndGPUTimer(m_ComputeTimer);
-		
-		rhi->BeginRenderPass(m_GBuffer);
+
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+
+		// GBuffer
+		rhi->BeginRenderPass(m_GBuffer);
+		rhi->BindPipeline(m_Pipelines["Phong Lighting"]);
 		for (auto entity : entities_to_render)
 		{
 			Entity e = { entity, m_CurrentScene };
 			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
-			if (ms->textured)
-				rhi->BindPipeline(m_Pipelines["Object Textured"]);
-			else
-				rhi->BindPipeline(m_Pipelines["Object Simple"]);
 		
 			rhi->BindVertexBuffer(ms->mesh_vb);
 			rhi->BindIndexBuffer(ms->mesh_ib);
 			for (auto& mesh : ms->meshes)
 			{
-				auto& transform = tc.GetTransform();
+				auto transform = tc.GetTransform();
 				if (mesh->gltf_matrix != glm::mat4(1.0f))
 					transform *= mesh->gltf_matrix;
-		
+
 				rhi->BindParameter("SceneData", m_SceneDataCB);
 				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
 				rhi->BindParameter("DirectionalLights", m_DirectionalLightsBuffer);
@@ -747,13 +762,8 @@ public:
 		
 				for (auto& submesh : mesh->submeshes)
 				{
-					if (ms->textured)
-					{
-						if (submesh->diffuse_texture)
-							rhi->BindParameter("g_textureDiffuse", submesh->diffuse_texture);
-						if (submesh->emissive_texture)
-							rhi->BindParameter("g_textureEmissive", submesh->emissive_texture);
-					}
+					rhi->BindParameter("g_textureDiffuse", submesh->diffuse_texture);
+					rhi->BindParameter("g_textureEmissive", submesh->emissive_texture);
 					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
 				}
 			}
@@ -767,6 +777,7 @@ public:
 		}
 		rhi->EndRenderPass(m_GBuffer);
 
+		// Scene Composite
 		rhi->BeginRenderPass(m_SceneComposite);
 		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
 		rhi->BindVertexBuffer(m_QuadBuffer);

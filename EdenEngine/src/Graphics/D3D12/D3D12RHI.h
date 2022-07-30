@@ -5,6 +5,7 @@
 #include <dxc/dxcapi.h>
 #include <wrl/client.h>
 #include <filesystem>
+
 #include <D3D12MemoryAllocator/D3D12MemAlloc.h>
 
 #include "d3dx12.h"
@@ -19,15 +20,9 @@ namespace Eden
 	struct D3D12Resource
 	{
 		ComPtr<ID3D12Resource> resource;
-		D3D12MA::Allocation* allocation = nullptr;
+		ComPtr<D3D12MA::Allocation> allocation;
 		D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
 		D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
-
-		~D3D12Resource()
-		{
-			if (allocation != nullptr)
-				allocation->Release();
-		}
 	};
 
 	struct D3D12Buffer : public D3D12Resource
@@ -82,7 +77,6 @@ namespace Eden
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
 		ComPtr<ID3D12GraphicsCommandList4> m_CommandList;
 		CD3DX12_RECT m_Scissor;
-		CD3DX12_VIEWPORT m_Viewport;
 
 		ComPtr<D3D12MA::Allocator> m_Allocator;
 
@@ -163,7 +157,7 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		void CreateAttachments(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height);
+		void CreateAttachments(std::shared_ptr<RenderPass>& render_pass);
 		uint32_t GetRootParameterIndex(const std::string& parameter_name);
 		void CreateRootSignature(std::shared_ptr<Pipeline>& pipeline);
 		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);
@@ -218,12 +212,22 @@ namespace Eden
 				return DXGI_FORMAT_R32G32B32A32_FLOAT;
 			case Format::SRGB:
 				return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			case Format::DEPTH32FSTENCIL8_UINT:
+
+			// Depth Formats
+			case Format::DEPTH32_FLOAT_STENCIL8_UINT:
 				return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 			case Format::DEPTH32_FLOAT:
 				return DXGI_FORMAT_D32_FLOAT;
-			case Format::DEPTH24STENCIL8:
+			case Format::DEPTH24_STENCIL8:
 				return DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+			// Typeless Formats
+			case Format::R32_FLOAT_X8X24_TYPELESS:
+				return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+			case Format::R32_TYPELESS:
+				return DXGI_FORMAT_R32_TYPELESS;
+			case Format::R24_X8_TYPELESS:
+				return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 			default:
 				return DXGI_FORMAT_UNKNOWN;
 			}
@@ -303,7 +307,7 @@ namespace Eden
 				return D3D12_COMPARISON_FUNC_EQUAL;
 			case ComparisonFunc::LESS_EQUAL:
 				return D3D12_COMPARISON_FUNC_LESS_EQUAL;
-			case ComparisonFunc::GRAETER:
+			case ComparisonFunc::GREATER:
 				return D3D12_COMPARISON_FUNC_GREATER;
 			case ComparisonFunc::NOT_EQUAL:
 				return D3D12_COMPARISON_FUNC_NOT_EQUAL;

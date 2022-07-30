@@ -129,40 +129,55 @@ namespace Eden
 		{
 			if (ImGui::MenuItem("Cube"))
 			{
-				auto e = m_CurrentScene->CreateEntity("Cube");
-				e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cube.glb");
+				m_CurrentScene->AddPreparation([&]()
+				{
+					auto e = m_CurrentScene->CreateEntity("Cube");
+					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cube.glb");
+				});
 
 				ImGui::CloseCurrentPopup();
 			}
 
 			if (ImGui::MenuItem("Plane"))
 			{
-				auto e = m_CurrentScene->CreateEntity("Plane");
-				e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/plane.glb");
+				m_CurrentScene->AddPreparation([&]()
+				{
+					auto e = m_CurrentScene->CreateEntity("Plane");
+					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/plane.glb");
+				});
 
 				ImGui::CloseCurrentPopup();
 			}
 
 			if (ImGui::MenuItem("Sphere"))
 			{
-				auto e = m_CurrentScene->CreateEntity("Sphere");
-				e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/sphere.glb");
+				m_CurrentScene->AddPreparation([&]()
+				{
+					auto e = m_CurrentScene->CreateEntity("Sphere");
+					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/sphere.glb");
+				});
 
 				ImGui::CloseCurrentPopup();
 			}
 
 			if (ImGui::MenuItem("Cone"))
 			{
-				auto e = m_CurrentScene->CreateEntity("Cone");
-				e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cone.glb");
+				m_CurrentScene->AddPreparation([&]()
+				{
+					auto e = m_CurrentScene->CreateEntity("Cone");
+					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cone.glb");
+				});
 
 				ImGui::CloseCurrentPopup();
 			}
 
 			if (ImGui::MenuItem("Cylinder"))
 			{
-				auto e = m_CurrentScene->CreateEntity("Cylinder");
-				e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cylinder.glb");
+				m_CurrentScene->AddPreparation([&]()
+				{
+					auto e = m_CurrentScene->CreateEntity("Cylinder");
+					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cylinder.glb");
+				});
 
 				ImGui::CloseCurrentPopup();
 			}

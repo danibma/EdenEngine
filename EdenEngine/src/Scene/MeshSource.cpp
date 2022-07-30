@@ -144,8 +144,8 @@ namespace Eden
 						VertexData new_vert = {};
 
 						new_vert.position = glm::make_vec3(&position_buffer[v * 3]);
-						//newVert.position.y = glm::make_vec3(&positionBuffer[v * 3]).z;
-						//newVert.position.z = glm::make_vec3(&positionBuffer[v * 3]).y;
+						//new_vert.position.y = glm::make_vec3(&position_buffer[v * 3]).z;
+						//new_vert.position.z = glm::make_vec3(&position_buffer[v * 3]).y;
 						new_vert.position.z = -new_vert.position.z;
 
 						new_vert.normal = glm::normalize(glm::vec3(normals_buffer ? glm::make_vec3(&normals_buffer[v * 3]) : glm::vec3(0.0f)));
@@ -213,18 +213,16 @@ namespace Eden
 				{
 					auto material_index = gltf_material.values["baseColorTexture"].TextureIndex();
 					auto texture_index = gltf_model.textures[material_index].source;
-
+				
 					submesh->diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
-					rhi->SetName(submesh->diffuse_texture, std::string(file.stem().string() + "_diffuse"));
 				}
 
 				if (gltf_material.emissiveTexture.index > -1)
 				{
 					auto material_index = gltf_material.emissiveTexture.index;
 					auto texture_index = gltf_model.textures[material_index].source;
-
+				
 					submesh->emissive_texture = LoadImage(rhi, gltf_model, texture_index);
-					rhi->SetName(submesh->emissive_texture, std::string(file.stem().string() + "_emissive"));
 				}
 
 				mesh->submeshes.emplace_back(submesh);
@@ -295,11 +293,12 @@ namespace Eden
 		desc.width = gltf_image.width;
 		desc.height = gltf_image.height;
 		desc.storage = false;
-		auto texture_id = rhi->CreateTexture(&desc);
+		auto texture = rhi->CreateTexture(&desc);
+		rhi->SetName(texture, gltf_image.name);
 
 		if (delete_buffer)
 			edelete buffer;
 
-		return texture_id;
+		return texture;
 	}
 }

@@ -87,7 +87,6 @@ namespace Eden
 	void D3D12RHI::Init(Window* window)
 	{
 		m_Scissor = CD3DX12_RECT(0, 0, window->GetWidth(), window->GetHeight());
-		m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)window->GetWidth(), (float)window->GetHeight());
 		m_CurrentAPI = D3D12;
 
 		uint32_t dxgi_factory_flags = 0;
@@ -618,7 +617,7 @@ namespace Eden
 		return buffer;
 	}
 
-	void D3D12RHI::CreateAttachments(std::shared_ptr<RenderPass>& render_pass, uint32_t width, uint32_t height)
+	void D3D12RHI::CreateAttachments(std::shared_ptr<RenderPass>& render_pass)
 	{
 		auto internal_state = ToInternal(render_pass.get());
 
@@ -645,8 +644,8 @@ namespace Eden
 				Utils::StringConvert(render_pass->desc.debug_name, rt_name);;
 				rt_name += L"backbuffer";
 				attachment_internal_state->resource->SetName(rt_name.c_str());
-				attachment->desc.width = width;
-				attachment->desc.height = height;
+				attachment->desc.width = render_pass->desc.width;
+				attachment->desc.height = render_pass->desc.height;
 			}
 		}
 		else
@@ -680,30 +679,38 @@ namespace Eden
 					attachment_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
 					render_pass->color_attachments.emplace_back(attachment);
 				}
-				
-				D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(format),
-																		width, height,
-																		1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
+				D3D12_RESOURCE_DESC resource_desc = {};
+				resource_desc.Format = Helpers::ConvertFormat(format);
+				resource_desc.Width = render_pass->desc.width;
+				resource_desc.Height = render_pass->desc.height;
+				resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+				resource_desc.MipLevels = 1;
+				resource_desc.DepthOrArraySize = 1;
+				resource_desc.SampleDesc.Count = 1;
+				resource_desc.SampleDesc.Quality = 0;
+				resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+				
 				D3D12_CLEAR_VALUE clear_value = { Helpers::ConvertFormat(format), { 0.f, 0.f, 0.f, 0.f } };
 
 				attachment->current_state = ResourceState::PIXEL_SHADER;
 
-				auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-				m_Device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
-												  &desc,
-												  Helpers::ConvertResourceState(attachment->current_state), &clear_value,
-												  IID_PPV_ARGS(attachment_internal_state->resource.ReleaseAndGetAddressOf()));
+				D3D12MA::ALLOCATION_DESC allocation_desc = {};
+				allocation_desc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+				m_Allocator->CreateResource(&allocation_desc, &resource_desc, 
+											Helpers::ConvertResourceState(attachment->current_state), 
+											&clear_value, &attachment_internal_state->allocation, 
+											IID_PPV_ARGS(&attachment_internal_state->resource));
 
 				m_Device->CreateRenderTargetView(attachment_internal_state->resource.Get(), nullptr, rtv_handle);
 
-				attachment->desc.width = width;
-				attachment->desc.height = height;
-				m_Viewport.Width = static_cast<float>(width);
-				m_Viewport.Height = static_cast<float>(height);
+				attachment->desc.width = render_pass->desc.width;
+				attachment->desc.height = render_pass->desc.height;
 				std::wstring rt_name;
 				Utils::StringConvert(render_pass->desc.debug_name, rt_name);
 				rt_name += L"color_attachment";
+				attachment_internal_state->resource->SetName(rt_name.c_str());
 				attachment_internal_state->resource->SetName(rt_name.c_str());
 				m_Device->CreateShaderResourceView(attachment_internal_state->resource.Get(), nullptr, attachment_internal_state->cpu_handle);
 
@@ -715,36 +722,80 @@ namespace Eden
 		auto depth_index = GetDepthFormatIndex(render_pass->desc.attachments_formats);
 		if (depth_index > -1)
 		{
-			auto depth_format = render_pass->desc.attachments_formats[depth_index];
+			Format depth_format = render_pass->desc.attachments_formats[depth_index];
+			DXGI_FORMAT format, resource_format, srv_format;
+			if (depth_format == Format::DEPTH24_STENCIL8)
+			{
+				format = Helpers::ConvertFormat(depth_format);
+				resource_format = DXGI_FORMAT_R24G8_TYPELESS;
+				srv_format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			}
+			else if (depth_format == Format::DEPTH32_FLOAT)
+			{
+				format = Helpers::ConvertFormat(depth_format);
+				resource_format = DXGI_FORMAT_R32_TYPELESS;
+				srv_format = DXGI_FORMAT_R32_FLOAT;
+			}
+			else if (depth_format == Format::DEPTH32_FLOAT_STENCIL8_UINT)
+			{
+				format = Helpers::ConvertFormat(depth_format);
+				resource_format = DXGI_FORMAT_R32G8X24_TYPELESS;
+				srv_format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+			}
 
 			render_pass->depth_stencil = std::make_shared<Texture>();
-			render_pass->depth_stencil->internal_state = std::make_shared<D3D12Texture>();
-			auto dsv_internal_state = ToInternal(render_pass->depth_stencil.get());
-
-			D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
-			depth_stencil_desc.Format = Helpers::ConvertFormat(depth_format);
-			depth_stencil_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-			depth_stencil_desc.Flags = D3D12_DSV_FLAG_NONE;
+			auto dsv_internal_state = std::make_shared<D3D12Texture>();
+			render_pass->depth_stencil->internal_state = dsv_internal_state;
+			render_pass->depth_stencil->image_format = depth_format;
+			render_pass->depth_stencil->current_state = ResourceState::DEPTH_WRITE;
 
 			D3D12_CLEAR_VALUE depth_optimized_clear_value;
-			depth_optimized_clear_value.Format = Helpers::ConvertFormat(depth_format);
+			depth_optimized_clear_value.Format = format;
 			depth_optimized_clear_value.DepthStencil.Depth = 1.0f;
 			depth_optimized_clear_value.DepthStencil.Stencil = 0;
 
-			if (FAILED(m_Device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Tex2D(Helpers::ConvertFormat(depth_format), width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-				D3D12_RESOURCE_STATE_DEPTH_WRITE,
-				&depth_optimized_clear_value,
-				IID_PPV_ARGS(&dsv_internal_state->resource)
-			)))
-			{
-				ED_ASSERT_MB(false, "Failed to create depth stencil buffer");
-			}
+			D3D12_RESOURCE_DESC resource_desc = {};
+			resource_desc.Format = resource_format;
+			resource_desc.Width = render_pass->desc.width;
+			resource_desc.Height = render_pass->desc.height;
+			resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			resource_desc.MipLevels = 1;
+			resource_desc.DepthOrArraySize = 1;
+			resource_desc.SampleDesc.Count = 1;
+			resource_desc.SampleDesc.Quality = 0;
+			resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+			D3D12MA::ALLOCATION_DESC allocation_desc = {};
+			allocation_desc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+			m_Allocator->CreateResource(&allocation_desc, &resource_desc,
+										Helpers::ConvertResourceState(render_pass->depth_stencil->current_state),
+										&depth_optimized_clear_value, &dsv_internal_state->allocation,
+										IID_PPV_ARGS(&dsv_internal_state->resource));
+
+			D3D12_DEPTH_STENCIL_VIEW_DESC depth_stencil_desc = {};
+			depth_stencil_desc.Format = format;
+			depth_stencil_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			depth_stencil_desc.Flags = D3D12_DSV_FLAG_NONE;
 
 			auto dsv_handle = GetCPUHandle(internal_state->dsv_heap);
 			m_Device->CreateDepthStencilView(dsv_internal_state->resource.Get(), &depth_stencil_desc, dsv_handle);
+
+			auto srv_offset = AllocateHandle(m_SRVHeap);
+			D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+			srv_desc.Format = srv_format;
+			srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srv_desc.Texture2D.MipLevels = 1;
+			dsv_internal_state->cpu_handle = GetCPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srv_offset);
+			m_Device->CreateShaderResourceView(dsv_internal_state->resource.Get(), &srv_desc, dsv_internal_state->cpu_handle);
+			dsv_internal_state->gpu_handle = GetGPUHandle(m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srv_offset);
+
+			std::wstring dsv_name;
+			Utils::StringConvert(render_pass->desc.debug_name, dsv_name);
+			dsv_name += L"depth_attachment";
+			dsv_internal_state->resource->SetName(dsv_name.c_str());
+			dsv_internal_state->allocation->SetName(dsv_name.c_str());
 		}
 	}
 
@@ -842,7 +893,7 @@ namespace Eden
 		pso_desc.RasterizerState.FrontCounterClockwise = desc->front_counter_clockwise;
 		pso_desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		pso_desc.DepthStencilState.DepthFunc = Helpers::ConvertComparisonFunc(desc->depth_func);
-		pso_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+		pso_desc.DSVFormat = Helpers::ConvertFormat(desc->render_pass->depth_stencil->image_format);
 		pso_desc.InputLayout.NumElements = static_cast<uint32_t>(input_elements.size());
 		pso_desc.InputLayout.pInputElementDescs = input_elements.data();
 		pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -960,40 +1011,39 @@ namespace Eden
 
 		TextureDesc desc = {};
 		desc.generate_mips = generate_mips;
+
 		int width, height, nchannels;
+		void* texture_file;
 		if (stbi_is_hdr(file_path.c_str()))
 		{
 			// Load texture from file
-			float* texture_file = stbi_loadf(file_path.c_str(), &width, &height, &nchannels, 4);
+			texture_file = stbi_loadf(file_path.c_str(), &width, &height, &nchannels, 4);
 			if (!texture_file)
 			{
 				ED_LOG_ERROR("Could not load texture file: {}", file_path);
 				return nullptr;
 			}
 
-			desc.data = texture_file;
 			desc.srgb = true;
 		}
 		else
 		{
 			// Load texture from file
-			unsigned char* texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
+			texture_file = stbi_load(file_path.c_str(), &width, &height, &nchannels, 4);
 			if (!texture_file)
 			{
 				ED_LOG_ERROR("Could not load texture file: {}", file_path);
 				return nullptr;
 			}
 
-			desc.data = texture_file;
 		}
 			
+		desc.data = texture_file;
 		desc.width = width;
 		desc.height = height;
 		desc.storage = false;
 
-		std::shared_ptr<Texture> texture = CreateTexture(&desc);
-		
-		return texture;
+		return CreateTexture(&desc);;
 	}
 
 	std::shared_ptr<Texture> D3D12RHI::CreateTexture(TextureDesc* desc)
@@ -1073,23 +1123,22 @@ namespace Eden
 
 	std::shared_ptr<RenderPass> D3D12RHI::CreateRenderPass(RenderPassDesc* desc)
 	{
+		ED_ASSERT_LOG(desc->width > 0, "Render Pass width has to be > 0");
+		ED_ASSERT_LOG(desc->height > 0, "Render Pass height has to be > 0");
+
 		std::shared_ptr<RenderPass> render_pass = std::make_shared<RenderPass>();
 		auto internal_state = std::make_shared<D3D12RenderPass>();
 		render_pass->internal_state = internal_state;
 		render_pass->desc = *desc;
-		render_pass->width = static_cast<uint32_t>(m_Viewport.Width);
-		render_pass->height = static_cast<uint32_t>(m_Viewport.Height);
 
 		internal_state->rtv_heap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		internal_state->dsv_heap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-		auto rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
-		auto dsv_handle = GetCPUHandle(internal_state->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 
 		ED_ASSERT_LOG(desc->attachments_formats.size() > 0, "Can't create render pass without attachments");
 		ED_ASSERT_LOG(desc->attachments_formats.size() < 8, "Can't create a render pass with more than 8 attachments");
 
-		// NOTE: For now it is only possible to have um depth attachment
-		CreateAttachments(render_pass, render_pass->width, render_pass->height);
+		// NOTE: For now it is only possible to have one depth attachment
+		CreateAttachments(render_pass);
 
 		return render_pass;
 	}
@@ -1396,7 +1445,7 @@ namespace Eden
 	{
 		auto internal_state = ToInternal(render_pass.get());
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = {};
 		D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = GetCPUHandle(internal_state->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 		if (render_pass->desc.swapchain_target)
 		{
@@ -1407,10 +1456,10 @@ namespace Eden
 		{
 			for (auto& attachment : render_pass->color_attachments)
 			{
-				if (render_pass->width != attachment->desc.width ||
-					render_pass->height != attachment->desc.height)
+				if (render_pass->desc.width != attachment->desc.width ||
+					render_pass->desc.height != attachment->desc.height)
 				{
-					CreateAttachments(render_pass, render_pass->width, render_pass->height);
+					CreateAttachments(render_pass);
 				}
 				rtv_handle = GetCPUHandle(internal_state->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
 				EnsureResourceState(attachment, ResourceState::RENDER_TARGET);
@@ -1430,7 +1479,7 @@ namespace Eden
 
 		// DSV
 		D3D12_RENDER_PASS_BEGINNING_ACCESS_CLEAR_PARAMETERS dsv_clear = {};
-		dsv_clear.ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_clear.ClearValue.Format = Helpers::ConvertFormat(render_pass->depth_stencil->image_format);
 		dsv_clear.ClearValue.DepthStencil.Depth = 1.0f;
 		D3D12_RENDER_PASS_BEGINNING_ACCESS dsv_begin_access{ begin_access_type, { dsv_clear } };
 		D3D12_RENDER_PASS_ENDING_ACCESS dsv_end_access{ end_access_type, {} };
@@ -1491,8 +1540,14 @@ namespace Eden
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
 		ED_PROFILE_GPU_FUNCTION("D3D12RHI::PrepareDraw");
 
-		m_Viewport.MinDepth = m_BoundPipeline->desc.min_depth;
-		m_CommandList->RSSetViewports(1, &m_Viewport);
+		D3D12_VIEWPORT viewport;
+		viewport.Width = static_cast<float>(m_BoundPipeline->desc.render_pass->desc.width);
+		viewport.Height = static_cast<float>(m_BoundPipeline->desc.render_pass->desc.height);
+		viewport.MaxDepth = 1.0f;
+		viewport.MinDepth = m_BoundPipeline->desc.min_depth;
+		viewport.TopLeftX = 0.0;
+		viewport.TopLeftY = 0.0;
+		m_CommandList->RSSetViewports(1, &viewport);
 		m_CommandList->RSSetScissorRects(1, &m_Scissor);
 
 		m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1623,14 +1678,10 @@ namespace Eden
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
 
 			m_SwapchainTarget->color_attachments.clear();
-			CreateAttachments(m_SwapchainTarget, width, height);
-
-			m_SwapchainTarget->width = width;
-			m_SwapchainTarget->height = height;
-
-			// If imgui is initialized then the editor is running, so dont change the viewport here
-			if (!m_ImguiInitialized)
-				m_Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)width, (float)height);
+			m_SwapchainTarget->desc.width = width;
+			m_SwapchainTarget->desc.height = height;
+			CreateAttachments(m_SwapchainTarget);
+			
 			m_Scissor  = CD3DX12_RECT(0, 0, width, height);
 
 			m_CommandAllocator->Reset();

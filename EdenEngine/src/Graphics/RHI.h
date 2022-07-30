@@ -29,7 +29,7 @@ namespace Eden
 		LESS,
 		EQUAL,
 		LESS_EQUAL,
-		GRAETER,
+		GREATER,
 		NOT_EQUAL,
 		GREATER_EQUAL,
 		ALWAYS
@@ -89,12 +89,16 @@ namespace Eden
 
 		SRGB,
 
-		DEPTH32FSTENCIL8_UINT,
+		DEPTH32_FLOAT_STENCIL8_UINT,
 		DEPTH32_FLOAT,
-		DEPTH24STENCIL8,
+		DEPTH24_STENCIL8,
+
+		R32_FLOAT_X8X24_TYPELESS,
+		R32_TYPELESS,
+		R24_X8_TYPELESS,
 
 		// Defaults
-		Depth = DEPTH24STENCIL8,
+		Depth = DEPTH24_STENCIL8,
 	};
 
 	enum class ResourceState
@@ -199,11 +203,11 @@ namespace Eden
 		bool imgui_pass = false;
 		bool swapchain_target = false;
 		std::vector<Format> attachments_formats;
+		uint32_t width = 0, height = 0;
 	};
 
 	struct RenderPass : GraphicsChild
 	{
-		uint32_t width, height;
 		std::vector<std::shared_ptr<Texture>> color_attachments;
 		std::shared_ptr<Texture> depth_stencil;
 		RenderPassDesc desc;
@@ -312,9 +316,9 @@ namespace Eden
 
 		bool IsDepthFormat(Format format)
 		{
-			if (format == Format::DEPTH32FSTENCIL8_UINT ||
+			if (format == Format::DEPTH32_FLOAT_STENCIL8_UINT ||
 				format == Format::DEPTH32_FLOAT ||
-				format == Format::DEPTH24STENCIL8)
+				format == Format::DEPTH24_STENCIL8)
 			{
 				return true;
 			}

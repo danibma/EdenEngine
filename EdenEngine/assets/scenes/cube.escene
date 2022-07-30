@@ -13,7 +13,7 @@ Entities:
     TagComponent:
       Tag: Cube
     TransformComponent:
-      Translation: [0, 4.20620108, 0]
+      Translation: [0, 2.3245697, 0]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     MeshComponent:
@@ -22,8 +22,26 @@ Entities:
     TagComponent:
       Tag: Floor
     TransformComponent:
-      Translation: [0, 0, 0]
+      Translation: [0.301082581, -1.10502207, 0]
       Rotation: [0, -0, 0]
-      Scale: [16.0927639, 0.313519388, 12.46]
+      Scale: [30.8820133, 0.601643682, 23.910738]
     MeshComponent:
       File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
+  - Entity: 3
+    TagComponent:
+      Tag: Cube
+    TransformComponent:
+      Translation: [-3.27150559, 1.63462472, 6.78248024]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
+  - Entity: 1048580
+    TagComponent:
+      Tag: ShadowMapView
+    TransformComponent:
+      Translation: [-3, 3.99998617, -5]
+      Rotation: [0, -0, 0]
+      Scale: [0.25999999, 0.25999999, 0.25999999]
+    MeshComponent:
+      File Path: assets/models/basic/cube.glb
