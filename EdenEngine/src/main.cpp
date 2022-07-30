@@ -745,6 +745,8 @@ public:
 		{
 			Entity e = { entity, m_CurrentScene };
 			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
+			if (!ms->has_mesh)
+				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 		
 			rhi->BindVertexBuffer(ms->mesh_vb);

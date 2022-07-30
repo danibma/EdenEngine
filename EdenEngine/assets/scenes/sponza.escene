@@ -28,3 +28,12 @@ Entities:
     PointLightComponent:
       Color: [1, 1, 1, 1]
       Intensity: 1
+  - Entity: 3
+    TagComponent:
+      Tag: Empty Entity
+    TransformComponent:
+      Translation: [-1.25036752, 6.27084112, -14.3333101]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cone.glb
