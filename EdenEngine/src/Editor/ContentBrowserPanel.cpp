@@ -136,14 +136,12 @@ namespace Eden
 
 			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
 			ImGui::BeginChild("##cb_outliner");
-			if (ImGui::CollapsingHeader("Content", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick))
+			ImGui::Text(ICON_FA_FOLDER_OPEN " Content");
+			for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
 			{
-				for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
+				if (p.is_directory())
 				{
-					if (p.is_directory())
-					{
-						DrawContentOutlinerFolder(p);
-					}
+					DrawContentOutlinerFolder(p);
 				}
 			}
 			ImGui::EndChild();
