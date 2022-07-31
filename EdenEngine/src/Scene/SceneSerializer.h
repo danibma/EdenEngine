@@ -66,6 +66,29 @@ namespace YAML
 
 namespace Eden
 {
+	enum class EdenExtension
+	{
+		kNone = 0,
+		kScene,
+		kModel,
+		kEnvironmentMap
+	};
+
+	namespace Utils
+	{
+		inline EdenExtension StringToExtension(const std::string& ext)
+		{
+			if (ext == ".escene")
+				return EdenExtension::kScene;
+			else if (ext == ".gltf" || ext == ".glb")
+				return EdenExtension::kModel;
+			else if (ext == ".hdr")
+				return EdenExtension::kEnvironmentMap;
+			else
+				return EdenExtension::kNone;
+		}
+	}
+
 	class SceneSerializer
 	{
 		Scene* m_Scene;

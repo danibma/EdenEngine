@@ -556,28 +556,29 @@ public:
 			if (auto payload = ImGui::AcceptDragDropPayload(CONTENT_BROWSER_DRAG_DROP))
 			{
 				std::filesystem::path path = std::filesystem::path(reinterpret_cast<const char*>(payload->Data));
-				auto extension = path.extension().string();
+				EdenExtension extension = Utils::StringToExtension(path.extension().string());
 
-				// TODO: Find a way to not do this manually, like iterate through the vector in some way, idk...
-				if (extension == SceneSerializer::DefaultExtension)
+				switch (extension)
 				{
+				case EdenExtension::kScene:
 					OpenScene(path);
-				}
-				else if (extension == ".gltf" || extension == ".glb")
-				{
-					auto e = m_CurrentScene->CreateEntity(path.stem().string());
-					auto& mc = e.AddComponent<MeshComponent>();
-					mc.mesh_path = path.string();
-					m_CurrentScene->AddPreparation([&]() {
-						mc.LoadMeshSource(rhi);
-					});
-				} 
-				else if (extension == ".hdr")
-				{
+					break;
+				case EdenExtension::kModel:
+					{
+						auto e = m_CurrentScene->CreateEntity(path.stem().string());
+						auto& mc = e.AddComponent<MeshComponent>();
+						mc.mesh_path = path.string();
+						m_CurrentScene->AddPreparation([&]() {
+							mc.LoadMeshSource(rhi);
+						});
+					}
+					break;
+				case EdenExtension::kEnvironmentMap:
 					m_Skybox->SetNewTexture(path.string().c_str());
 					m_CurrentScene->AddPreparation([&]() {
 						m_Skybox->UpdateNewTexture(rhi);
 					});
+					break;
 				}
 			}
 			ImGui::EndDragDropTarget();

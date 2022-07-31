@@ -8,7 +8,7 @@ Entities:
       Rotation: [-6.4832624e-05, 0.674534261, 1.487764]
       Scale: [0.999999523, 0.999999642, 0.999999881]
     DirectionalLightComponent:
-      Intensity: 0.300000012
+      Intensity: 1
   - Entity: 1
     TagComponent:
       Tag: Sponza
@@ -30,7 +30,7 @@ Entities:
       Intensity: 1
   - Entity: 3
     TagComponent:
-      Tag: Empty Entity
+      Tag: Cone
     TransformComponent:
       Translation: [-1.25036752, 6.27084112, -14.3333101]
       Rotation: [0, -0, 0]
