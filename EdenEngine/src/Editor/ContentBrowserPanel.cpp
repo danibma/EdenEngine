@@ -127,7 +127,7 @@ namespace Eden
 	{
 		if (!open_content_browser) return;
 
-		ImGui::Begin("Content Browser", &open_content_browser, ImGuiWindowFlags_NoScrollbar);
+		ImGui::Begin(ICON_FA_FOLDER " Content Browser##cb", &open_content_browser, ImGuiWindowFlags_NoScrollbar);
 
 		if (ImGui::BeginTable(CONTENT_BROWSER_COLUMN, 2, ImGuiTableFlags_Resizable, ImVec2(ImGui::GetContentRegionAvail())))
 		{
@@ -164,7 +164,7 @@ namespace Eden
 
 			// Search
 			ImGui::SetNextItemWidth(200.0f);
-			ImGui::InputTextWithHint("###search", "Search:", m_SearchBuffer, sizeof(m_SearchBuffer));
+			ImGui::InputTextWithHint("###search", ICON_FA_MAGNIFYING_GLASS " Search:", m_SearchBuffer, sizeof(m_SearchBuffer));
 			ImGui::Separator();
 
 			bool use_search = strcmp(m_SearchBuffer, "");

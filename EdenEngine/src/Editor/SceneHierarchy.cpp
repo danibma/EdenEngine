@@ -24,7 +24,7 @@ namespace Eden
 
 	void SceneHierarchy::DrawHierarchy()
 	{
-		ImGui::Begin("Scene Hierarchy", &open_scene_hierarchy, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin(ICON_FA_BARS_STAGGERED  " Scene Hierarchy##hierarchy", &open_scene_hierarchy, ImGuiWindowFlags_NoCollapse);
 		
 		auto entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
 
@@ -193,7 +193,7 @@ namespace Eden
 
 	void SceneHierarchy::EntityProperties()
 	{
-		ImGui::Begin("Entity Properties", &open_entity_properties, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin(ICON_FA_CIRCLE_INFO " Inspector##inspector", &open_entity_properties, ImGuiWindowFlags_NoCollapse);
 
 		Entity selected_entity = m_CurrentScene->GetSelectedEntity();
 		if (!selected_entity) goto end;

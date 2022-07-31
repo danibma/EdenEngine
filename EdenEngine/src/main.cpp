@@ -125,7 +125,7 @@ public:
 		m_SceneDataCB = rhi->CreateBuffer(&scene_data_desc, &m_SceneData);
 
 		m_CurrentScene = enew Scene();
-		std::string default_scene = "assets/scenes/sponza.escene";
+		std::string default_scene = "assets/scenes/cube.escene";
 		OpenScene(default_scene);
 
 		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/san_giuseppe_bridge.hdr");
@@ -441,7 +441,7 @@ public:
 
 	void UI_SceneProperties()
 	{
-		ImGui::Begin("Scene Properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin(ICON_FA_TV " Scene Properties##scene_properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
 		ImGui::Text("Compute Shader test:");
 		ImVec2 image_size;
 		image_size.x = static_cast<float>(m_OutputTexture->desc.width);
@@ -458,7 +458,7 @@ public:
 
 	void UI_StatisticsWindow()
 	{
-		ImGui::Begin("Statistcs", &m_OpenStatisticsWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Begin(ICON_FA_CHART_PIE " Statistcs##statistics", &m_OpenStatisticsWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
 		ImGui::Text("GPU frame time: %.3fms", m_RenderTimer->elapsed_time);
 		ImGui::Text("Compute test time: %.3fms", m_ComputeTimer->elapsed_time);
@@ -495,7 +495,7 @@ public:
 
 	void UI_PipelinesPanel()
 	{
-		ImGui::Begin("Pipelines");
+		ImGui::Begin(ICON_FA_PUZZLE_PIECE " Pipelines##pipelines");
 		ImGui::Columns(2);
 		ImGui::NextColumn();
 		if (ImGui::Button("Reload all pipelines"))
@@ -604,7 +604,7 @@ public:
 		std::string total_freed = "Total Freed: " + Utils::BytesToString(stats.total_freed);
 		std::string current_usage = "Current Usage: " +  Utils::BytesToString(stats.total_allocated - stats.total_freed);
 
-		ImGui::Begin("Memory", &m_OpenMemoryPanel);
+		ImGui::Begin(ICON_FA_BUG " Memory##memory", &m_OpenMemoryPanel);
 		ImGui::Text(total_allocated.c_str());
 		ImGui::Text(total_freed.c_str());
 		ImGui::Text(current_usage.c_str());

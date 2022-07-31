@@ -56,7 +56,7 @@ namespace Eden::UI
 
 		style.WindowPadding = ImVec2(6, 4);
 		style.WindowRounding = 0.0f;
-		style.FramePadding = ImVec2(5, 2);
+		style.FramePadding = ImVec2(5, 3);
 		style.TabRounding = 1.0f;
 		style.FrameRounding = 1.0f;
 		style.ItemSpacing = ImVec2(7, 5);

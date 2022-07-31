@@ -113,6 +113,12 @@ namespace Eden
 		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Regular.ttf", 24.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 		io.FontDefault = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-SemiMedium.ttf", 15.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 
+		// merge in icons from Font Awesome
+		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+		ImFontConfig icons_config; icons_config.MergeMode = true; icons_config.PixelSnapH = true;
+		io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 14.0f, &icons_config, icons_ranges);
+		// NOTE: use FONT_ICON_FILE_NAME_FAR if you want regular instead of solid
+
 		// Setup Dear ImGui style
 		ImGui::StyleColorsDark();
 		switch (UI::g_SelectedTheme)

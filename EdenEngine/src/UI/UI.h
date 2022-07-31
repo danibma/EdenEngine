@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include "ImGuizmo.h"
+#include "IconsFontAwesome6.h"
 
 namespace Eden::UI
 {
