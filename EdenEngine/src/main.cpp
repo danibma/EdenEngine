@@ -327,7 +327,7 @@ public:
 		if (!path.empty())
 		{
 			if (!path.has_extension())
-				path += SceneSerializer::DefaultExtension;
+				path += Utils::ExtensionToString(EdenExtension::kScene);
 
 			SceneSerializer serializer(m_CurrentScene);
 			serializer.Serialize(path);
@@ -400,8 +400,8 @@ public:
 			if (ImGui::BeginMenu("View"))
 			{
 				ImGui::MenuItem("Statistics", NULL, &m_OpenStatisticsWindow);
-				ImGui::MenuItem("Entity Properties", NULL, &m_SceneHierarchy->open_entity_properties);
-				ImGui::MenuItem("Scene Hierarchy", NULL, &m_SceneHierarchy->open_scene_hierarchy);
+				ImGui::MenuItem("Inspector", NULL, &m_SceneHierarchy->open_inspector);
+				ImGui::MenuItem("Hierarchy", NULL, &m_SceneHierarchy->open_hierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
 				ImGui::MenuItem("Pipelines Panel", NULL, &m_OpenPipelinesPanel);
 				ImGui::MenuItem("Content Browser", NULL, &m_ContentBrowserPanel->open_content_browser);

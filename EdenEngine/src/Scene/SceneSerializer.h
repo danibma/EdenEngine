@@ -87,6 +87,21 @@ namespace Eden
 			else
 				return EdenExtension::kNone;
 		}
+
+		inline std::string ExtensionToString(EdenExtension ext)
+		{
+			switch (ext)
+			{
+			case EdenExtension::kScene:
+				return ".escene";
+			case EdenExtension::kModel:
+				return ".glb";
+			case EdenExtension::kEnvironmentMap:
+				return ".hdr";
+			default:
+				return "";
+			}
+		}
 	}
 
 	class SceneSerializer
@@ -99,8 +114,6 @@ namespace Eden
 
 		void Serialize(const std::filesystem::path& filepath);
 		bool Deserialize(const std::filesystem::path& filepath);
-
-		inline static std::string_view DefaultExtension = ".escene";
 
 	private:
 		void SerializeEntity(YAML::Emitter& out, Entity entity);

@@ -12,8 +12,8 @@ namespace Eden
 		std::shared_ptr<IRHI> m_RHI;
 
 	public:
-		bool open_scene_hierarchy = true;
-		bool open_entity_properties = true;
+		bool open_hierarchy = true;
+		bool open_inspector = true;
 
 	public:
 		SceneHierarchy() = default;

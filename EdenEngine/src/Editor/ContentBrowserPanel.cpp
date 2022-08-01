@@ -15,11 +15,6 @@ namespace Eden
 		m_EditorIcons["File"] = rhi->CreateTexture("assets/editor/file.png", false);
 		m_EditorIcons["Folder"] = rhi->CreateTexture("assets/editor/folder.png", false);
 		m_EditorIcons["Back"] = rhi->CreateTexture("assets/editor/icon_back.png", false);
-
-		m_EdenExtensions.emplace_back(SceneSerializer::DefaultExtension);
-		m_EdenExtensions.emplace_back(".gltf");
-		m_EdenExtensions.emplace_back(".glb");
-		m_EdenExtensions.emplace_back(".hdr");
 	}
 
 	ContentBrowserPanel::~ContentBrowserPanel()
@@ -87,12 +82,8 @@ namespace Eden
 		}
 		else
 		{
-			bool valid_extension = false;
-			for (auto& eden_extension : m_EdenExtensions)
-			{
-				if (info.extension == eden_extension)
-					valid_extension = true;
-			}
+			EdenExtension extension = Utils::StringToExtension(info.extension);
+			bool valid_extension = extension == EdenExtension::kNone ? false : true;
 
 			if (valid_extension)
 			{
