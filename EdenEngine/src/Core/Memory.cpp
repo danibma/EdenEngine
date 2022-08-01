@@ -1,8 +1,6 @@
 #include "Memory.h"
 #include "Log.h"
 
-#ifdef ED_TRACK_MEMORY
-
 namespace Eden::Memory
 {
 	static AllocationStats s_AllocationData;
@@ -12,6 +10,8 @@ namespace Eden::Memory
 		return s_AllocationData;
 	}
 }
+
+#ifdef ED_TRACK_MEMORY
 
 _NODISCARD _Ret_notnull_ _Post_writable_byte_size_(size) _VCRT_ALLOCATOR
 void* __CRTDECL operator new(size_t size)
@@ -69,15 +69,6 @@ void __CRTDECL operator delete[](void* memory)
 	Eden::Memory::s_AllocationData.total_freed += size;
 
 	free(memory_to_free);
-}
-
-#else
-
-namespace Eden::Memory
-{
-	[[nodiscard]] const AllocationStats& GetAllocationStats()
-	{
-	}
 }
 
 #endif // ED_TRACK_MEMORY

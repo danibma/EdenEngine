@@ -286,6 +286,7 @@ namespace Eden
 			ED_LOG_ERROR("Failed to compile {} {} shader: {}", file_path.filename(), Utils::ShaderStageToString(stage), errors->GetStringPointer());
 
 		// Save pdb
+#if defined(ED_PROFILING)
 		ComPtr<IDxcBlob> pdb = nullptr;
 		ComPtr<IDxcBlobUtf16> pdb_name = nullptr;
 		result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb), &pdb_name);
@@ -301,6 +302,7 @@ namespace Eden
 			fwrite(pdb->GetBufferPointer(), pdb->GetBufferSize(), 1, fp);
 			fclose(fp);
 		}
+#endif
 
 		// Get shader blob
 		ComPtr<IDxcBlob> shader_blob;

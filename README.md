@@ -1,3 +1,19 @@
+# **Requirements**
+### Windows 10 or newer
+<br>
+
+# **Build**
+### **_Windows:_**
+#### Clone with `git clone --recursive https://github.com/danibma/EdenEngine.git`
+#### Run `GenerateProjects_vs2022.bat` to generate the Visual Studio 2022 solution, after that, open the solution and just build the project in one of the configurations
+<br>
+
+# **Configurations**
+### **Debug:** Symbols and asserts enabled, tracks memory, worst in performance
+### **Profiling:** Symbols disabled, asserts enabled, tracks memory, best performance
+### **Release:** Symbols and asserts disabled, doesn't track memory, best performance
+<br>
+
 # **Features**
 ## **Graphics**
 ### Blinn-Phong Lighting

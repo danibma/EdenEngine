@@ -1,5 +1,10 @@
 #pragma once
 
+#include "Core/Base.h"
+#include "Core/Window.h"
+#include "Graphics/RHI.h"
+#include "d3dx12.h"
+
 #include <d3d12.h>
 #include <d3d12shader.h>
 #include <dxc/dxcapi.h>
@@ -9,10 +14,6 @@
 #include <D3D12MemoryAllocator/D3D12MemAlloc.h>
 #include <WinPixEventRuntime/pix3.h>
 
-#include "d3dx12.h"
-#include "Core/Base.h"
-#include "Core/Window.h"
-#include "Graphics/RHI.h"
 
 using namespace Microsoft::WRL;
 

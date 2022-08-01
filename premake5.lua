@@ -6,7 +6,8 @@ workspace "EdenEngine"
     configurations 
     { 
         "Debug", 
-        "Release"
+        "Release",
+        "Profiling"
     }
 
     flags 
@@ -101,40 +102,29 @@ project "EdenEngine"
 		symbols "On"
         kind "ConsoleApp"
 
-		includedirs
-		{
-
-		}
-
-		links
-		{
-
-		}
-
 		defines 
 		{
 			"ED_DEBUG",
             "ED_TRACK_MEMORY"
 		}
 
+    filter "configurations:Profiling"
+        optimize "On"
+        kind "WindowedApp"
+
+        defines
+        {
+            "ED_PROFILING",
+            "ED_TRACK_MEMORY"
+        }
+
 	filter "configurations:Release"
 		optimize "On"
         kind "WindowedApp"
 
-		includedirs
-		{
-
-		}
-
 		defines
 		{
 			"ED_RELEASE",
-			"ED_TRACK_MEMORY"
-		}
-
-		links
-		{
-            
 		}
 
 group ""
