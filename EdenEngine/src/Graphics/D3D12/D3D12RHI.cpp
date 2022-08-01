@@ -642,7 +642,7 @@ namespace Eden
 
 				std::wstring rt_name;
 				Utils::StringConvert(render_pass->desc.debug_name, rt_name);;
-				rt_name += L"backbuffer";
+				rt_name += L"_backbuffer";
 				attachment_internal_state->resource->SetName(rt_name.c_str());
 				attachment->desc.width = render_pass->desc.width;
 				attachment->desc.height = render_pass->desc.height;
@@ -709,7 +709,7 @@ namespace Eden
 				attachment->desc.height = render_pass->desc.height;
 				std::wstring rt_name;
 				Utils::StringConvert(render_pass->desc.debug_name, rt_name);
-				rt_name += L"color_attachment";
+				rt_name += L"_color_attachment";
 				attachment_internal_state->resource->SetName(rt_name.c_str());
 				attachment_internal_state->resource->SetName(rt_name.c_str());
 				m_Device->CreateShaderResourceView(attachment_internal_state->resource.Get(), nullptr, attachment_internal_state->cpu_handle);
@@ -793,7 +793,7 @@ namespace Eden
 
 			std::wstring dsv_name;
 			Utils::StringConvert(render_pass->desc.debug_name, dsv_name);
-			dsv_name += L"depth_attachment";
+			dsv_name += L"_depth_attachment";
 			dsv_internal_state->resource->SetName(dsv_name.c_str());
 			dsv_internal_state->allocation->SetName(dsv_name.c_str());
 		}
@@ -1130,6 +1130,7 @@ namespace Eden
 		auto internal_state = std::make_shared<D3D12RenderPass>();
 		render_pass->internal_state = internal_state;
 		render_pass->desc = *desc;
+		render_pass->debug_name = render_pass->desc.debug_name;
 
 		internal_state->rtv_heap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		internal_state->dsv_heap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
@@ -1445,6 +1446,8 @@ namespace Eden
 	{
 		auto internal_state = ToInternal(render_pass.get());
 
+		PIXBeginEvent(m_CommandList.Get(), PIX_COLOR(0, 0, 0), render_pass->debug_name.c_str());
+
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = {};
 		D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = GetCPUHandle(internal_state->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
 		if (render_pass->desc.swapchain_target)
@@ -1510,6 +1513,7 @@ namespace Eden
 		}
 
 		m_CommandList->EndRenderPass();
+		PIXEndEvent(m_CommandList.Get());
 
 		if (render_pass->desc.swapchain_target)
 		{

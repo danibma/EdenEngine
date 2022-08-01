@@ -7,6 +7,7 @@
 #include <filesystem>
 
 #include <D3D12MemoryAllocator/D3D12MemAlloc.h>
+#include <WinPixEventRuntime/pix3.h>
 
 #include "d3dx12.h"
 #include "Core/Base.h"

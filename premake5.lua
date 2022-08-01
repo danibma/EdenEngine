@@ -69,6 +69,7 @@ project "EdenEngine"
         "d3d12.lib",
         "dxgi.lib",
         "dxguid.lib",
+        "%{wks.location}/external/WinPixEventRuntime/WinPixEventRuntime.lib",
 
         "%{wks.location}/external/dxc/dxcompiler.lib",
 	}
@@ -82,6 +83,7 @@ project "EdenEngine"
     {
         '{COPY} "%{wks.location}/external/dxc/dxcompiler.dll" "%{cfg.targetdir}"',
         '{COPY} "%{wks.location}/external/dxc/dxil.dll" "%{cfg.targetdir}"',
+        '{COPY} "%{wks.location}/external/WinPixEventRuntime/WinPixEventRuntime.dll" "%{cfg.targetdir}"',
     }
 
     filter { "files:**.hlsl or files:**.hlsli" }

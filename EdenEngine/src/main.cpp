@@ -5,7 +5,6 @@
 #include "Core/Application.h"
 #include "UI/UI.h"
 #include "Core/Camera.h"
-#include "Profiling/Timer.h"
 #include "Profiling/Profiler.h"
 #include "Graphics/D3D12/D3D12RHI.h"
 #include "Graphics/Skybox.h"
@@ -94,7 +93,7 @@ class EdenApplication : public Application
 	std::shared_ptr<RenderPass> m_ImGuiPass;
 	std::shared_ptr<RenderPass> m_SceneComposite;
 	std::shared_ptr<Buffer> m_QuadBuffer;
-	std::shared_ptr<GPUTimer> m_RenderTimer;
+	std::shared_ptr<GPUTimer> m_RenderTimer; // TODO: In the future make a vector of this timers inside the renderer class
 	std::shared_ptr<GPUTimer> m_ComputeTimer;
 
 	struct SceneSettings
@@ -148,7 +147,7 @@ public:
 		// GBuffer
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "GBuffer_";
+			desc.debug_name = "GBuffer";
 			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
@@ -173,7 +172,7 @@ public:
 		// Scene Composite
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "SceneComposite_";
+			desc.debug_name = "SceneComposite";
 			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
@@ -187,8 +186,8 @@ public:
 
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "ImGuiPass_";
-			desc.attachments_formats = { Format::Depth };
+			desc.debug_name = "ImGuiPass";
+			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.swapchain_target = true;
 			desc.imgui_pass = true;
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
@@ -204,7 +203,7 @@ public:
 		// Scene Composite
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "SceneComposite_";
+			desc.debug_name = "SceneComposite";
 			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.swapchain_target = true;
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
