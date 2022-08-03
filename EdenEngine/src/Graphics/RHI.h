@@ -204,6 +204,7 @@ namespace Eden
 		bool swapchain_target = false;
 		std::vector<Format> attachments_formats;
 		uint32_t width = 0, height = 0;
+		glm::vec4 clear_color = glm::vec4(0, 0, 0, 1);
 	};
 
 	struct RenderPass : GraphicsChild
@@ -301,6 +302,8 @@ namespace Eden
 
 		virtual void Render() = 0;
 		virtual void Resize(uint32_t width, uint32_t height) = 0;
+
+		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, std::shared_ptr<Texture> texture, glm::vec4& pixel) = 0;
 
 	protected:
 		int GetDepthFormatIndex(std::vector<Format>& formats)

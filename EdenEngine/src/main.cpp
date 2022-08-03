@@ -82,6 +82,7 @@ class EdenApplication : public Application
 	glm::vec2 m_ViewportSize;
 	glm::vec2 m_ViewportPos;
 	bool m_ViewportFocused = false;
+	bool m_ViewportHovered = false;
 	std::unique_ptr<ContentBrowserPanel> m_ContentBrowserPanel;
 	std::unique_ptr<SceneHierarchy> m_SceneHierarchy;
 
@@ -95,6 +96,7 @@ class EdenApplication : public Application
 	std::shared_ptr<Buffer> m_QuadBuffer;
 	std::shared_ptr<GPUTimer> m_RenderTimer; // TODO: In the future make a vector of this timers inside the renderer class
 	std::shared_ptr<GPUTimer> m_ComputeTimer;
+	std::shared_ptr<RenderPass> m_ObjectPickerPass; // Editor Only
 
 	struct SceneSettings
 	{
@@ -143,6 +145,23 @@ public:
 		pl_desc.usage = BufferDesc::Storage;
 		m_PointLightsBuffer = rhi->CreateBuffer(&pl_desc, nullptr);
 		UpdatePointLights();
+
+
+		// Object Picker
+		{
+			RenderPassDesc desc = {};
+			desc.debug_name = "ObjectPicker";
+			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
+			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
+			desc.clear_color = glm::vec4(-1);
+			m_ObjectPickerPass = rhi->CreateRenderPass(&desc);
+
+			PipelineDesc pipeline_desc = {};
+			pipeline_desc.program_name = "ObjectPicker";
+			pipeline_desc.render_pass = m_ObjectPickerPass;
+			m_Pipelines["Object Picker"] = rhi->CreatePipeline(&pipeline_desc);
+		}
 
 		// GBuffer
 		{
@@ -262,6 +281,16 @@ public:
 
 		m_RenderTimer = rhi->CreateGPUTimer();
 		m_ComputeTimer = rhi->CreateGPUTimer();
+	}
+
+	std::pair<uint32_t, uint32_t> GetViewportMousePos()
+	{
+		std::pair<uint32_t, uint32_t> viewport_mouse_pos;
+		auto pos = Input::GetMousePos();
+		viewport_mouse_pos.first = static_cast<uint32_t>(pos.first - m_ViewportPos.x);
+		viewport_mouse_pos.second = static_cast<uint32_t>(pos.second - m_ViewportPos.y);
+
+		return viewport_mouse_pos;
 	}
 
 	void PrepareScene()
@@ -539,13 +568,16 @@ public:
 			m_GBuffer->desc.height = (uint32_t)m_ViewportSize.y;
 			m_SceneComposite->desc.width = (uint32_t)m_ViewportSize.x;
 			m_SceneComposite->desc.height = (uint32_t)m_ViewportSize.y;
+			m_ObjectPickerPass->desc.width = (uint32_t)m_ViewportSize.x;
+			m_ObjectPickerPass->desc.height = (uint32_t)m_ViewportSize.y;
 			m_Camera.SetViewportSize(m_ViewportSize);
 		}
 		auto viewport_pos = ImGui::GetWindowPos();
-		m_ViewportPos = { (uint32_t)viewport_pos.x, (uint32_t)viewport_pos.y };
+		m_ViewportPos = { viewport_pos.x, viewport_pos.y };
 		m_Camera.SetViewportPosition(m_ViewportPos);
 
 		m_ViewportFocused = ImGui::IsWindowFocused();
+		m_ViewportHovered = ImGui::IsWindowHovered();
 
 		ImGui::Image((ImTextureID)rhi->GetTextureID(m_SceneComposite->color_attachments[0]), viewport_size);
 
@@ -644,6 +676,29 @@ public:
 				m_GizmoType = ImGuizmo::SCALE;
 		}
 
+		if (Input::GetMouseButtonDown(MouseButton::LeftButton))
+		{
+			if (m_ViewportHovered && !ImGuizmo::IsOver())
+			{
+				auto mouse_pos = GetViewportMousePos();
+				glm::vec4 pixel_color;
+				if (mouse_pos.first >= 1 && mouse_pos.first <= m_ViewportSize.x && mouse_pos.second >= 1 && mouse_pos.second <= m_ViewportSize.y)
+					rhi->ReadPixelFromTexture(mouse_pos.first, mouse_pos.second, m_ObjectPickerPass->color_attachments[0], pixel_color);
+				if (pixel_color.x >= 0)
+				{
+					entt::entity entity_id = static_cast<entt::entity>(std::round(pixel_color.x));
+					Entity entity = { entity_id, m_CurrentScene };
+					m_CurrentScene->SetSelectedEntity(entity);
+				}
+				else
+				{
+					entt::entity entity_id = static_cast<entt::entity>(-1);
+					Entity entity = { entity_id, m_CurrentScene };
+					m_CurrentScene->SetSelectedEntity(entity);
+				}
+			}
+		}
+
 		if (Input::GetKey(ED_KEY_SHIFT) && Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_S))
 			SaveSceneAs();
 		if (Input::GetKey(ED_KEY_CONTROL) && Input::GetKeyDown(ED_KEY_O))
@@ -737,6 +792,35 @@ public:
 		rhi->EndGPUTimer(m_ComputeTimer);
 
 		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+
+		// Object Picker
+		rhi->BeginRenderPass(m_ObjectPickerPass);
+		rhi->BindPipeline(m_Pipelines["Object Picker"]);
+		for (auto entity : entities_to_render)
+		{
+			Entity e = { entity, m_CurrentScene };
+			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
+			if (!ms->has_mesh)
+				continue;
+			TransformComponent tc = e.GetComponent<TransformComponent>();
+
+			rhi->BindVertexBuffer(ms->mesh_vb);
+			rhi->BindIndexBuffer(ms->mesh_ib);
+			for (auto& mesh : ms->meshes)
+			{
+				auto transform = tc.GetTransform();
+				if (mesh->gltf_matrix != glm::mat4(1.0f))
+					transform *= mesh->gltf_matrix;
+
+				rhi->BindParameter("SceneData", m_SceneDataCB);
+				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
+				rhi->BindParameter("ObjectID", &entity, sizeof(uint32_t));
+
+				for (auto& submesh : mesh->submeshes)
+					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
+			}
+		}
+		rhi->EndRenderPass(m_ObjectPickerPass);
 
 		// GBuffer
 		rhi->BeginRenderPass(m_GBuffer);

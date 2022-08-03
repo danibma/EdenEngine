@@ -1471,7 +1471,7 @@ namespace Eden
 			}
 		}
 
-		constexpr float clear_color[] = { 0.15f, 0.15f, 0.15f, 1.0f };
+		float* clear_color = (float*)&render_pass->desc.clear_color;
 		CD3DX12_CLEAR_VALUE clear_value{ DXGI_FORMAT_R32G32B32_FLOAT, clear_color };
 
 		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE begin_access_type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
@@ -1693,6 +1693,73 @@ namespace Eden
 			m_CommandAllocator->Reset();
 			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
 		}
+	}
+
+	void D3D12RHI::ReadPixelFromTexture(uint32_t x, uint32_t y, std::shared_ptr<Texture> texture, glm::vec4& pixel)
+	{
+		auto internal_state = ToInternal(texture.get());
+
+		ComPtr<ID3D12Resource> staging_buffer;
+		ComPtr<D3D12MA::Allocation> staging_allocation;
+		
+		uint64_t width = texture->desc.width * 32;
+		width = ALIGN(width, 256);
+
+		uint64_t staging_buffer_size = width * texture->desc.height;
+
+		D3D12MA::ALLOCATION_DESC allocation_desc = {};
+		allocation_desc.HeapType = D3D12_HEAP_TYPE_READBACK;
+
+		m_Allocator->CreateResource(&allocation_desc,
+									&CD3DX12_RESOURCE_DESC::Buffer(staging_buffer_size),
+									D3D12_RESOURCE_STATE_COPY_DEST,
+									nullptr,
+									&staging_allocation,
+									IID_PPV_ARGS(&staging_buffer));
+
+		D3D12_SUBRESOURCE_FOOTPRINT subresource_footprint = {};
+		subresource_footprint.Width = texture->desc.width;
+		subresource_footprint.Height = texture->desc.height;
+		subresource_footprint.Depth = 1;
+		subresource_footprint.Format = Helpers::ConvertFormat(texture->image_format);
+		subresource_footprint.RowPitch = static_cast<uint32_t>(width);
+
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT texture_footprint = {};
+		texture_footprint.Footprint = subresource_footprint;
+		texture_footprint.Offset = 0;
+
+		D3D12_TEXTURE_COPY_LOCATION src = {};
+		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		src.SubresourceIndex = 0;
+		src.pResource = internal_state->resource.Get();
+
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		dst.PlacedFootprint = texture_footprint;
+		dst.pResource = staging_buffer.Get();
+
+		D3D12_BOX src_region = {};
+		src_region.top = y;
+		src_region.left = x;
+		src_region.right = texture->desc.width;
+		src_region.bottom = texture->desc.height;
+		src_region.back = 1;
+		src_region.front = 0;
+
+		EnsureResourceState(texture, ResourceState::COPY_SRC);
+		m_CommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &src_region);
+		EnsureResourceState(texture, ResourceState::PIXEL_SHADER);
+
+		m_CommandList->Close();
+		ID3D12CommandList* command_lists[] = { m_CommandList.Get() };
+		m_CommandQueue->ExecuteCommandLists(_countof(command_lists), command_lists);
+		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
+
+		WaitForGPU();
+
+		void* pixel_data;
+		staging_buffer->Map(0, nullptr, &pixel_data);
+		pixel = *(glm::vec4*)pixel_data;
 	}
 
 	void D3D12RHI::ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state, int subresource /*= -1*/)

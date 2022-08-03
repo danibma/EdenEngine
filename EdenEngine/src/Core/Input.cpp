@@ -19,7 +19,7 @@ namespace Eden
 		memcpy(s_PreviousKeyDown, s_KeyDown, sizeof(s_KeyDown));
 	}
 
-	void Input::HandleInput(uint64_t message, uint64_t code, uint64_t lParam)
+	void Input::HandleInput(HWND hwnd, uint64_t message, uint64_t code, uint64_t lParam)
 	{
 		switch (message)
 		{
@@ -67,8 +67,9 @@ namespace Eden
 		case WM_MOUSEMOVE:
 			if (GetCursorMode() == CursorMode::Visible)
 			{
-				s_MousePos.first = GET_X_LPARAM(lParam);
-				s_MousePos.second = GET_Y_LPARAM(lParam);
+				POINT mouse_pos = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+				::ClientToScreen(hwnd, &mouse_pos);
+				s_MousePos = { mouse_pos.x, mouse_pos.y };
 			}
 			break;
 		case WM_MOUSEWHEEL:

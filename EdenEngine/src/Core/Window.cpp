@@ -58,7 +58,7 @@ static LRESULT CALLBACK WindowProc(HWND handle, UINT uMsg, WPARAM wParam, LPARAM
 		case WM_RBUTTONDOWN: case WM_RBUTTONDBLCLK:
 		case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK:
 		case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK:
-			Eden::Input::HandleInput(uMsg, (uint32_t)wParam, (uint32_t)lParam);
+			Eden::Input::HandleInput(handle, uMsg, (uint32_t)wParam, (uint32_t)lParam);
 			break;
 		}
 	}

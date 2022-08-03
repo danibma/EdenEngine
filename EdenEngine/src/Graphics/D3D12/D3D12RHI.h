@@ -155,6 +155,8 @@ namespace Eden
 		virtual void Render() override;
 		virtual void Resize(uint32_t width, uint32_t height) override;
 
+		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, std::shared_ptr<Texture> texture, glm::vec4& pixel) override;
+
 	private:
 		void PrepareDraw();
 		void GetHardwareAdapter();
