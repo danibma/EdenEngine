@@ -26,6 +26,12 @@ cbuffer Transform
     float4x4 transform;
 };
 
+cbuffer RenderingInfo
+{
+    float2 g_Resolution : packoffset(c0);
+    float g_Time;
+}
+
 // https://github.com/graphitemaster/normals_revisited
 float3 TransformDirection(in float4x4 transform, in float3 direction)
 {

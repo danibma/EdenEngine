@@ -738,7 +738,7 @@ namespace Eden
 				resource_format = DXGI_FORMAT_R32_TYPELESS;
 				srv_format = DXGI_FORMAT_R32_FLOAT;
 			}
-			else if (depth_format == Format::DEPTH32_FLOAT_STENCIL8_UINT)
+			else if (depth_format == Format::DEPTH32_FLOAT_STENCIL8X24_UINT)
 			{
 				format = Helpers::ConvertFormat(depth_format);
 				resource_format = DXGI_FORMAT_R32G8X24_TYPELESS;

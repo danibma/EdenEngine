@@ -218,7 +218,7 @@ namespace Eden
 				return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
 			// Depth Formats
-			case Format::DEPTH32_FLOAT_STENCIL8_UINT:
+			case Format::DEPTH32_FLOAT_STENCIL8X24_UINT:
 				return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 			case Format::DEPTH32_FLOAT:
 				return DXGI_FORMAT_D32_FLOAT;

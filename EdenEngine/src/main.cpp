@@ -752,6 +752,98 @@ public:
 		rhi->UpdateBufferData(m_DirectionalLightsBuffer, data);
 	}
 
+	void ObjectPickerPass()
+	{
+		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+
+		rhi->BeginRenderPass(m_ObjectPickerPass);
+		rhi->BindPipeline(m_Pipelines["Object Picker"]);
+		for (auto entity : entities_to_render)
+		{
+			Entity e = { entity, m_CurrentScene };
+			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
+			if (!ms->has_mesh)
+				continue;
+			TransformComponent tc = e.GetComponent<TransformComponent>();
+
+			rhi->BindVertexBuffer(ms->mesh_vb);
+			rhi->BindIndexBuffer(ms->mesh_ib);
+			for (auto& mesh : ms->meshes)
+			{
+				auto transform = tc.GetTransform();
+				if (mesh->gltf_matrix != glm::mat4(1.0f))
+					transform *= mesh->gltf_matrix;
+
+				rhi->BindParameter("SceneData", m_SceneDataCB);
+				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
+				rhi->BindParameter("ObjectID", &entity, sizeof(uint32_t));
+
+				for (auto& submesh : mesh->submeshes)
+					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
+			}
+		}
+		rhi->EndRenderPass(m_ObjectPickerPass);
+	}
+
+	void MainColorPass()
+	{
+		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+
+		// GBuffer
+		rhi->BeginRenderPass(m_GBuffer);
+		rhi->BindPipeline(m_Pipelines["Phong Lighting"]);
+		for (auto entity : entities_to_render)
+		{
+			Entity e = { entity, m_CurrentScene };
+			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
+			if (!ms->has_mesh)
+				continue;
+			TransformComponent tc = e.GetComponent<TransformComponent>();
+
+			rhi->BindVertexBuffer(ms->mesh_vb);
+			rhi->BindIndexBuffer(ms->mesh_ib);
+			for (auto& mesh : ms->meshes)
+			{
+				auto transform = tc.GetTransform();
+				if (mesh->gltf_matrix != glm::mat4(1.0f))
+					transform *= mesh->gltf_matrix;
+
+				rhi->BindParameter("SceneData", m_SceneDataCB);
+				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
+				rhi->BindParameter("DirectionalLights", m_DirectionalLightsBuffer);
+				rhi->BindParameter("PointLights", m_PointLightsBuffer);
+
+				for (auto& submesh : mesh->submeshes)
+				{
+					rhi->BindParameter("g_textureDiffuse", submesh->diffuse_texture);
+					rhi->BindParameter("g_textureEmissive", submesh->emissive_texture);
+					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
+				}
+			}
+		}
+
+		// Skybox
+		if (m_SkyboxEnable)
+		{
+			rhi->BindPipeline(m_Pipelines["Skybox"]);
+			m_Skybox->Render(rhi, m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix)));
+		}
+		rhi->EndRenderPass(m_GBuffer);
+	}
+
+	void SceneCompositePass()
+	{
+		// Scene Composite
+		rhi->BeginRenderPass(m_SceneComposite);
+		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
+		rhi->BindVertexBuffer(m_QuadBuffer);
+		rhi->BindParameter("g_sceneTexture", m_GBuffer->color_attachments[0]);
+		rhi->UpdateBufferData(m_SceneSettingsBuffer, &m_SceneSettings);
+		rhi->BindParameter("SceneSettings", m_SceneSettingsBuffer);
+		rhi->Draw(6);
+		rhi->EndRenderPass(m_SceneComposite);
+	}
+
 	void OnUpdate() override
 	{
 		ED_PROFILE_FUNCTION();
@@ -791,87 +883,10 @@ public:
 		rhi->Dispatch(static_cast<uint32_t>(m_OutputTexture->desc.width / 8), static_cast<uint32_t>(m_OutputTexture->desc.height / 8), 1); // TODO: abstract the num of threads in some way
 		rhi->EndGPUTimer(m_ComputeTimer);
 
-		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
-
-		// Object Picker
-		rhi->BeginRenderPass(m_ObjectPickerPass);
-		rhi->BindPipeline(m_Pipelines["Object Picker"]);
-		for (auto entity : entities_to_render)
-		{
-			Entity e = { entity, m_CurrentScene };
-			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
-			if (!ms->has_mesh)
-				continue;
-			TransformComponent tc = e.GetComponent<TransformComponent>();
-
-			rhi->BindVertexBuffer(ms->mesh_vb);
-			rhi->BindIndexBuffer(ms->mesh_ib);
-			for (auto& mesh : ms->meshes)
-			{
-				auto transform = tc.GetTransform();
-				if (mesh->gltf_matrix != glm::mat4(1.0f))
-					transform *= mesh->gltf_matrix;
-
-				rhi->BindParameter("SceneData", m_SceneDataCB);
-				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
-				rhi->BindParameter("ObjectID", &entity, sizeof(uint32_t));
-
-				for (auto& submesh : mesh->submeshes)
-					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
-			}
-		}
-		rhi->EndRenderPass(m_ObjectPickerPass);
-
-		// GBuffer
-		rhi->BeginRenderPass(m_GBuffer);
-		rhi->BindPipeline(m_Pipelines["Phong Lighting"]);
-		for (auto entity : entities_to_render)
-		{
-			Entity e = { entity, m_CurrentScene };
-			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
-			if (!ms->has_mesh)
-				continue;
-			TransformComponent tc = e.GetComponent<TransformComponent>();
+		ObjectPickerPass();
+		MainColorPass();
+		SceneCompositePass();
 		
-			rhi->BindVertexBuffer(ms->mesh_vb);
-			rhi->BindIndexBuffer(ms->mesh_ib);
-			for (auto& mesh : ms->meshes)
-			{
-				auto transform = tc.GetTransform();
-				if (mesh->gltf_matrix != glm::mat4(1.0f))
-					transform *= mesh->gltf_matrix;
-
-				rhi->BindParameter("SceneData", m_SceneDataCB);
-				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
-				rhi->BindParameter("DirectionalLights", m_DirectionalLightsBuffer);
-				rhi->BindParameter("PointLights", m_PointLightsBuffer);
-		
-				for (auto& submesh : mesh->submeshes)
-				{
-					rhi->BindParameter("g_textureDiffuse", submesh->diffuse_texture);
-					rhi->BindParameter("g_textureEmissive", submesh->emissive_texture);
-					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
-				}
-			}
-		}
-		
-		// Skybox
-		if (m_SkyboxEnable)
-		{
-			rhi->BindPipeline(m_Pipelines["Skybox"]);
-			m_Skybox->Render(rhi, m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix)));
-		}
-		rhi->EndRenderPass(m_GBuffer);
-
-		// Scene Composite
-		rhi->BeginRenderPass(m_SceneComposite);
-		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
-		rhi->BindVertexBuffer(m_QuadBuffer);
-		rhi->BindParameter("g_sceneTexture", m_GBuffer->color_attachments[0]);
-		rhi->UpdateBufferData(m_SceneSettingsBuffer, &m_SceneSettings);
-		rhi->BindParameter("SceneSettings", m_SceneSettingsBuffer);
-		rhi->Draw(6);
-		rhi->EndRenderPass(m_SceneComposite);
 
 	#if WITH_EDITOR
 		rhi->BeginRenderPass(m_ImGuiPass);

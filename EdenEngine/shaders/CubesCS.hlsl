@@ -1,13 +1,9 @@
+#include "Global.hlsli"
+
 // This is a compute shader test
 // Based on https://www.shadertoy.com/view/NsGfDW
 
 RWTexture2D<float4> OutputTexture : register(u0);
-
-cbuffer RenderingInfo
-{
-    float2 g_Resolution : packoffset(c0);
-    float g_Time;
-}
 
 #define H(p) sin(g_Time * 0.5 + frac(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453) * 10.0) * 0.5 + 0.5
 

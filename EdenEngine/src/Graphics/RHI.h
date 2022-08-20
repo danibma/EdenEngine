@@ -89,7 +89,7 @@ namespace Eden
 
 		SRGB,
 
-		DEPTH32_FLOAT_STENCIL8_UINT,
+		DEPTH32_FLOAT_STENCIL8X24_UINT,
 		DEPTH32_FLOAT,
 		DEPTH24_STENCIL8,
 
@@ -319,7 +319,7 @@ namespace Eden
 
 		bool IsDepthFormat(Format format)
 		{
-			if (format == Format::DEPTH32_FLOAT_STENCIL8_UINT ||
+			if (format == Format::DEPTH32_FLOAT_STENCIL8X24_UINT ||
 				format == Format::DEPTH32_FLOAT ||
 				format == Format::DEPTH24_STENCIL8)
 			{
