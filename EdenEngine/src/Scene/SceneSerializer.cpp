@@ -30,11 +30,11 @@ namespace Eden
 
 	void SceneSerializer::Serialize(const std::filesystem::path& filepath)
 	{
-		std::string scene_name = filepath.stem().string();
+		std::string sceneName = filepath.stem().string();
 
 		YAML::Emitter out;
 		out << YAML::BeginMap;
-		out << YAML::Key << "Scene" << YAML::Value << scene_name;
+		out << YAML::Key << "Scene" << YAML::Value << sceneName;
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 		auto entities = m_Scene->GetAllEntitiesWith<TagComponent>();
 		// This loop is inversed so that it serializes the entities from 0 to ...
@@ -53,22 +53,22 @@ namespace Eden
 		std::ofstream fout(filepath);
 		fout << out.c_str();
 
-		m_Scene->m_Name = scene_name;
+		m_Scene->m_Name = sceneName;
 	}
 
 	bool SceneSerializer::Deserialize(const std::filesystem::path& filepath)
 	{
 		std::ifstream stream(filepath);
-		std::stringstream str_stream;
-		str_stream << stream.rdbuf();
+		std::stringstream strStream;
+		strStream << stream.rdbuf();
 
-		YAML::Node data = YAML::Load(str_stream.str());
+		YAML::Node data = YAML::Load(strStream.str());
 		if (!data["Scene"])
 			return false;
 
-		std::string scene_name = data["Scene"].as<std::string>();
-		ED_LOG_INFO("Deserializing scene '{}'", scene_name);
-		m_Scene->m_Name = scene_name;
+		std::string sceneName = data["Scene"].as<std::string>();
+		ED_LOG_INFO("Deserializing scene '{}'", sceneName);
+		m_Scene->m_Name = sceneName;
 
 		auto entities = data["Entities"];
 		if (entities)
@@ -78,48 +78,48 @@ namespace Eden
 				uint32_t id = entity["Entity"].as<uint32_t>();
 
 				std::string name;
-				auto tag_component = entity["TagComponent"];
-				if (tag_component)
-					name = tag_component["Tag"].as<std::string>();
+				auto tagComponent = entity["TagComponent"];
+				if (tagComponent)
+					name = tagComponent["Tag"].as<std::string>();
 
-				Entity deserialized_entity = m_Scene->CreateEntity(name);
+				Entity deserializedEntity = m_Scene->CreateEntity(name);
 
 				auto transform_component = entity["TransformComponent"];
 				if (transform_component)
 				{
 					// Entities always have transform
-					auto& tc = deserialized_entity.GetComponent<TransformComponent>();
+					auto& tc = deserializedEntity.GetComponent<TransformComponent>();
 					tc.translation = transform_component["Translation"].as<glm::vec3>();
 					tc.rotation = transform_component["Rotation"].as<glm::vec3>();
 					tc.scale = transform_component["Scale"].as<glm::vec3>();
 				}
 
-				auto mesh_component = entity["MeshComponent"];
-				if (mesh_component)
+				auto meshComponent = entity["MeshComponent"];
+				if (meshComponent)
 				{
-					auto& mc = deserialized_entity.AddComponent<MeshComponent>();
-					mc.mesh_path = mesh_component["File Path"].as<std::string>();
+					auto& mc = deserializedEntity.AddComponent<MeshComponent>();
+					mc.meshPath = meshComponent["File Path"].as<std::string>();
 				}
 
-				auto point_light_component = entity["PointLightComponent"];
-				if (point_light_component)
+				auto pointLightComponent = entity["PointLightComponent"];
+				if (pointLightComponent)
 				{
-					auto& pl = deserialized_entity.AddComponent<PointLightComponent>();
-					auto& transform = deserialized_entity.GetComponent<TransformComponent>();
+					auto& pl = deserializedEntity.AddComponent<PointLightComponent>();
+					auto& transform = deserializedEntity.GetComponent<TransformComponent>();
 
 					pl.position = glm::vec4(transform.translation, 1.0f);
-					pl.color = point_light_component["Color"].as<glm::vec4>();
-					pl.intensity = point_light_component["Intensity"].as<float>();
+					pl.color = pointLightComponent["Color"].as<glm::vec4>();
+					pl.intensity = pointLightComponent["Intensity"].as<float>();
 				}
 
-				auto directional_light_component = entity["DirectionalLightComponent"];
-				if (directional_light_component)
+				auto directional_lightComponent = entity["DirectionalLightComponent"];
+				if (directional_lightComponent)
 				{
-					auto& dl = deserialized_entity.AddComponent<DirectionalLightComponent>();
-					auto& transform = deserialized_entity.GetComponent<TransformComponent>();
+					auto& dl = deserializedEntity.AddComponent<DirectionalLightComponent>();
+					auto& transform = deserializedEntity.GetComponent<TransformComponent>();
 
 					dl.direction = glm::vec4(transform.rotation, 1.0f);
-					dl.intensity = directional_light_component["Intensity"].as<float>();
+					dl.intensity = directional_lightComponent["Intensity"].as<float>();
 				}
 			}
 		}
@@ -162,7 +162,7 @@ namespace Eden
 			out << YAML::BeginMap; // MeshComponent
 
 			auto& mc = entity.GetComponent<MeshComponent>();
-			out << YAML::Key << "File Path" << YAML::Value << mc.mesh_path;
+			out << YAML::Key << "File Path" << YAML::Value << mc.meshPath;
 
 			out << YAML::EndMap; // MeshComponent
 		}

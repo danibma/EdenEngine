@@ -3,8 +3,8 @@
 namespace Eden
 {
 
-	Entity::Entity(entt::entity entity_handler, Scene* scene)
-		: m_EntityHandler(entity_handler)
+	Entity::Entity(entt::entity entityHandler, Scene* scene)
+		: m_EntityHandler(entityHandler)
 		, m_Scene(scene)
 	{
 	}

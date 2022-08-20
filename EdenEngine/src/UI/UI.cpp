@@ -46,8 +46,8 @@ namespace Eden::UI
 	void CenterWindow()
 	{
 		ImGuiViewport* viewport = ImGui::GetMainViewport();
-		ImVec2 window_size = ImGui::GetWindowSize();
-		ImGui::SetWindowPos(ImVec2((viewport->Size.x / 2) - (window_size.x / 2), (viewport->Size.y / 2) - (window_size.y / 2)));
+		ImVec2 windowSize = ImGui::GetWindowSize();
+		ImGui::SetWindowPos(ImVec2((viewport->Size.x / 2) - (windowSize.x / 2), (viewport->Size.y / 2) - (windowSize.y / 2)));
 	}
 
 	static void Styles()
@@ -242,7 +242,7 @@ namespace Eden::UI
 		Styles();
 	}
 
-	void DrawVec3(const std::string& label, glm::vec3& values, float reset_value /*= 0.0f*/, float column_width /*= 100.0f*/)
+	void DrawVec3(const std::string& label, glm::vec3& values, float resetValue /*= 0.0f*/, float columnWidth /*= 100.0f*/)
 	{
 		ImGuiIO& io = ImGui::GetIO();
 		auto boldFont = io.Fonts->Fonts[0];
@@ -250,7 +250,7 @@ namespace Eden::UI
 		ImGui::PushID(label.c_str());
 
 		ImGui::Columns(2);
-		ImGui::SetColumnWidth(0, column_width);
+		ImGui::SetColumnWidth(0, columnWidth);
 		ImGui::Text(label.c_str());
 		ImGui::NextColumn();
 
@@ -265,7 +265,7 @@ namespace Eden::UI
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
 		ImGui::PushFont(boldFont);
 		if (ImGui::Button("X", buttonSize))
-			values.x = reset_value;
+			values.x = resetValue;
 		ImGui::PopFont();
 		ImGui::PopStyleColor(3);
 
@@ -279,7 +279,7 @@ namespace Eden::UI
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
 		ImGui::PushFont(boldFont);
 		if (ImGui::Button("Y", buttonSize))
-			values.y = reset_value;
+			values.y = resetValue;
 		ImGui::PopFont();
 		ImGui::PopStyleColor(3);
 
@@ -293,7 +293,7 @@ namespace Eden::UI
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
 		ImGui::PushFont(boldFont);
 		if (ImGui::Button("Z", buttonSize))
-			values.z = reset_value;
+			values.z = resetValue;
 		ImGui::PopFont();
 		ImGui::PopStyleColor(3);
 
@@ -308,11 +308,11 @@ namespace Eden::UI
 		ImGui::PopID();
 	}
 
-	void DrawProperty(const std::string& label, float& value, float speed /*= 1.0f*/, float min /*= 0.0f*/, float max /*= 0.0f*/, float column_width /*= 100.0f*/)
+	void DrawProperty(const std::string& label, float& value, float speed /*= 1.0f*/, float min /*= 0.0f*/, float max /*= 0.0f*/, float columnWidth /*= 100.0f*/)
 	{
 		ImGui::PushID(label.c_str());
 		ImGui::Columns(2);
-		ImGui::SetColumnWidth(0, column_width);
+		ImGui::SetColumnWidth(0, columnWidth);
 		ImGui::Text(label.c_str());
 		ImGui::NextColumn();
 		ImGui::PushItemWidth(-1);
@@ -322,11 +322,11 @@ namespace Eden::UI
 		ImGui::PopID();
 	}
 
-	void DrawColor(const std::string& label, glm::vec4& values, float column_width /* = 100.0f*/)
+	void DrawColor(const std::string& label, glm::vec4& values, float columnWidth /* = 100.0f*/)
 	{
 		ImGui::PushID(label.c_str());
 		ImGui::Columns(2);
-		ImGui::SetColumnWidth(0, column_width);
+		ImGui::SetColumnWidth(0, columnWidth);
 		ImGui::Text(label.c_str());
 		ImGui::NextColumn();
 		ImGui::PushItemWidth(-1);

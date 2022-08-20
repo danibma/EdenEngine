@@ -19,11 +19,11 @@ namespace Eden
 
 	public:
 		Skybox() = default;
-		Skybox(std::shared_ptr<IRHI>& rhi, const char* texture_path);
+		Skybox(std::shared_ptr<IRHI>& rhi, const char* texturePath);
 		~Skybox();
 
-		void Render(std::shared_ptr<IRHI>& rhi, glm::mat4 view_project_matrix);
-		void SetNewTexture(const char* texture_path);
+		void Render(std::shared_ptr<IRHI>& rhi, glm::mat4 viewProjectMatrix);
+		void SetNewTexture(const char* texturePath);
 		void UpdateNewTexture(std::shared_ptr<IRHI>& rhi);
 	};
 }

@@ -15,8 +15,8 @@ namespace Eden
 		Window* window;
 		std::shared_ptr<IRHI> rhi;
 
-		float delta_time = 0.0f;
-		float creation_time = 0.0f; // Time since the application creation
+		float deltaTime = 0.0f;
+		float creationTime = 0.0f; // Time since the application creation
 
 	private:
 		static Application* s_Instance;

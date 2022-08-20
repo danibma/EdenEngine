@@ -16,29 +16,29 @@ StructuredBuffer<DirectionalLight> DirectionalLights;
 float3 CalculateDirectionLight(Vertex vertex, DirectionalLight directional_light)
 {
     // Lighting
-    float3 light_color = float3(1.0f, 1.0f, 1.0f);
+    float3 lightColor = float3(1.0f, 1.0f, 1.0f);
     
     // Ambient Light
-    float ambient_strength = 0.1f;
-    float3 ambient = ambient_strength * light_color * vertex.color;
+    float ambientStrength = 0.1f;
+    float3 ambient = ambientStrength * lightColor * vertex.color;
     
     // Diffuse Light
     float3 norm = normalize(vertex.normal);
-    float3 light_dir = normalize(directional_light.direction.xyz);
-    float diffuse_color = max(dot(norm, light_dir), 0.0f);
-    float3 diffuse = diffuse_color * light_color * vertex.color;
+    float3 lightDir = normalize(directional_light.direction.xyz);
+    float diffuseColor = max(dot(norm, lightDir), 0.0f);
+    float3 diffuse = diffuseColor * lightColor * vertex.color;
     
     // Specular Light
-    float specular_strength = 0.1f;
+    float specularStrength = 0.1f;
     float shininess = 32.0f;
 #if BLINN
-    float3 halfway_dir = normalize(light_dir + vertex.view_dir);
-    float spec = pow(max(dot(vertex.view_dir, halfway_dir), 0.0f), shininess);
+    float3 halfwayDir = normalize(lightDir + vertex.viewDir);
+    float spec = pow(max(dot(vertex.viewDir, halfwayDir), 0.0f), shininess);
 #else
-    float3 reflect_direction = reflect(-light_dir, norm);
-    float spec = pow(max(dot(vertex.view_dir, reflect_direction), 0.0f), shininess);
+    float3 reflectDirection = reflect(-lightDir, norm);
+    float spec = pow(max(dot(vertex.viewDir, reflectDirection), 0.0f), shininess);
 #endif
-    float3 specular = (specular_strength * spec * light_color);
+    float3 specular = (specularStrength * spec * lightColor);
 
     return (ambient + diffuse + specular) * directional_light.intensity;
 }
@@ -54,41 +54,41 @@ struct PointLight
 };
 StructuredBuffer<PointLight> PointLights;
 
-float3 CalculatePointLight(Vertex vertex, PointLight point_light)
+float3 CalculatePointLight(Vertex vertex, PointLight pointLight)
 {
     // Lighting
-    float3 light_color = point_light.color.rgb;
+    float3 lightColor = pointLight.color.rgb;
     
     // Ambient Light
-    float ambient_strength = 0.1f;
-    float3 ambient = ambient_strength * light_color * vertex.color;
+    float ambientStrength = 0.1f;
+    float3 ambient = ambientStrength * lightColor * vertex.color;
     
     // Diffuse Light
     float3 norm = normalize(vertex.normal);
-    float3 light_dir = normalize(point_light.position.xyz - vertex.pixel_pos.xyz);
-    float diffuse_color = max(dot(norm, light_dir), 0.0f);
-    float3 diffuse = diffuse_color * light_color * vertex.color;
+    float3 lightDir = normalize(pointLight.position.xyz - vertex.pixelPos.xyz);
+    float diffuseColor = max(dot(norm, lightDir), 0.0f);
+    float3 diffuse = diffuseColor * lightColor * vertex.color;
     
     // Specular Light
-    float specular_strength = 0.1f;
+    float specularStrength = 0.1f;
     float shininess = 32.0f;
 #if BLINN
-    float3 halfway_dir = normalize(light_dir + vertex.view_dir);
-    float spec = pow(max(dot(vertex.view_dir, halfway_dir), 0.0f), shininess);
+    float3 halfwayDir = normalize(lightDir + vertex.viewDir);
+    float spec = pow(max(dot(vertex.viewDir, halfwayDir), 0.0f), shininess);
 #else
-    float3 reflect_direction = reflect(-light_dir, norm);
-    float spec = pow(max(dot(vertex.view_dir, reflect_direction), 0.0f), shininess);
+    float3 reflectDirection = reflect(-lightDir, norm);
+    float spec = pow(max(dot(vertex.viewDir, reflectDirection), 0.0f), shininess);
 #endif
-    float3 specular = (specular_strength * spec * light_color);
+    float3 specular = (specularStrength * spec * lightColor);
     
     // Calculate attenuation
-    float distance = length(point_light.position.xyz - vertex.pixel_pos.xyz);
+    float distance = length(pointLight.position.xyz - vertex.pixelPos.xyz);
     float attenuation = 1.0f / distance;
     ambient  *= attenuation;
     diffuse  *= attenuation;
     specular *= attenuation;
     
-    return (ambient + diffuse + specular) * point_light.intensity;
+    return (ambient + diffuse + specular) * pointLight.intensity;
 }
 
 float3 CalculateAllLights(Vertex vertex)
@@ -106,9 +106,9 @@ float3 CalculateAllLights(Vertex vertex)
     }
 
     // Calculate point lights
-    uint num_point_lights;
-    PointLights.GetDimensions(num_point_lights, stride);
-    for (int j = 0; j < num_point_lights; ++j)
+    uint numPointLights;
+    PointLights.GetDimensions(numPointLights, stride);
+    for (int j = 0; j < numPointLights; ++j)
     {
         if (PointLights[j].color.w == 0.0f)
             continue;
@@ -118,8 +118,8 @@ float3 CalculateAllLights(Vertex vertex)
     return pixel_color;
 }
 
-Texture2D g_textureDiffuse : register(t0);
-Texture2D g_textureEmissive : register(t1);
+Texture2D g_TextureDiffuse : register(t0);
+Texture2D g_TextureEmissive : register(t1);
 
 //=================
 // Vertex Shader
@@ -128,14 +128,14 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 {
     Vertex result;
 
-    float4x4 mvp_matrix = mul(view_projection, transform);
+    float4x4 mvpMatrix = mul(viewProjection, transform);
     
-    result.position = mul(mvp_matrix, float4(position, 1.0f));
-    result.pixel_pos = mul(transform, float4(position, 1.0f));
+    result.position = mul(mvpMatrix, float4(position, 1.0f));
+    result.pixelPos = mul(transform, float4(position, 1.0f));
     result.normal = TransformDirection(transform, normal);
     result.uv = uv;
     result.color = color.rgb;
-    result.view_dir = normalize(view_position.xyz - result.pixel_pos.xyz);
+    result.viewDir = normalize(viewPosition.xyz - result.pixelPos.xyz);
 
     return result;
 }
@@ -145,13 +145,13 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 //=================
 float4 PSMain(Vertex vertex) : SV_TARGET
 {
-    float4 diffuse_texture = g_textureDiffuse.Sample(LinearWrap, vertex.uv);
-    if (!all(diffuse_texture.rgb))
-        diffuse_texture.rgb = vertex.color;
-    float alpha = diffuse_texture.a;
-    float4 emissive = g_textureEmissive.Sample(LinearWrap, vertex.uv);
+    float4 diffuseTexture = g_TextureDiffuse.Sample(LinearWrap, vertex.uv);
+    if (!all(diffuseTexture.rgb))
+        diffuseTexture.rgb = vertex.color;
+    float alpha = diffuseTexture.a;
+    float4 emissive = g_TextureEmissive.Sample(LinearWrap, vertex.uv);
     
-    vertex.color = diffuse_texture.rgb;
+    vertex.color = diffuseTexture.rgb;
     vertex.color += emissive.rgb;
     
     float3 pixel_color = CalculateAllLights(vertex);

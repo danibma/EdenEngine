@@ -14,7 +14,7 @@ namespace Eden
 	// Steps to create a new component:
 	// 1- Create the struct here
 	// 2- Draw the component property by calling DrawComponentProperty inside EntityProperties in SceneHierarchy
-	// 3- Add a new menu item inside the "addc_popup"
+	// 3- Add a new menu item inside the "addcPopup"
 	// 4- Add a new item in SerializeEntity in the SceneSerializer
 	// 5- Add a new item in Deserializer in the SceneSerializer
 	// 6- if the component contains any graphics Resource when modifying or deleting, add that "modification" to the scene preparation system
@@ -43,17 +43,17 @@ namespace Eden
 
 	struct MeshComponent
 	{
-		std::shared_ptr<MeshSource> mesh_source;
-		std::string mesh_path;
+		std::shared_ptr<MeshSource> meshSource;
+		std::string meshPath;
 
 		MeshComponent()
 		{
-			mesh_source = std::make_shared<MeshSource>();
+			meshSource = std::make_shared<MeshSource>();
 		}
 		MeshComponent(MeshComponent& component)
 		{
-			mesh_path = component.mesh_path;
-			mesh_source = std::make_shared<MeshSource>();
+			meshPath = component.meshPath;
+			meshSource = std::make_shared<MeshSource>();
 		}
 		MeshComponent(MeshComponent&& component) noexcept = default;
 		MeshComponent& operator=(MeshComponent& other) = default;
@@ -62,8 +62,8 @@ namespace Eden
 		void LoadMeshSource(std::shared_ptr<IRHI>& rhi, std::filesystem::path path = "")
 		{
 			if (!path.empty())
-				mesh_path = path.string();
-			mesh_source->LoadGLTF(rhi, mesh_path);
+				meshPath = path.string();
+			meshSource->LoadGLTF(rhi, meshPath);
 		}
 	};
 

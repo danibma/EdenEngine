@@ -135,7 +135,7 @@ namespace Eden
 
 	struct GraphicsChild
 	{
-		std::string debug_name;
+		std::string debugName;
 		std::shared_ptr<void> internal_state;
 		bool IsValid() { return internal_state.get() != nullptr; }
 		operator bool()
@@ -146,8 +146,8 @@ namespace Eden
 
 	struct Resource : GraphicsChild
 	{
-		bool initialized = false;
-		ResourceState current_state;
+		bool bIsInitialized = false;
+		ResourceState currentState;
 	};
 
 	struct BufferDesc
@@ -161,13 +161,13 @@ namespace Eden
 		};
 
 		uint32_t stride;
-		uint32_t element_count;
+		uint32_t elementCount;
 		BufferUsage usage = Uniform;
 	};
 
 	struct Buffer : public Resource 
 	{
-		void* mapped_data;
+		void* mappedData;
 		uint32_t size;
 		BufferDesc desc;
 	};
@@ -184,46 +184,46 @@ namespace Eden
 		void* data;
 		uint32_t width;
 		uint32_t height;
-		bool srgb = false;
-		bool storage = false;
-		bool generate_mips = true;
+		bool bIsSrgb = false;
+		bool bIsStorage = false;
+		bool bGenerateMips = true;
 		TextureType type = Texture2D;
 	};
 
 	struct Texture: public Resource
 	{
-		Format image_format;
-		uint32_t mip_count;
+		Format imageFormat;
+		uint32_t mipCount;
 		TextureDesc desc;
 	};
 
 	struct RenderPassDesc
 	{
-		std::string debug_name;
-		bool imgui_pass = false;
-		bool swapchain_target = false;
-		std::vector<Format> attachments_formats;
+		std::string debugName;
+		bool bIsImguiPass = false;
+		bool bIsSwapchainTarget = false;
+		std::vector<Format> attachmentsFormats;
 		uint32_t width = 0, height = 0;
-		glm::vec4 clear_color = glm::vec4(0, 0, 0, 1);
+		glm::vec4 clearColor = glm::vec4(0, 0, 0, 1);
 	};
 
 	struct RenderPass : GraphicsChild
 	{
-		std::vector<std::shared_ptr<Texture>> color_attachments;
-		std::shared_ptr<Texture> depth_stencil;
+		std::vector<std::shared_ptr<Texture>> colorAttachments;
+		std::shared_ptr<Texture> depthStencil;
 		RenderPassDesc desc;
 	};
 
 	struct PipelineDesc
 	{
-		std::string program_name;
-		bool enable_blending = false;
-		bool front_counter_clockwise = true;
-		float min_depth = 0.0f;
+		std::string programName;
+		bool bEnableBlending = false;
+		bool bIsFrontCounterClockwise = true;
+		float minDepth = 0.0f;
 		CullMode cull_mode = CullMode::BACK;
-		ComparisonFunc depth_func = ComparisonFunc::LESS;
+		ComparisonFunc depthFunc = ComparisonFunc::LESS;
 		PipelineType type = Graphics;
-		std::shared_ptr<RenderPass> render_pass;
+		std::shared_ptr<RenderPass> renderPass;
 	};
 
 	struct Pipeline : GraphicsChild
@@ -232,20 +232,20 @@ namespace Eden
 
 		// Shader Reflection data
 		// name, rootParameterIndex
-		std::unordered_map<std::string, uint32_t> root_parameter_indices;
+		std::unordered_map<std::string, uint32_t> rootParameterIndices;
 	};
 
 	struct GPUTimer : GraphicsChild
 	{
-		double elapsed_time = 0.0f;
+		double elapsedTime = 0.0f;
 
-		std::shared_ptr<Buffer> readback_buffer;
+		std::shared_ptr<Buffer> readbackBuffer;
 	};
 
 	class IRHI
 	{
 	protected:
-		bool m_ImguiInitialized = false;
+		bool m_bIsImguiInitialized = false;
 		int32_t m_FrameIndex;
 		API m_CurrentAPI;
 
@@ -260,7 +260,7 @@ namespace Eden
 
 		virtual std::shared_ptr<Buffer> CreateBuffer(BufferDesc* desc, const void* initial_data) = 0;
 		virtual std::shared_ptr<Pipeline> CreatePipeline(PipelineDesc* desc) = 0;
-		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool generate_mips) = 0;
+		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool bGenerateMips) = 0;
 		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) = 0;
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) = 0;
 		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() = 0;
@@ -273,8 +273,8 @@ namespace Eden
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) = 0;
 		virtual void GenerateMips(std::shared_ptr<Texture>& texture) = 0;
 
-		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state, int subresource = -1) = 0;
-		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state) = 0;
+		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) = 0;
+		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) = 0;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) = 0;
 
@@ -284,21 +284,21 @@ namespace Eden
 		virtual void ImGuiNewFrame() = 0;
 
 		virtual void BindPipeline(const std::shared_ptr<Pipeline>& pipeline) = 0;
-		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertex_buffer) = 0;
-		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer) = 0;
-		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer) = 0;
-		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) = 0;
-		virtual void BindParameter(const std::string& parameter_name, void* data, size_t size) = 0; // Use only for constants
+		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertexBuffer) = 0;
+		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& indexBuffer) = 0;
+		virtual void BindParameter(const std::string& parameterName, std::shared_ptr<Buffer>& buffer) = 0;
+		virtual void BindParameter(const std::string& parameterName, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) = 0;
+		virtual void BindParameter(const std::string& parameterName, void* data, size_t size) = 0; // Use only for constants
 
 		virtual void BeginRender() = 0;
-		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
-		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& render_pass) = 0;
-		virtual void EndRenderPass(std::shared_ptr<RenderPass>& render_pass) = 0;
+		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& renderPass) = 0;
+		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& renderPass) = 0;
+		virtual void EndRenderPass(std::shared_ptr<RenderPass>& renderPass) = 0;
 		virtual void EndRender() = 0;
 
-		virtual void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0) = 0;
-		virtual void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t start_index_location = 0, uint32_t base_vertex_location = 0, uint32_t start_instance_location = 0) = 0;
-		virtual void Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) = 0;
+		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) = 0;
+		virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0) = 0;
+		virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) = 0;
 
 		virtual void Render() = 0;
 		virtual void Resize(uint32_t width, uint32_t height) = 0;

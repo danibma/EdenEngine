@@ -35,8 +35,8 @@ class EdenApplication : public Application
 	struct SceneData
 	{
 		glm::mat4 view;
-		glm::mat4 view_projection;
-		glm::vec4 view_position;
+		glm::mat4 viewProjection;
+		glm::vec4 viewPosition;
 	};
 
 	//==================
@@ -71,18 +71,18 @@ class EdenApplication : public Application
 
 	// Skybox
 	std::shared_ptr<Skybox> m_Skybox;
-	bool m_SkyboxEnable = true;
+	bool m_bIsSkyboxEnabled = true;
 
 	// UI
-	bool m_OpenStatisticsWindow = true;
-	bool m_OpenSceneProperties = true;
-	bool m_OpenPipelinesPanel = true;
-	bool m_OpenMemoryPanel = true;
+	bool m_bOpenStatisticsWindow = true;
+	bool m_bOpenSceneProperties = true;
+	bool m_bOpenPipelinesPanel = true;
+	bool m_bOpenMemoryPanel = true;
 	int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 	glm::vec2 m_ViewportSize;
 	glm::vec2 m_ViewportPos;
-	bool m_ViewportFocused = false;
-	bool m_ViewportHovered = false;
+	bool m_bIsViewportFocused = false;
+	bool m_bIsViewportHovered = false;
 	std::unique_ptr<ContentBrowserPanel> m_ContentBrowserPanel;
 	std::unique_ptr<SceneHierarchy> m_SceneHierarchy;
 
@@ -117,30 +117,30 @@ public:
 		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
 		m_ProjectionMatrix = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
 		m_SceneData.view = m_ViewMatrix;
-		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
-		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
+		m_SceneData.viewProjection = m_ProjectionMatrix * m_ViewMatrix;
+		m_SceneData.viewPosition = glm::vec4(m_Camera.position, 1.0f);
 
-		BufferDesc scene_data_desc = {};
-		scene_data_desc.element_count = 1;
-		scene_data_desc.stride = sizeof(SceneData);
-		m_SceneDataCB = rhi->CreateBuffer(&scene_data_desc, &m_SceneData);
+		BufferDesc sceneDataDesc = {};
+		sceneDataDesc.elementCount = 1;
+		sceneDataDesc.stride = sizeof(SceneData);
+		m_SceneDataCB = rhi->CreateBuffer(&sceneDataDesc, &m_SceneData);
 
 		m_CurrentScene = enew Scene();
-		std::string default_scene = "assets/scenes/cube.escene";
-		OpenScene(default_scene);
+		std::string defaultScene = "assets/scenes/cube.escene";
+		OpenScene(defaultScene);
 
 		m_Skybox = std::make_shared<Skybox>(rhi, "assets/skyboxes/san_giuseppe_bridge.hdr");
 
 		// Lights
 		BufferDesc dl_desc = {};
-		dl_desc.element_count = MAX_DIRECTIONAL_LIGHTS;
+		dl_desc.elementCount = MAX_DIRECTIONAL_LIGHTS;
 		dl_desc.stride = sizeof(DirectionalLightComponent);
 		dl_desc.usage = BufferDesc::Storage;
 		m_DirectionalLightsBuffer = rhi->CreateBuffer(&dl_desc, nullptr);
 		UpdateDirectionalLights();
 
 		BufferDesc pl_desc = {};
-		pl_desc.element_count = MAX_POINT_LIGHTS;
+		pl_desc.elementCount = MAX_POINT_LIGHTS;
 		pl_desc.stride = sizeof(PointLightComponent);
 		pl_desc.usage = BufferDesc::Storage;
 		m_PointLightsBuffer = rhi->CreateBuffer(&pl_desc, nullptr);
@@ -150,65 +150,65 @@ public:
 		// Object Picker
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "ObjectPicker";
-			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.debugName = "ObjectPicker";
+			desc.attachmentsFormats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
-			desc.clear_color = glm::vec4(-1);
+			desc.clearColor = glm::vec4(-1);
 			m_ObjectPickerPass = rhi->CreateRenderPass(&desc);
 
-			PipelineDesc pipeline_desc = {};
-			pipeline_desc.program_name = "ObjectPicker";
-			pipeline_desc.render_pass = m_ObjectPickerPass;
-			m_Pipelines["Object Picker"] = rhi->CreatePipeline(&pipeline_desc);
+			PipelineDesc pipelineDesc = {};
+			pipelineDesc.programName = "ObjectPicker";
+			pipelineDesc.renderPass = m_ObjectPickerPass;
+			m_Pipelines["Object Picker"] = rhi->CreatePipeline(&pipelineDesc);
 		}
 
 		// GBuffer
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "GBuffer";
-			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.debugName = "GBuffer";
+			desc.attachmentsFormats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
 			m_GBuffer = rhi->CreateRenderPass(&desc);
 
-			PipelineDesc phong_lighting_desc = {};
-			phong_lighting_desc.enable_blending = true;
-			phong_lighting_desc.program_name = "PhongLighting";
-			phong_lighting_desc.render_pass = m_GBuffer;
-			m_Pipelines["Phong Lighting"] = rhi->CreatePipeline(&phong_lighting_desc);
+			PipelineDesc phongLightingDesc = {};
+			phongLightingDesc.bEnableBlending = true;
+			phongLightingDesc.programName = "PhongLighting";
+			phongLightingDesc.renderPass = m_GBuffer;
+			m_Pipelines["Phong Lighting"] = rhi->CreatePipeline(&phongLightingDesc);
 
-			PipelineDesc skybox_desc = {};
-			skybox_desc.cull_mode = CullMode::NONE;
-			skybox_desc.depth_func = ComparisonFunc::LESS_EQUAL;
-			skybox_desc.min_depth = 1.0f;
-			skybox_desc.program_name = "Skybox";
-			skybox_desc.render_pass = m_GBuffer;
-			m_Pipelines["Skybox"] = rhi->CreatePipeline(&skybox_desc);
+			PipelineDesc skyboxDesc = {};
+			skyboxDesc.cull_mode = CullMode::NONE;
+			skyboxDesc.depthFunc = ComparisonFunc::LESS_EQUAL;
+			skyboxDesc.minDepth = 1.0f;
+			skyboxDesc.programName = "Skybox";
+			skyboxDesc.renderPass = m_GBuffer;
+			m_Pipelines["Skybox"] = rhi->CreatePipeline(&skyboxDesc);
 		}
 
 	#if WITH_EDITOR
 		// Scene Composite
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "SceneComposite";
-			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.debugName = "SceneComposite";
+			desc.attachmentsFormats = { Format::RGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
 			m_SceneComposite = rhi->CreateRenderPass(&desc);
 
-			PipelineDesc scene_composite_desc = {};
-			scene_composite_desc.program_name = "SceneComposite";
-			scene_composite_desc.render_pass = m_SceneComposite;
-			m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
+			PipelineDesc sceneCompositeDesc = {};
+			sceneCompositeDesc.programName = "SceneComposite";
+			sceneCompositeDesc.renderPass = m_SceneComposite;
+			m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&sceneCompositeDesc);
 		}
 
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "ImGuiPass";
-			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
-			desc.swapchain_target = true;
-			desc.imgui_pass = true;
+			desc.debugName = "ImGuiPass";
+			desc.attachmentsFormats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.bIsSwapchainTarget = true;
+			desc.bIsImguiPass = true;
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
 			m_ImGuiPass = rhi->CreateRenderPass(&desc);
@@ -222,27 +222,27 @@ public:
 		// Scene Composite
 		{
 			RenderPassDesc desc = {};
-			desc.debug_name = "SceneComposite";
-			desc.attachments_formats = { Format::RGBA32_FLOAT, Format::Depth };
-			desc.swapchain_target = true;
+			desc.debugName = "SceneComposite";
+			desc.attachmentsFormats = { Format::RGBA32_FLOAT, Format::Depth };
+			desc.bIsSwapchainTarget = true;
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
 			m_SceneComposite = rhi->CreateRenderPass(&desc);
 			rhi->SetSwapchainTarget(m_SceneComposite);
 
-			PipelineDesc scene_composite_desc = {};
-			scene_composite_desc.program_name = "SceneComposite";
-			scene_composite_desc.render_pass = m_SceneComposite;
-			m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&scene_composite_desc);
+			PipelineDesc sceneCompositeDesc = {};
+			sceneCompositeDesc.programName = "SceneComposite";
+			sceneCompositeDesc.renderPass = m_SceneComposite;
+			m_Pipelines["Scene Composite"] = rhi->CreatePipeline(&sceneCompositeDesc);
 		}
 	#endif
 
-		PipelineDesc cubes_test_desc = {};
-		cubes_test_desc.program_name = "CubesCS";
-		cubes_test_desc.type = Compute;
-		m_Pipelines["Cubes Test"] = rhi->CreatePipeline(&cubes_test_desc);
+		PipelineDesc cubesTestDesc = {};
+		cubesTestDesc.programName = "CubesCS";
+		cubesTestDesc.type = Compute;
+		m_Pipelines["Cubes Test"] = rhi->CreatePipeline(&cubesTestDesc);
 
-		float quad_vertices[] = {
+		float quadVertices[] = {
 			// positions   // texCoords
 			-1.0f,  1.0f,   0.0f, 1.0f,
 			-1.0f, -1.0f,   0.0f, 0.0f,
@@ -252,32 +252,32 @@ public:
 			 1.0f, -1.0f,  -1.0f, 0.0f,
 			 1.0f,  1.0f,  -1.0f, 1.0f
 		};
-		BufferDesc quad_desc = {};
-		quad_desc.stride = sizeof(float) * 4;
-		quad_desc.element_count = 6;
-		quad_desc.usage = BufferDesc::Vertex_Index;
-		m_QuadBuffer = rhi->CreateBuffer(&quad_desc, quad_vertices);
+		BufferDesc quadDesc = {};
+		quadDesc.stride = sizeof(float) * 4;
+		quadDesc.elementCount = 6;
+		quadDesc.usage = BufferDesc::Vertex_Index;
+		m_QuadBuffer = rhi->CreateBuffer(&quadDesc, quadVertices);
 
-		BufferDesc scene_settings_desc = {};
-		scene_settings_desc.element_count = 1;
-		scene_settings_desc.stride = sizeof(SceneSettings);
-		scene_settings_desc.usage = BufferDesc::Uniform;
-		m_SceneSettingsBuffer = rhi->CreateBuffer(&scene_settings_desc, &m_SceneSettings);
+		BufferDesc sceneSettingsDesc = {};
+		sceneSettingsDesc.elementCount = 1;
+		sceneSettingsDesc.stride = sizeof(SceneSettings);
+		sceneSettingsDesc.usage = BufferDesc::Uniform;
+		m_SceneSettingsBuffer = rhi->CreateBuffer(&sceneSettingsDesc, &m_SceneSettings);
 
 		// Compute shader
 		m_ComputeData.resolution = glm::vec2(m_ViewportSize.x, m_ViewportSize.y);
-		BufferDesc compute_data_desc = {};
-		compute_data_desc.element_count = 1;
-		compute_data_desc.stride = sizeof(SceneData);
-		m_ComputeBuffer = rhi->CreateBuffer(&compute_data_desc, &m_ComputeData);
+		BufferDesc computeDataDesc = {};
+		computeDataDesc.elementCount = 1;
+		computeDataDesc.stride = sizeof(SceneData);
+		m_ComputeBuffer = rhi->CreateBuffer(&computeDataDesc, &m_ComputeData);
 
-		TextureDesc compute_output_desc = {};
-		compute_output_desc.data = nullptr;
-		compute_output_desc.width = static_cast<uint32_t>(320);
-		compute_output_desc.height = static_cast<uint32_t>(180);
-		compute_output_desc.storage = true;
-		compute_output_desc.generate_mips = false;
-		m_OutputTexture = rhi->CreateTexture(&compute_output_desc);
+		TextureDesc computeOutputDesc = {};
+		computeOutputDesc.data = nullptr;
+		computeOutputDesc.width = static_cast<uint32_t>(320);
+		computeOutputDesc.height = static_cast<uint32_t>(180);
+		computeOutputDesc.bIsStorage = true;
+		computeOutputDesc.bGenerateMips = false;
+		m_OutputTexture = rhi->CreateTexture(&computeOutputDesc);
 
 		m_RenderTimer = rhi->CreateGPUTimer();
 		m_ComputeTimer = rhi->CreateGPUTimer();
@@ -285,12 +285,12 @@ public:
 
 	std::pair<uint32_t, uint32_t> GetViewportMousePos()
 	{
-		std::pair<uint32_t, uint32_t> viewport_mouse_pos;
+		std::pair<uint32_t, uint32_t> viewportMousePos;
 		auto pos = Input::GetMousePos();
-		viewport_mouse_pos.first = static_cast<uint32_t>(pos.first - m_ViewportPos.x);
-		viewport_mouse_pos.second = static_cast<uint32_t>(pos.second - m_ViewportPos.y);
+		viewportMousePos.first = static_cast<uint32_t>(pos.first - m_ViewportPos.x);
+		viewportMousePos.second = static_cast<uint32_t>(pos.second - m_ViewportPos.y);
 
-		return viewport_mouse_pos;
+		return viewportMousePos;
 	}
 
 	void PrepareScene()
@@ -301,7 +301,7 @@ public:
 			return;
 		}
 
-		auto& scene_to_load = m_CurrentScene->GetScenePath();
+		auto& sceneToLoad = m_CurrentScene->GetScenePath();
 
 		m_CurrentScene->GetSelectedEntity().Invalidate();
 		edelete m_CurrentScene;
@@ -311,10 +311,10 @@ public:
 	#endif
 
 
-		if (!scene_to_load.empty())
+		if (!sceneToLoad.empty())
 		{
 			SceneSerializer serializer(m_CurrentScene);
-			serializer.Deserialize(scene_to_load);
+			serializer.Deserialize(sceneToLoad);
 
 			auto entities = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
 			for (auto& entity : entities)
@@ -323,7 +323,7 @@ public:
 				e.GetComponent<MeshComponent>().LoadMeshSource(rhi);
 			}
 
-			m_CurrentScene->SetScenePath(scene_to_load);
+			m_CurrentScene->SetScenePath(sceneToLoad);
 		}
 		
 		m_CurrentScene->SetSceneLoaded(true);
@@ -380,27 +380,27 @@ public:
 
 	void UI_Dockspace()
 	{
-		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
-		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+		ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
+		ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 		const ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(viewport->WorkPos);
 		ImGui::SetNextWindowSize(viewport->WorkSize);
 		ImGui::SetNextWindowViewport(viewport->ID);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+		windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+		windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-		ImGui::Begin("EdenDockSpace", nullptr, window_flags);
+		ImGui::Begin("EdenDockSpace", nullptr, windowFlags);
 		ImGui::PopStyleVar(3);
 
 		// Submit the DockSpace
 		ImGuiIO& io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
 		{
-			ImGuiID dockspace_id = ImGui::GetID("EdenEditorDockspace");
-			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+			ImGuiID dockspaceId = ImGui::GetID("EdenEditorDockspace");
+			ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
 		}
 
 		// Menubar
@@ -428,12 +428,12 @@ public:
 
 			if (ImGui::BeginMenu("View"))
 			{
-				ImGui::MenuItem("Statistics", NULL, &m_OpenStatisticsWindow);
-				ImGui::MenuItem("Inspector", NULL, &m_SceneHierarchy->open_inspector);
-				ImGui::MenuItem("Hierarchy", NULL, &m_SceneHierarchy->open_hierarchy);
-				ImGui::MenuItem("Scene Properties", NULL, &m_OpenSceneProperties);
-				ImGui::MenuItem("Pipelines Panel", NULL, &m_OpenPipelinesPanel);
-				ImGui::MenuItem("Content Browser", NULL, &m_ContentBrowserPanel->open_content_browser);
+				ImGui::MenuItem("Statistics", NULL, &m_bOpenStatisticsWindow);
+				ImGui::MenuItem("Inspector", NULL, &m_SceneHierarchy->bOpenInspector);
+				ImGui::MenuItem("Hierarchy", NULL, &m_SceneHierarchy->bOpenHierarchy);
+				ImGui::MenuItem("Scene Properties", NULL, &m_bOpenSceneProperties);
+				ImGui::MenuItem("Pipelines Panel", NULL, &m_bOpenPipelinesPanel);
+				ImGui::MenuItem("Content Browser", NULL, &m_ContentBrowserPanel->bOpenContentBrowser);
 
 				ImGui::EndMenu();
 			}
@@ -469,16 +469,16 @@ public:
 
 	void UI_SceneProperties()
 	{
-		ImGui::Begin(ICON_FA_TV " Scene Properties##scene_properties", &m_OpenSceneProperties, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin(ICON_FA_TV " Scene Properties##sceneProperties", &m_bOpenSceneProperties, ImGuiWindowFlags_NoCollapse);
 		ImGui::Text("Compute Shader test:");
-		ImVec2 image_size;
-		image_size.x = static_cast<float>(m_OutputTexture->desc.width);
-		image_size.y = static_cast<float>(m_OutputTexture->desc.height);
+		ImVec2 imageSize;
+		imageSize.x = static_cast<float>(m_OutputTexture->desc.width);
+		imageSize.y = static_cast<float>(m_OutputTexture->desc.height);
 		rhi->EnsureResourceState(m_OutputTexture, ResourceState::PIXEL_SHADER);
-		ImGui::Image((ImTextureID)rhi->GetTextureID(m_OutputTexture), image_size);
+		ImGui::Image((ImTextureID)rhi->GetTextureID(m_OutputTexture), imageSize);
 		ImGui::Separator();
 
-		ImGui::Checkbox("Enable Skybox", &m_SkyboxEnable);
+		ImGui::Checkbox("Enable Skybox", &m_bIsSkyboxEnabled);
 		ImGui::Separator();
 		UI::DrawProperty("Exposure", m_SceneSettings.exposure, 0.1f, 0.1f, 5.0f);
 		ImGui::End();
@@ -486,10 +486,10 @@ public:
 
 	void UI_StatisticsWindow()
 	{
-		ImGui::Begin(ICON_FA_CHART_PIE " Statistcs##statistics", &m_OpenStatisticsWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", delta_time * 1000.0f, (1000.0f / delta_time) / 1000.0f);
-		ImGui::Text("GPU frame time: %.3fms", m_RenderTimer->elapsed_time);
-		ImGui::Text("Compute test time: %.3fms", m_ComputeTimer->elapsed_time);
+		ImGui::Begin(ICON_FA_CHART_PIE " Statistcs##statistics", &m_bOpenStatisticsWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", deltaTime * 1000.0f, (1000.0f / deltaTime) / 1000.0f);
+		ImGui::Text("GPU frame time: %.3fms", m_RenderTimer->elapsedTime);
+		ImGui::Text("Compute test time: %.3fms", m_ComputeTimer->elapsedTime);
 		ImGui::End();
 	}
 
@@ -498,11 +498,11 @@ public:
 		ImGuizmo::SetOrthographic(false);
 		ImGuizmo::SetDrawlist();
 
-		float window_width = m_ViewportSize.x;
-		float window_height = m_ViewportSize.y;
-		float window_x = m_ViewportPos.x;
-		float window_y = m_ViewportPos.y;
-		ImGuizmo::SetRect(window_x, window_y, window_width, window_height);
+		float windowWidth = m_ViewportSize.x;
+		float windowHeight = m_ViewportSize.y;
+		float windowX = m_ViewportPos.x;
+		float windowY = m_ViewportPos.y;
+		ImGuizmo::SetRect(windowX, windowY, windowWidth, windowHeight);
 
 		auto& transform_component = m_CurrentScene->GetSelectedEntity().GetComponent<TransformComponent>();
 		glm::mat4 transform = transform_component.GetTransform();
@@ -514,7 +514,7 @@ public:
 			glm::vec3 translation, rotation, scale;
 			Math::DecomposeTransform(transform, translation, rotation, scale);
 
-			glm::vec3 delta_rotation = rotation - transform_component.rotation;
+			glm::vec3 deltaRotation = rotation - transform_component.rotation;
 			transform_component.translation = translation;
 			transform_component.rotation = rotation;
 			transform_component.scale = scale;
@@ -534,7 +534,7 @@ public:
 		ImGui::Columns(1);
 		for (auto& pipeline : m_Pipelines)
 		{
-			ImGui::PushID(pipeline.second->debug_name.c_str());
+			ImGui::PushID(pipeline.second->debugName.c_str());
 			ImGui::Columns(2);
 			ImGui::Text(pipeline.first);
 			ImGui::NextColumn();
@@ -560,10 +560,10 @@ public:
 		if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(1))
 			ImGui::SetWindowFocus();
 
-		auto viewport_size = ImGui::GetContentRegionAvail();
-		if (m_ViewportSize != *(glm::vec2*)&viewport_size)
+		auto viewportSize = ImGui::GetContentRegionAvail();
+		if (m_ViewportSize != *(glm::vec2*)&viewportSize)
 		{
-			m_ViewportSize = { viewport_size.x, viewport_size.y };
+			m_ViewportSize = { viewportSize.x, viewportSize.y };
 			m_GBuffer->desc.width = (uint32_t)m_ViewportSize.x;
 			m_GBuffer->desc.height = (uint32_t)m_ViewportSize.y;
 			m_SceneComposite->desc.width = (uint32_t)m_ViewportSize.x;
@@ -572,14 +572,14 @@ public:
 			m_ObjectPickerPass->desc.height = (uint32_t)m_ViewportSize.y;
 			m_Camera.SetViewportSize(m_ViewportSize);
 		}
-		auto viewport_pos = ImGui::GetWindowPos();
-		m_ViewportPos = { viewport_pos.x, viewport_pos.y };
+		auto viewportPos = ImGui::GetWindowPos();
+		m_ViewportPos = { viewportPos.x, viewportPos.y };
 		m_Camera.SetViewportPosition(m_ViewportPos);
 
-		m_ViewportFocused = ImGui::IsWindowFocused();
-		m_ViewportHovered = ImGui::IsWindowHovered();
+		m_bIsViewportFocused = ImGui::IsWindowFocused();
+		m_bIsViewportHovered = ImGui::IsWindowHovered();
 
-		ImGui::Image((ImTextureID)rhi->GetTextureID(m_SceneComposite->color_attachments[0]), viewport_size);
+		ImGui::Image((ImTextureID)rhi->GetTextureID(m_SceneComposite->colorAttachments[0]), viewportSize);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -598,7 +598,7 @@ public:
 					{
 						auto e = m_CurrentScene->CreateEntity(path.stem().string());
 						auto& mc = e.AddComponent<MeshComponent>();
-						mc.mesh_path = path.string();
+						mc.meshPath = path.string();
 						m_CurrentScene->AddPreparation([&]() {
 							mc.LoadMeshSource(rhi);
 						});
@@ -618,8 +618,8 @@ public:
 		if (Input::GetKeyDown(ED_KEY_DELETE) && ImGui::IsWindowFocused())
 		{
 			m_CurrentScene->AddPreparation([&]() {
-				auto selected_entity = m_CurrentScene->GetSelectedEntity();
-				m_CurrentScene->DeleteEntity(selected_entity);
+				auto selectedEntity = m_CurrentScene->GetSelectedEntity();
+				m_CurrentScene->DeleteEntity(selectedEntity);
 			});
 		}
 
@@ -633,12 +633,12 @@ public:
 
 		std::string total_allocated = "Total Allocated: " + Utils::BytesToString(stats.total_allocated);
 		std::string total_freed = "Total Freed: " + Utils::BytesToString(stats.total_freed);
-		std::string current_usage = "Current Usage: " +  Utils::BytesToString(stats.total_allocated - stats.total_freed);
+		std::string currentUsage = "Current Usage: " +  Utils::BytesToString(stats.total_allocated - stats.total_freed);
 
-		ImGui::Begin(ICON_FA_BUG " Memory##memory", &m_OpenMemoryPanel);
+		ImGui::Begin(ICON_FA_BUG " Memory##memory", &m_bOpenMemoryPanel);
 		ImGui::Text(total_allocated.c_str());
 		ImGui::Text(total_freed.c_str());
-		ImGui::Text(current_usage.c_str());
+		ImGui::Text(currentUsage.c_str());
 		ImGui::End();
 	}
 
@@ -650,21 +650,21 @@ public:
 		UI_Viewport();
 		m_ContentBrowserPanel->Render();
 		m_SceneHierarchy->Render();
-		if (m_OpenStatisticsWindow)
+		if (m_bOpenStatisticsWindow)
 			UI_StatisticsWindow();
 		if (m_CurrentScene->GetSelectedEntity())
 			UI_DrawGizmo();
-		if (m_OpenPipelinesPanel)
+		if (m_bOpenPipelinesPanel)
 			UI_PipelinesPanel();
-		if (m_OpenSceneProperties)
+		if (m_bOpenSceneProperties)
 			UI_SceneProperties();
-		if (m_OpenMemoryPanel)
+		if (m_bOpenMemoryPanel)
 			UI_MemoryPanel();
 	}
 
 	void EditorInput()
 	{
-		if (!Input::GetMouseButton(MouseButton::RightButton) && m_ViewportFocused)
+		if (!Input::GetMouseButton(MouseButton::RightButton) && m_bIsViewportFocused)
 		{
 			if (Input::GetKey(KeyCode::Q))
 				m_GizmoType = -1;
@@ -678,22 +678,22 @@ public:
 
 		if (Input::GetMouseButtonDown(MouseButton::LeftButton))
 		{
-			if (m_ViewportHovered && !ImGuizmo::IsOver())
+			if (m_bIsViewportHovered && !ImGuizmo::IsOver())
 			{
-				auto mouse_pos = GetViewportMousePos();
+				auto mousePos = GetViewportMousePos();
 				glm::vec4 pixel_color;
-				if (mouse_pos.first >= 1 && mouse_pos.first <= m_ViewportSize.x && mouse_pos.second >= 1 && mouse_pos.second <= m_ViewportSize.y)
-					rhi->ReadPixelFromTexture(mouse_pos.first, mouse_pos.second, m_ObjectPickerPass->color_attachments[0], pixel_color);
+				if (mousePos.first >= 1 && mousePos.first <= m_ViewportSize.x && mousePos.second >= 1 && mousePos.second <= m_ViewportSize.y)
+					rhi->ReadPixelFromTexture(mousePos.first, mousePos.second, m_ObjectPickerPass->colorAttachments[0], pixel_color);
 				if (pixel_color.x >= 0)
 				{
-					entt::entity entity_id = static_cast<entt::entity>(std::round(pixel_color.x));
-					Entity entity = { entity_id, m_CurrentScene };
+					entt::entity entityId = static_cast<entt::entity>(std::round(pixel_color.x));
+					Entity entity = { entityId, m_CurrentScene };
 					m_CurrentScene->SetSelectedEntity(entity);
 				}
 				else
 				{
-					entt::entity entity_id = static_cast<entt::entity>(-1);
-					Entity entity = { entity_id, m_CurrentScene };
+					entt::entity entityId = static_cast<entt::entity>(-1);
+					Entity entity = { entityId, m_CurrentScene };
 					m_CurrentScene->SetSelectedEntity(entity);
 				}
 			}
@@ -711,75 +711,75 @@ public:
 
 	void UpdatePointLights()
 	{
-		PointLightComponent empty_pl;
-		empty_pl.color = glm::vec4(0);
+		PointLightComponent emptyPl;
+		emptyPl.color = glm::vec4(0);
 
-		std::array<PointLightComponent, MAX_POINT_LIGHTS> point_light_components;
-		point_light_components.fill(empty_pl);
+		std::array<PointLightComponent, MAX_POINT_LIGHTS> pointLightComponents;
+		pointLightComponents.fill(emptyPl);
 
-		auto point_lights = m_CurrentScene->GetAllEntitiesWith<PointLightComponent>();
-		for (int i = 0; i < point_lights.size(); ++i)
+		auto pointLights = m_CurrentScene->GetAllEntitiesWith<PointLightComponent>();
+		for (int i = 0; i < pointLights.size(); ++i)
 		{
-			Entity e = { point_lights[i], m_CurrentScene};
+			Entity e = { pointLights[i], m_CurrentScene};
 			PointLightComponent& pl = e.GetComponent<PointLightComponent>();
-			point_light_components[i] = pl;
+			pointLightComponents[i] = pl;
 		}
 
-		const void* data = point_light_components.data();
+		const void* data = pointLightComponents.data();
 		rhi->UpdateBufferData(m_PointLightsBuffer, data);
 	}
 
 	void UpdateDirectionalLights()
 	{
-		DirectionalLightComponent empty_dl;
-		empty_dl.intensity = 0;
+		DirectionalLightComponent emptyDl;
+		emptyDl.intensity = 0;
 
-		std::array<DirectionalLightComponent, MAX_DIRECTIONAL_LIGHTS> directional_light_components;
-		directional_light_components.fill(empty_dl);
+		std::array<DirectionalLightComponent, MAX_DIRECTIONAL_LIGHTS> directional_lightComponents;
+		directional_lightComponents.fill(emptyDl);
 
 		auto directional_lights = m_CurrentScene->GetAllEntitiesWith<DirectionalLightComponent>();
 		for (int i = 0; i < directional_lights.size(); ++i)
 		{
 			Entity e = { directional_lights[i], m_CurrentScene };
 			DirectionalLightComponent& pl = e.GetComponent<DirectionalLightComponent>();
-			directional_light_components[i] = pl;
+			directional_lightComponents[i] = pl;
 		}
 
 		if (directional_lights.size() > 0)
 			m_DirectionalLight = { directional_lights[0], m_CurrentScene };
 
-		const void* data = directional_light_components.data();
+		const void* data = directional_lightComponents.data();
 		rhi->UpdateBufferData(m_DirectionalLightsBuffer, data);
 	}
 
 	void ObjectPickerPass()
 	{
-		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+		auto entitiesToRender = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
 
 		rhi->BeginRenderPass(m_ObjectPickerPass);
 		rhi->BindPipeline(m_Pipelines["Object Picker"]);
-		for (auto entity : entities_to_render)
+		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, m_CurrentScene };
-			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
-			if (!ms->has_mesh)
+			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().meshSource;
+			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			rhi->BindVertexBuffer(ms->mesh_vb);
-			rhi->BindIndexBuffer(ms->mesh_ib);
+			rhi->BindVertexBuffer(ms->meshVb);
+			rhi->BindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
-				if (mesh->gltf_matrix != glm::mat4(1.0f))
-					transform *= mesh->gltf_matrix;
+				if (mesh->gltfMatrix != glm::mat4(1.0f))
+					transform *= mesh->gltfMatrix;
 
 				rhi->BindParameter("SceneData", m_SceneDataCB);
 				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
 				rhi->BindParameter("ObjectID", &entity, sizeof(uint32_t));
 
 				for (auto& submesh : mesh->submeshes)
-					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
+					rhi->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 			}
 		}
 		rhi->EndRenderPass(m_ObjectPickerPass);
@@ -787,26 +787,26 @@ public:
 
 	void MainColorPass()
 	{
-		auto entities_to_render = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
+		auto entitiesToRender = m_CurrentScene->GetAllEntitiesWith<MeshComponent>();
 
 		// GBuffer
 		rhi->BeginRenderPass(m_GBuffer);
 		rhi->BindPipeline(m_Pipelines["Phong Lighting"]);
-		for (auto entity : entities_to_render)
+		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, m_CurrentScene };
-			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().mesh_source;
-			if (!ms->has_mesh)
+			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().meshSource;
+			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			rhi->BindVertexBuffer(ms->mesh_vb);
-			rhi->BindIndexBuffer(ms->mesh_ib);
+			rhi->BindVertexBuffer(ms->meshVb);
+			rhi->BindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
-				if (mesh->gltf_matrix != glm::mat4(1.0f))
-					transform *= mesh->gltf_matrix;
+				if (mesh->gltfMatrix != glm::mat4(1.0f))
+					transform *= mesh->gltfMatrix;
 
 				rhi->BindParameter("SceneData", m_SceneDataCB);
 				rhi->BindParameter("Transform", &transform, sizeof(glm::mat4));
@@ -815,15 +815,15 @@ public:
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					rhi->BindParameter("g_textureDiffuse", submesh->diffuse_texture);
-					rhi->BindParameter("g_textureEmissive", submesh->emissive_texture);
-					rhi->DrawIndexed(submesh->index_count, 1, submesh->index_start);
+					rhi->BindParameter("g_TextureDiffuse", submesh->diffuseTexture);
+					rhi->BindParameter("g_TextureEmissive", submesh->emissiveTexture);
+					rhi->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}
 		}
 
 		// Skybox
-		if (m_SkyboxEnable)
+		if (m_bIsSkyboxEnabled)
 		{
 			rhi->BindPipeline(m_Pipelines["Skybox"]);
 			m_Skybox->Render(rhi, m_ProjectionMatrix * glm::mat4(glm::mat3(m_ViewMatrix)));
@@ -837,7 +837,7 @@ public:
 		rhi->BeginRenderPass(m_SceneComposite);
 		rhi->BindPipeline(m_Pipelines["Scene Composite"]);
 		rhi->BindVertexBuffer(m_QuadBuffer);
-		rhi->BindParameter("g_sceneTexture", m_GBuffer->color_attachments[0]);
+		rhi->BindParameter("g_SceneTexture", m_GBuffer->colorAttachments[0]);
 		rhi->UpdateBufferData(m_SceneSettingsBuffer, &m_SceneSettings);
 		rhi->BindParameter("SceneSettings", m_SceneSettingsBuffer);
 		rhi->Draw(6);
@@ -855,12 +855,12 @@ public:
 		PrepareScene();
 
 		// Update camera and scene data
-		m_Camera.Update(delta_time);
+		m_Camera.Update(deltaTime);
 		m_ViewMatrix = glm::lookAtLH(m_Camera.position, m_Camera.position + m_Camera.front, m_Camera.up);
 		m_ProjectionMatrix = glm::perspectiveFovLH(glm::radians(70.0f), m_ViewportSize.x, m_ViewportSize.y, 0.1f, 200.0f);
 		m_SceneData.view = m_ViewMatrix;
-		m_SceneData.view_projection = m_ProjectionMatrix * m_ViewMatrix;
-		m_SceneData.view_position = glm::vec4(m_Camera.position, 1.0f);
+		m_SceneData.viewProjection = m_ProjectionMatrix * m_ViewMatrix;
+		m_SceneData.viewPosition = glm::vec4(m_Camera.position, 1.0f);
 		rhi->UpdateBufferData(m_SceneDataCB, &m_SceneData);
 		
 		EditorInput();
@@ -875,7 +875,7 @@ public:
 		rhi->BeginGPUTimer(m_ComputeTimer);
 		rhi->BindPipeline(m_Pipelines["Cubes Test"]);
 		m_ComputeData.resolution = glm::vec2(m_OutputTexture->desc.width, m_OutputTexture->desc.height);
-		m_ComputeData.time = creation_time;
+		m_ComputeData.time = creationTime;
 		rhi->UpdateBufferData(m_ComputeBuffer, &m_ComputeData);
 		rhi->BindParameter("RenderingInfo", m_ComputeBuffer);
 		rhi->BindParameter("OutputTexture", m_OutputTexture, kReadWrite);

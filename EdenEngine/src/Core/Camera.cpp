@@ -6,23 +6,23 @@
 namespace Eden
 {
 
-	Camera::Camera(const uint32_t viewport_width, const uint32_t viewport_height)
+	Camera::Camera(const uint32_t viewportWidth, const uint32_t viewportHeight)
 	{
 		position = { 0, 8, -19 };
 		front = { 0, 0, 1 };
 		up = { 0, 1, 0 };
-		m_LastX = (float)viewport_width / 2;
-		m_LastY = (float)viewport_height / 2;
+		m_LastX = (float)viewportWidth / 2;
+		m_LastY = (float)viewportHeight / 2;
 		m_Yaw = 0.0f;
 		m_Pitch = 0.0f;
 		m_Sensitivity = 0.2f;
 		m_X = 0;
 		m_Y = 0;
-		m_FirstTimeMouse = true;
-		m_ViewportSize = { viewport_width, viewport_height };
+		m_bFirstTimeMouse = true;
+		m_ViewportSize = { viewportWidth, viewportHeight };
 	}
 
-	void Camera::Update(float delta_time)
+	void Camera::Update(float deltaTime)
 	{
 		if (Input::GetInputMode() == InputMode::UI)
 			return;
@@ -30,13 +30,13 @@ namespace Eden
 		if (Input::GetMouseButton(MouseButton::RightButton))
 		{
 			Input::SetCursorMode(CursorMode::Hidden);
-			int64_t viewport_x = static_cast<int64_t>((m_ViewportSize.x / 2) + m_ViewportPosition.x);
-			int64_t viewport_y = static_cast<int64_t>((m_ViewportSize.y / 2) + m_ViewportPosition.y);
-			Input::SetMousePos(viewport_x, viewport_y);
+			int64_t viewportX = static_cast<int64_t>((m_ViewportSize.x / 2) + m_ViewportPosition.x);
+			int64_t viewportY = static_cast<int64_t>((m_ViewportSize.y / 2) + m_ViewportPosition.y);
+			Input::SetMousePos(viewportX, viewportY);
 
-			m_Locked = true;
+			m_bIsLocked = true;
 
-			float cameraSpeed = 10.0f * delta_time;
+			float cameraSpeed = 10.0f * deltaTime;
 
 			if (Input::GetKey(KeyCode::W))
 				position += cameraSpeed * front;
@@ -57,8 +57,8 @@ namespace Eden
 		{
 			Input::SetCursorMode(CursorMode::Visible);
 
-			m_Locked = false;
-			m_FirstTimeMouse = true;
+			m_bIsLocked = false;
+			m_bFirstTimeMouse = true;
 		}
 	}
 
@@ -74,21 +74,21 @@ namespace Eden
 
 	void Camera::UpdateLookAt()
 {
-		auto[x_pos, y_pos] = Input::GetMousePos();
+		auto[xPos, yPos] = Input::GetMousePos();
 
-		if (m_Locked)
+		if (m_bIsLocked)
 		{
-			if (m_FirstTimeMouse)
+			if (m_bFirstTimeMouse)
 			{
-				m_LastX = (float)x_pos;
-				m_LastY = (float)y_pos;
-				m_FirstTimeMouse = false;
+				m_LastX = (float)xPos;
+				m_LastY = (float)yPos;
+				m_bFirstTimeMouse = false;
 			}
 
-			float xoffset = x_pos - m_LastX;
-			float yoffset = m_LastY - y_pos;
-			m_LastX = (float)x_pos;
-			m_LastY = (float)y_pos;
+			float xoffset = xPos - m_LastX;
+			float yoffset = m_LastY - yPos;
+			m_LastX = (float)xPos;
+			m_LastY = (float)yPos;
 			xoffset *= m_Sensitivity;
 			yoffset *= m_Sensitivity;
 

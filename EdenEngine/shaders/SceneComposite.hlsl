@@ -1,6 +1,6 @@
 #include "Global.hlsli"
 
-Texture2D g_sceneTexture : register(t0);
+Texture2D g_SceneTexture : register(t0);
 
 cbuffer SceneSettings
 {
@@ -42,10 +42,10 @@ float4 PSMain(Vertex vertex) : SV_TARGET
 {
     const float gamma = 2.2f;
     
-    float3 final_color = g_sceneTexture.Sample(LinearWrap, vertex.uv).rgb;
+    float3 finalColor = g_SceneTexture.Sample(LinearWrap, vertex.uv).rgb;
     
-    final_color *= exposure;
-    final_color = AcesFilm(final_color);
-    final_color = GammaCorrect(final_color, gamma);
-    return float4(final_color, 1.0f);
+    finalColor *= exposure;
+    finalColor = AcesFilm(finalColor);
+    finalColor = GammaCorrect(finalColor, gamma);
+    return float4(finalColor, 1.0f);
 }

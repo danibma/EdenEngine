@@ -16,8 +16,8 @@ namespace Eden
 		std::string filename;
 		std::string extension;
 		std::string path;
-		bool is_directory;
-		std::vector<DirectoryInfo> sub_directories;
+		bool bIsDirectory;
+		std::vector<DirectoryInfo> subDirectories;
 	};
 
 	class IRHI;
@@ -44,7 +44,7 @@ namespace Eden
 		std::shared_ptr<IRHI> m_RHI;
 
 	public:
-		bool open_content_browser = true;
+		bool bOpenContentBrowser = true;
 	};
 }
 

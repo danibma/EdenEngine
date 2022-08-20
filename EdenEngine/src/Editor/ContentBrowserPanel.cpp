@@ -26,19 +26,19 @@ namespace Eden
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
 
 		auto path = directory.path().string();
-		auto folder_name = directory.path().stem().string();
+		auto folderName = directory.path().stem().string();
 
-		ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+		ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
 		if (m_CurrentPath == directory.path())
-			base_flags |= ImGuiTreeNodeFlags_Selected;
+			baseFlags |= ImGuiTreeNodeFlags_Selected;
 
-		bool node_open = UI::TreeNodeWithIcon((ImTextureID)m_RHI->GetTextureID(m_EditorIcons["Folder"]), ImVec2(18, 18), folder_name.c_str(), base_flags);
+		bool bIsNodeOpen = UI::TreeNodeWithIcon((ImTextureID)m_RHI->GetTextureID(m_EditorIcons["Folder"]), ImVec2(18, 18), folderName.c_str(), baseFlags);
 
 		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
 			m_CurrentPath = directory.path();
 
-		if (node_open)
+		if (bIsNodeOpen)
 		{
 			for (auto& p : std::filesystem::directory_iterator(directory))
 			{
@@ -60,19 +60,19 @@ namespace Eden
 			info.filename = p.path().filename().string();
 			info.extension = p.path().extension().string();
 			info.path = p.path().string();
-			info.is_directory = p.is_directory();
+			info.bIsDirectory = p.is_directory();
 
 			if (strstr(info.filename.c_str(), m_SearchBuffer) != nullptr)
 				DrawDirectory(info);
 
-			if (info.is_directory)
+			if (info.bIsDirectory)
 				Search(info.path.c_str());
 		}
 	}
 
 	bool ContentBrowserPanel::DrawDirectory(DirectoryInfo& info)
 	{
-		if (info.is_directory)
+		if (info.bIsDirectory)
 		{
 			ImGui::PushID(info.filename.c_str());
 			ImGui::TableNextColumn();
@@ -83,9 +83,9 @@ namespace Eden
 		else
 		{
 			EdenExtension extension = Utils::StringToExtension(info.extension);
-			bool valid_extension = extension == EdenExtension::kNone ? false : true;
+			bool bIsExtensionValid = extension == EdenExtension::kNone ? false : true;
 
-			if (valid_extension)
+			if (bIsExtensionValid)
 			{
 				ImGui::PushID(info.filename.c_str());
 				ImGui::TableNextColumn();
@@ -103,11 +103,11 @@ namespace Eden
 			}
 		}
 
-		float middle_of_button = (m_ThumbnailSize + m_ThumbnailPadding) / 2;
-		float middle_of_text = ImGui::CalcTextSize(info.filename.c_str()).x / 2;
-		float button_padding = ImGui::GetStyle().FramePadding.x;
+		float middleOfButton = (m_ThumbnailSize + m_ThumbnailPadding) / 2;
+		float middleOfText = ImGui::CalcTextSize(info.filename.c_str()).x / 2;
+		float buttonPadding = ImGui::GetStyle().FramePadding.x;
 
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + button_padding);
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + buttonPadding);
 		ImGui::TextWrapped(info.filename.c_str());
 		ImGui::PopID();
 
@@ -116,9 +116,9 @@ namespace Eden
 
 	void ContentBrowserPanel::Render()
 	{
-		if (!open_content_browser) return;
+		if (!bOpenContentBrowser) return;
 
-		ImGui::Begin(ICON_FA_FOLDER " Content Browser##cb", &open_content_browser, ImGuiWindowFlags_NoScrollbar);
+		ImGui::Begin(ICON_FA_FOLDER " Content Browser##cb", &bOpenContentBrowser, ImGuiWindowFlags_NoScrollbar);
 
 		if (ImGui::BeginTable(CONTENT_BROWSER_COLUMN, 2, ImGuiTableFlags_Resizable, ImVec2(ImGui::GetContentRegionAvail())))
 		{
@@ -126,7 +126,7 @@ namespace Eden
 			ImGui::TableSetColumnIndex(0);
 
 			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
-			ImGui::BeginChild("##cb_outliner");
+			ImGui::BeginChild("##cbOutliner");
 			ImGui::Text(ICON_FA_FOLDER_OPEN " Content");
 			for (auto& p : std::filesystem::directory_iterator(s_AssetsDirectory))
 			{
@@ -139,7 +139,7 @@ namespace Eden
 
 			ImGui::TableSetColumnIndex(1);
 
-			ImGui::BeginChild("##cb_items");
+			ImGui::BeginChild("##cbItems");
 			// Back Button
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 6));
 			if (ImGui::ImageButton((ImTextureID)m_RHI->GetTextureID(m_EditorIcons["Back"]), ImVec2(20, 20), ImVec2(0, 0),
@@ -156,13 +156,13 @@ namespace Eden
 			ImGui::InputTextWithHint("###search", ICON_FA_MAGNIFYING_GLASS " Search:", m_SearchBuffer, sizeof(m_SearchBuffer));
 			ImGui::Separator();
 
-			bool use_search = strcmp(m_SearchBuffer, "");
+			bool bUseSearch = strcmp(m_SearchBuffer, "");
 			float cell_size = m_ThumbnailSize + m_ThumbnailPadding;
-			int column_count = (int)(ImGui::GetContentRegionAvail().x / cell_size);
-			if (ImGui::BeginTable(CONTENT_BROWSER_CONTENTS_COLUMN, column_count))
+			int columnCount = (int)(ImGui::GetContentRegionAvail().x / cell_size);
+			if (ImGui::BeginTable(CONTENT_BROWSER_CONTENTS_COLUMN, columnCount))
 			{
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-				if (use_search)
+				if (bUseSearch)
 				{
 					Search(m_CurrentPath.string().c_str());
 				}
@@ -174,7 +174,7 @@ namespace Eden
 						info.filename = p.path().filename().string();
 						info.extension = p.path().extension().string();
 						info.path = p.path().string();
-						info.is_directory = p.is_directory();
+						info.bIsDirectory = p.is_directory();
 
 						if (!DrawDirectory(info))
 							continue;

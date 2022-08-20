@@ -33,24 +33,24 @@ namespace Eden
 		{
 			struct SubMesh
 			{
-				std::shared_ptr<Texture> diffuse_texture;
-				std::shared_ptr<Texture> emissive_texture;
-				uint32_t vertex_start;
-				uint32_t index_start;
-				uint32_t index_count;
+				std::shared_ptr<Texture> diffuseTexture;
+				std::shared_ptr<Texture> emissiveTexture;
+				uint32_t vertexStart;
+				uint32_t indexStart;
+				uint32_t indexCount;
 			};
 
 			std::vector<std::shared_ptr<SubMesh>> submeshes;
-			glm::mat4 gltf_matrix = glm::mat4(1.0f);
+			glm::mat4 gltfMatrix = glm::mat4(1.0f);
 		};
 
-		uint32_t vertex_count;
-		uint32_t index_count;
-		std::shared_ptr<Buffer> mesh_vb;
-		std::shared_ptr<Buffer> mesh_ib;
+		uint32_t vertexCount;
+		uint32_t indexCount;
+		std::shared_ptr<Buffer> meshVb;
+		std::shared_ptr<Buffer> meshIb;
 		std::vector<std::shared_ptr<Mesh>> meshes;
-		bool has_mesh = false;
-		bool textured = false;
+		bool bHasMesh = false;
+		bool bIsTextured = false;
 
 		MeshSource() = default;
 		void LoadGLTF(std::shared_ptr<IRHI>& rhi, std::filesystem::path file);
@@ -62,7 +62,7 @@ namespace Eden
 		}
 
 	private:
-		std::shared_ptr<Texture> LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index);
+		std::shared_ptr<Texture> LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex);
 	};
 }
 

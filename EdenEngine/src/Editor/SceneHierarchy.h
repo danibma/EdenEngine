@@ -12,17 +12,17 @@ namespace Eden
 		std::shared_ptr<IRHI> m_RHI;
 
 	public:
-		bool open_hierarchy = true;
-		bool open_inspector = true;
+		bool bOpenHierarchy = true;
+		bool bOpenInspector = true;
 
 	public:
 		SceneHierarchy() = default;
-		SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* current_scene);
+		SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* currentScene);
 		~SceneHierarchy();
 
 		void Render();
 		void EntityMenu();
-		void SetCurrentScene(Scene* current_scene);
+		void SetCurrentScene(Scene* currentScene);
 
 	private:
 		void DrawHierarchy();

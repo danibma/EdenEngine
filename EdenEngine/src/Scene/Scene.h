@@ -17,7 +17,7 @@ namespace Eden
 		entt::registry m_Registry;
 		std::string m_Name = "Untitled";
 		std::filesystem::path m_ScenePath = "";
-		bool m_Loaded = false;
+		bool m_bIsSceneLoaded = false;
 		/*
 		 * Preparations work like a job system, we add a preparation to this vector and
 		 * at the beginning of each frame we execute this preparations
@@ -41,7 +41,7 @@ namespace Eden
 		void SetScenePath(const std::filesystem::path& path);
 		const std::filesystem::path GetScenePath();
 
-		void SetSceneLoaded(bool loaded);
+		void SetSceneLoaded(bool bWantToLoad);
 		bool IsSceneLoaded();
 
 		void ExecutePreparations();

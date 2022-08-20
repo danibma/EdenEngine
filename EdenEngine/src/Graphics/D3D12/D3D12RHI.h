@@ -23,8 +23,8 @@ namespace Eden
 	{
 		ComPtr<ID3D12Resource> resource;
 		ComPtr<D3D12MA::Allocation> allocation;
-		D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
 	};
 
 	struct D3D12Buffer : public D3D12Resource
@@ -39,11 +39,11 @@ namespace Eden
 
 	struct D3D12Pipeline
 	{
-		ComPtr<ID3D12RootSignature> root_signature;
-		ComPtr<ID3D12PipelineState> pipeline_state;
+		ComPtr<ID3D12RootSignature> rootSignature;
+		ComPtr<ID3D12PipelineState> pipelineState;
 		ComPtr<ID3D12ShaderReflection> pixel_reflection;
-		ComPtr<ID3D12ShaderReflection> vertex_reflection;
-		ComPtr<ID3D12ShaderReflection> compute_reflection;
+		ComPtr<ID3D12ShaderReflection> vertexReflection;
+		ComPtr<ID3D12ShaderReflection> computeReflection;
 	};
 
 	struct DescriptorHeap
@@ -54,15 +54,15 @@ namespace Eden
 
 	struct D3D12RenderPass
 	{
-		std::shared_ptr<DescriptorHeap> rtv_heap;
-		std::shared_ptr<DescriptorHeap> dsv_heap;
-		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtv_desc;
-		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsv_desc;
+		std::shared_ptr<DescriptorHeap> rtvHeap;
+		std::shared_ptr<DescriptorHeap> dsvHeap;
+		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtvDesc;
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsvDesc;
 	};
 
 	struct D3D12GPUTimer
 	{
-		ComPtr<ID3D12QueryHeap> query_heap;
+		ComPtr<ID3D12QueryHeap> queryHeap;
 	};
 
 	class D3D12RHI final : public IRHI
@@ -82,7 +82,7 @@ namespace Eden
 
 		ComPtr<D3D12MA::Allocator> m_Allocator;
 
-		bool m_ImguiInitialized = false;
+		bool m_bIsImguiInitialized = false;
 
 		ComPtr<IDxcUtils> m_DxcUtils;
 		ComPtr<IDxcCompiler3> m_DxcCompiler;
@@ -112,7 +112,7 @@ namespace Eden
 
 		virtual std::shared_ptr<Buffer> CreateBuffer(BufferDesc* desc, const void* data) override;
 		virtual std::shared_ptr<Pipeline> CreatePipeline(PipelineDesc* desc) override;
-		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool generate_mips) override;
+		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool bGenerateMips) override;
 		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) override;
 		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) override;
 		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() override;
@@ -125,8 +125,8 @@ namespace Eden
 		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) override;
 		virtual void GenerateMips(std::shared_ptr<Texture>& texture) override;
 
-		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState current_state, ResourceState desired_state, int subresource = -1) override;
-		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState dest_resource_state) override;
+		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) override;
+		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) override;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) override;
 
@@ -136,21 +136,21 @@ namespace Eden
 		virtual void ImGuiNewFrame() override;
 
 		virtual void BindPipeline(const std::shared_ptr<Pipeline>& pipeline) override;
-		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertex_buffer) override;
-		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& index_buffer) override;
-		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Buffer>& buffer) override;
-		virtual void BindParameter(const std::string& parameter_name, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) override;
-		virtual void BindParameter(const std::string& parameter_name, void* data, size_t size) override;
+		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertexBuffer) override;
+		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& indexBuffer) override;
+		virtual void BindParameter(const std::string& parameterName, std::shared_ptr<Buffer>& buffer) override;
+		virtual void BindParameter(const std::string& parameterName, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) override;
+		virtual void BindParameter(const std::string& parameterName, void* data, size_t size) override;
 
 		virtual void BeginRender() override;
-		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
-		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& render_pass) override;
-		virtual void EndRenderPass(std::shared_ptr<RenderPass>& render_pass) override;
+		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& renderPass) override;
+		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& renderPass) override;
+		virtual void EndRenderPass(std::shared_ptr<RenderPass>& renderPass) override;
 		virtual void EndRender() override;
 
-		virtual void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t start_vertex_location = 0, uint32_t start_instance_location = 0) override;
-		virtual void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t start_index_location = 0, uint32_t base_vertex_location = 0, uint32_t start_instance_location = 0) override;
-		virtual void Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) override;
+		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) override;
+		virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0) override;
+		virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) override;
 
 		virtual void Render() override;
 		virtual void Resize(uint32_t width, uint32_t height) override;
@@ -161,27 +161,27 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		void CreateAttachments(std::shared_ptr<RenderPass>& render_pass);
-		uint32_t GetRootParameterIndex(const std::string& parameter_name);
+		void CreateAttachments(std::shared_ptr<RenderPass>& renderPass);
+		uint32_t GetRootParameterIndex(const std::string& parameterName);
 		void CreateRootSignature(std::shared_ptr<Pipeline>& pipeline);
-		ShaderResult CompileShader(std::filesystem::path file_path, ShaderStage stage);
-		D3D12_STATIC_SAMPLER_DESC CreateSamplerDesc(uint32_t shader_register, uint32_t register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_TEXTURE_ADDRESS_MODE address_mode);
+		ShaderResult CompileShader(std::filesystem::path filePath, ShaderStage stage);
+		D3D12_STATIC_SAMPLER_DESC CreateSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility, D3D12_TEXTURE_ADDRESS_MODE addressMode);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
-		uint32_t AllocateHandle(std::shared_ptr<DescriptorHeap> descriptor_heap, D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(std::shared_ptr<DescriptorHeap> descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(std::shared_ptr<DescriptorHeap> descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, int32_t offset = 0);
+		uint32_t AllocateHandle(std::shared_ptr<DescriptorHeap> descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		void CreateGraphicsPipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc);
 		void CreateComputePipeline(std::shared_ptr<Pipeline>& pipeline, std::shared_ptr<D3D12Pipeline>& internal_state, PipelineDesc* desc);
 
 		void CreateCommands();
 
-		void BindRootParameter(const std::string& parameter_name, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle);
+		void BindRootParameter(const std::string& parameterName, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
 
 		void SetTextureData(std::shared_ptr<Texture>& texture);
 
-		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptor_type, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptor_heap);
+		std::shared_ptr<DescriptorHeap> CreateDescriptorHeap(uint32_t num_descriptors, D3D12_DESCRIPTOR_HEAP_TYPE descriptorType, D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		void SetDescriptorHeap(std::shared_ptr<DescriptorHeap> descriptorHeap);
 	};
 
 	namespace Helpers
@@ -280,9 +280,9 @@ namespace Eden
 			}
 		}
 
-		constexpr D3D12_BLEND_OP ConvertBlendOp(BlendOp blend_op)
+		constexpr D3D12_BLEND_OP ConvertBlendOp(BlendOp blendOp)
 		{
-			switch (blend_op)
+			switch (blendOp)
 			{
 			case BlendOp::ADD:
 				return D3D12_BLEND_OP_ADD;
@@ -299,9 +299,9 @@ namespace Eden
 			}
 		}
 
-		constexpr D3D12_COMPARISON_FUNC ConvertComparisonFunc(ComparisonFunc comp_func)
+		constexpr D3D12_COMPARISON_FUNC ConvertComparisonFunc(ComparisonFunc compFunc)
 		{
-			switch (comp_func)
+			switch (compFunc)
 			{
 			case ComparisonFunc::NEVER:
 				return D3D12_COMPARISON_FUNC_NEVER;

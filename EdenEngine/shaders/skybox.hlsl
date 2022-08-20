@@ -8,7 +8,7 @@ struct PSInput
 
 cbuffer SkyboxData : register(b0)
 {
-    float4x4 viewProjection;
+    float4x4 skyboxViewProjection;
 };
 
 //=================
@@ -17,13 +17,13 @@ cbuffer SkyboxData : register(b0)
 PSInput VSMain(float3 position : POSITION)
 {
     PSInput result;
-    result.position = mul(viewProjection, float4(position, 1.0f));
+    result.position = mul(skyboxViewProjection, float4(position, 1.0f));
     result.uv = position.xyz;
     
     return result;
 }
 
-Texture2D g_cubemapTexture: register(t0);
+Texture2D g_CubemapTexture: register(t0);
 
 
 float2 SampleSphericalMap(float3 v)
@@ -41,7 +41,7 @@ float2 SampleSphericalMap(float3 v)
 float4 PSMain(PSInput input) : SV_Target
 {
     float2 uv = SampleSphericalMap(normalize(input.uv));
-    float4 color = g_cubemapTexture.Sample(LinearWrap, uv);
+    float4 color = g_CubemapTexture.Sample(LinearWrap, uv);
 
     return color;
 }

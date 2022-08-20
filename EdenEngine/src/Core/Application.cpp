@@ -46,9 +46,9 @@ namespace Eden
 			window->UpdateEvents();
 
 			// Update timers
-			delta_time = m_DeltaTimer.ElapsedSeconds();
+			deltaTime = m_DeltaTimer.ElapsedSeconds();
 			m_DeltaTimer.Record();
-			creation_time = m_CreationTimer.ElapsedSeconds();
+			creationTime = m_CreationTimer.ElapsedSeconds();
 
 			if (!window->IsMinimized())
 			{
@@ -76,8 +76,8 @@ namespace Eden
 
 	void Application::ChangeWindowTitle(const std::string& title)
 	{
-		std::string new_title = title + " - " + window->GetDefaultTitle() + " " + Utils::APIToString(rhi->GetCurrentAPI()); // NOTE(Daniel): in case of adding more API's make this dynamic
-		SetWindowTextA(window->GetHandle(), new_title.c_str());
+		std::string newTitle = title + " - " + window->GetDefaultTitle() + " " + Utils::APIToString(rhi->GetCurrentAPI()); // NOTE(Daniel): in case of adding more API's make this dynamic
+		SetWindowTextA(window->GetHandle(), newTitle.c_str());
 	}
 
 	void Application::OnInit()

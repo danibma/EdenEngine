@@ -22,24 +22,24 @@ namespace Eden
 	void MeshSource::LoadGLTF(std::shared_ptr<IRHI>& rhi, std::filesystem::path file)
 	{
 		// Destroy the current mesh source
-		if (has_mesh)
+		if (bHasMesh)
 			Destroy();
 
 		BufferDesc desc;
 		desc.usage = BufferDesc::Uniform;
-		desc.element_count = 1;
+		desc.elementCount = 1;
 		desc.stride = sizeof(glm::mat4);
 
-		tinygltf::Model gltf_model;
+		tinygltf::Model gltfModel;
 		tinygltf::TinyGLTF loader;
 		std::string err;
 		std::string warn;
-		bool result = false;
+		bool bIsGLTFModelValid = false;
 
 		if (file.extension() == ".gltf")
-			result = loader.LoadASCIIFromFile(&gltf_model, &err, &warn, file.string());
+			bIsGLTFModelValid = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, file.string());
 		else if (file.extension() == ".glb")
-			result = loader.LoadBinaryFromFile(&gltf_model, &err, &warn, file.string());
+			bIsGLTFModelValid = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, file.string());
 
 		ED_LOG_INFO("Starting {} file loading", file);
 
@@ -49,128 +49,128 @@ namespace Eden
 		if (!err.empty())
 			ED_LOG_ERROR("{}", err.c_str());
 
-		ED_ASSERT_LOG(result, "Failed to parse GLTF Model!");
+		ED_ASSERT_LOG(bIsGLTFModelValid, "Failed to parse GLTF Model!");
 
-		uint32_t black_texture_data = 0xff000000;
-		TextureDesc black_desc = {};
-		black_desc.data = &black_texture_data;
-		black_desc.width = 1;
-		black_desc.height = 1;
-		black_desc.storage = false;
-		black_desc.generate_mips = false;
-		auto black_texture = rhi->CreateTexture(&black_desc);
+		uint32_t blackTextureData = 0xff000000;
+		TextureDesc blackDesc = {};
+		blackDesc.data = &blackTextureData;
+		blackDesc.width = 1;
+		blackDesc.height = 1;
+		blackDesc.bIsStorage = false;
+		blackDesc.bGenerateMips = false;
+		auto blackTexture = rhi->CreateTexture(&blackDesc);
 
 		std::string parent_path = file.parent_path().string() + "/";
 
 		std::vector<VertexData> vertices;
 		std::vector<uint32_t> indices;
-		for (const auto& gltf_node : gltf_model.nodes)
+		for (const auto& gltfNode : gltfModel.nodes)
 		{
-			if (gltf_node.mesh < 0)
+			if (gltfNode.mesh < 0)
 				continue;
 
 			std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
 
 			// Get the local node matrix
 			// It's either made up from translation, rotation, scale or a 4x4 matrix
-			if (gltf_node.translation.size() == 3)
+			if (gltfNode.translation.size() == 3)
 			{
-				mesh->gltf_matrix = glm::translate(mesh->gltf_matrix, glm::vec3(glm::make_vec3(gltf_node.translation.data())));
+				mesh->gltfMatrix = glm::translate(mesh->gltfMatrix, glm::vec3(glm::make_vec3(gltfNode.translation.data())));
 			}
 
-			if (gltf_node.rotation.size() == 4)
+			if (gltfNode.rotation.size() == 4)
 			{
-				glm::quat q = glm::make_quat(gltf_node.rotation.data());
+				glm::quat q = glm::make_quat(gltfNode.rotation.data());
 				auto rotation = glm::quat(q.w, -q.x, q.y, q.z);
-				mesh->gltf_matrix *= glm::mat4(rotation);
+				mesh->gltfMatrix *= glm::mat4(rotation);
 			}
 
-			if (gltf_node.scale.size() == 3)
+			if (gltfNode.scale.size() == 3)
 			{
-				mesh->gltf_matrix = glm::scale(mesh->gltf_matrix, glm::vec3(glm::make_vec3(gltf_node.scale.data())));
+				mesh->gltfMatrix = glm::scale(mesh->gltfMatrix, glm::vec3(glm::make_vec3(gltfNode.scale.data())));
 			}
 
-			if (gltf_node.matrix.size() == 16)
+			if (gltfNode.matrix.size() == 16)
 			{
-				mesh->gltf_matrix = glm::make_mat4x4(gltf_node.matrix.data());
+				mesh->gltfMatrix = glm::make_mat4x4(gltfNode.matrix.data());
 			}
 
-			const auto& gltf_mesh = gltf_model.meshes[gltf_node.mesh];
-			for (size_t p = 0; p < gltf_mesh.primitives.size(); ++p)
+			const auto& gltfMesh = gltfModel.meshes[gltfNode.mesh];
+			for (size_t p = 0; p < gltfMesh.primitives.size(); ++p)
 			{
 				std::shared_ptr<Mesh::SubMesh> submesh = std::make_shared<Mesh::SubMesh>();
-				auto& gltf_primitive = gltf_mesh.primitives[p];
-				submesh->vertex_start = (uint32_t)vertices.size();
-				submesh->index_start = (uint32_t)indices.size();
-				submesh->index_count = 0;
-				submesh->diffuse_texture = black_texture;
-				submesh->emissive_texture = black_texture;
+				auto& gltfPrimitive = gltfMesh.primitives[p];
+				submesh->vertexStart = (uint32_t)vertices.size();
+				submesh->indexStart = (uint32_t)indices.size();
+				submesh->indexCount = 0;
+				submesh->diffuseTexture = blackTexture;
+				submesh->emissiveTexture = blackTexture;
 
 				// Vertices
 				{
-					const float* position_buffer = nullptr;
-					const float* normals_buffer = nullptr;
-					const float* uvs_buffer = nullptr;
-					size_t vertex_count = 0;
+					const float* positionBuffer = nullptr;
+					const float* normalsBuffer = nullptr;
+					const float* uvsBuffer = nullptr;
+					size_t vertexCount = 0;
 
 					// Get buffer data for vertex normals
-					if (gltf_primitive.attributes.find("POSITION") != gltf_primitive.attributes.end())
+					if (gltfPrimitive.attributes.find("POSITION") != gltfPrimitive.attributes.end())
 					{
-						const tinygltf::Accessor& accessor = gltf_model.accessors[gltf_primitive.attributes.find("POSITION")->second];
-						const tinygltf::BufferView& view = gltf_model.bufferViews[accessor.bufferView];
-						position_buffer = reinterpret_cast<const float*>(&(gltf_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-						vertex_count = accessor.count;
+						const tinygltf::Accessor& accessor = gltfModel.accessors[gltfPrimitive.attributes.find("POSITION")->second];
+						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
+						positionBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+						vertexCount = accessor.count;
 					}
 
 					// Get buffer data for vertex normals
-					if (gltf_primitive.attributes.find("NORMAL") != gltf_primitive.attributes.end())
+					if (gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end())
 					{
-						const tinygltf::Accessor& accessor = gltf_model.accessors[gltf_primitive.attributes.find("NORMAL")->second];
-						const tinygltf::BufferView& view = gltf_model.bufferViews[accessor.bufferView];
-						normals_buffer = reinterpret_cast<const float*>(&(gltf_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+						const tinygltf::Accessor& accessor = gltfModel.accessors[gltfPrimitive.attributes.find("NORMAL")->second];
+						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
+						normalsBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					}
 
 					// Get buffer data for vertex texture coordinates
 					// glTF supports multiple sets, we only load the first one
-					if (gltf_primitive.attributes.find("TEXCOORD_0") != gltf_primitive.attributes.end())
+					if (gltfPrimitive.attributes.find("TEXCOORD_0") != gltfPrimitive.attributes.end())
 					{
-						const tinygltf::Accessor& accessor = gltf_model.accessors[gltf_primitive.attributes.find("TEXCOORD_0")->second];
-						const tinygltf::BufferView& view = gltf_model.bufferViews[accessor.bufferView];
-						uvs_buffer = reinterpret_cast<const float*>(&(gltf_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+						const tinygltf::Accessor& accessor = gltfModel.accessors[gltfPrimitive.attributes.find("TEXCOORD_0")->second];
+						const tinygltf::BufferView& view = gltfModel.bufferViews[accessor.bufferView];
+						uvsBuffer = reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					}
 
-					for (size_t v = 0; v < vertex_count; ++v)
+					for (size_t v = 0; v < vertexCount; ++v)
 					{
-						VertexData new_vert = {};
+						VertexData newVert = {};
 
-						new_vert.position = glm::make_vec3(&position_buffer[v * 3]);
-						//new_vert.position.y = glm::make_vec3(&position_buffer[v * 3]).z;
-						//new_vert.position.z = glm::make_vec3(&position_buffer[v * 3]).y;
-						new_vert.position.z = -new_vert.position.z;
+						newVert.position = glm::make_vec3(&positionBuffer[v * 3]);
+						//newVert.position.y = glm::make_vec3(&positionBuffer[v * 3]).z;
+						//newVert.position.z = glm::make_vec3(&positionBuffer[v * 3]).y;
+						newVert.position.z = -newVert.position.z;
 
-						new_vert.normal = glm::normalize(glm::vec3(normals_buffer ? glm::make_vec3(&normals_buffer[v * 3]) : glm::vec3(0.0f)));
+						newVert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
 						//newVert.normal.y = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).z;
 						//newVert.normal.z = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f))).y;
-						new_vert.normal.z = -new_vert.normal.z;
+						newVert.normal.z = -newVert.normal.z;
 
-						new_vert.uv = uvs_buffer ? glm::make_vec2(&uvs_buffer[v * 2]) : glm::vec2(0.0f);
+						newVert.uv = uvsBuffer ? glm::make_vec2(&uvsBuffer[v * 2]) : glm::vec2(0.0f);
 
-						if (gltf_model.materials[gltf_primitive.material].values.find("baseColorFactor") != gltf_model.materials[gltf_primitive.material].values.end())
-							new_vert.color = glm::make_vec4(gltf_model.materials[gltf_primitive.material].values["baseColorFactor"].ColorFactor().data());
+						if (gltfModel.materials[gltfPrimitive.material].values.find("baseColorFactor") != gltfModel.materials[gltfPrimitive.material].values.end())
+							newVert.color = glm::make_vec4(gltfModel.materials[gltfPrimitive.material].values["baseColorFactor"].ColorFactor().data());
 						else
-							new_vert.color = glm::vec4(1.0f);
+							newVert.color = glm::vec4(1.0f);
 
-						vertices.emplace_back(new_vert);
+						vertices.emplace_back(newVert);
 					}
 				}
 
 				// Indices
 				{
-					const tinygltf::Accessor& accessor = gltf_model.accessors[gltf_primitive.indices];
-					const tinygltf::BufferView& buffer_view = gltf_model.bufferViews[accessor.bufferView];
-					const tinygltf::Buffer& buffer = gltf_model.buffers[buffer_view.buffer];
+					const tinygltf::Accessor& accessor = gltfModel.accessors[gltfPrimitive.indices];
+					const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
+					const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
 
-					submesh->index_count += static_cast<uint32_t>(accessor.count);
+					submesh->indexCount += static_cast<uint32_t>(accessor.count);
 
 					// glTF supports different component types of indices
 					switch (accessor.componentType)
@@ -178,27 +178,27 @@ namespace Eden
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
 					{
 						uint32_t* buf = enew uint32_t[accessor.count];
-						memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint32_t));
+						memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint32_t));
 						for (size_t index = 0; index < accessor.count; index++)
-							indices.emplace_back(buf[index] + submesh->vertex_start);
+							indices.emplace_back(buf[index] + submesh->vertexStart);
 						edelete[] buf;
 						break;
 					}
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
 					{
 						uint16_t* buf = enew uint16_t[accessor.count];
-						memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint16_t));
+						memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint16_t));
 						for (size_t index = 0; index < accessor.count; index++)
-							indices.emplace_back(buf[index] + submesh->vertex_start);
+							indices.emplace_back(buf[index] + submesh->vertexStart);
 						edelete[] buf;
 						break;
 					}
 					case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
 					{
 						uint8_t* buf = enew uint8_t[accessor.count];
-						memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint8_t));
+						memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint8_t));
 						for (size_t index = 0; index < accessor.count; index++)
-							indices.emplace_back(buf[index] + submesh->vertex_start);
+							indices.emplace_back(buf[index] + submesh->vertexStart);
 						edelete[] buf;
 						break;
 					}
@@ -208,21 +208,21 @@ namespace Eden
 				}
 
 				// Load materials
-				auto& gltf_material = gltf_model.materials[gltf_primitive.material];
-				if (gltf_material.values.find("baseColorTexture") != gltf_material.values.end())
+				auto& gltfMaterial = gltfModel.materials[gltfPrimitive.material];
+				if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end())
 				{
-					auto material_index = gltf_material.values["baseColorTexture"].TextureIndex();
-					auto texture_index = gltf_model.textures[material_index].source;
+					auto material_index = gltfMaterial.values["baseColorTexture"].TextureIndex();
+					auto textureIndex = gltfModel.textures[material_index].source;
 				
-					submesh->diffuse_texture = LoadImage(rhi, gltf_model, texture_index);
+					submesh->diffuseTexture = LoadImage(rhi, gltfModel, textureIndex);
 				}
 
-				if (gltf_material.emissiveTexture.index > -1)
+				if (gltfMaterial.emissiveTexture.index > -1)
 				{
-					auto material_index = gltf_material.emissiveTexture.index;
-					auto texture_index = gltf_model.textures[material_index].source;
+					auto material_index = gltfMaterial.emissiveTexture.index;
+					auto textureIndex = gltfModel.textures[material_index].source;
 				
-					submesh->emissive_texture = LoadImage(rhi, gltf_model, texture_index);
+					submesh->emissiveTexture = LoadImage(rhi, gltfModel, textureIndex);
 				}
 
 				mesh->submeshes.emplace_back(submesh);
@@ -231,27 +231,27 @@ namespace Eden
 			meshes.emplace_back(mesh);
 		}
 
-		vertex_count = static_cast<uint32_t>(vertices.size());
-		index_count = static_cast<uint32_t>(indices.size());
+		vertexCount = static_cast<uint32_t>(vertices.size());
+		indexCount = static_cast<uint32_t>(indices.size());
 
-		BufferDesc vb_desc;
-		vb_desc.element_count = vertex_count;
-		vb_desc.stride = sizeof(VertexData);
-		vb_desc.usage = BufferDesc::Vertex_Index;
-		mesh_vb = rhi->CreateBuffer(&vb_desc, vertices.data());
+		BufferDesc vbDesc;
+		vbDesc.elementCount = vertexCount;
+		vbDesc.stride = sizeof(VertexData);
+		vbDesc.usage = BufferDesc::Vertex_Index;
+		meshVb = rhi->CreateBuffer(&vbDesc, vertices.data());
 
-		BufferDesc ib_desc;
-		ib_desc.element_count = index_count;
-		ib_desc.stride = sizeof(uint32_t);
-		ib_desc.usage = BufferDesc::Vertex_Index;
-		mesh_ib = rhi->CreateBuffer(&ib_desc, indices.data());
-		has_mesh = true;
+		BufferDesc ibDesc;
+		ibDesc.elementCount = indexCount;
+		ibDesc.stride = sizeof(uint32_t);
+		ibDesc.usage = BufferDesc::Vertex_Index;
+		meshIb = rhi->CreateBuffer(&ibDesc, indices.data());
+		bHasMesh = true;
 
-		ED_LOG_INFO("	{} nodes were loaded!", gltf_model.nodes.size());
-		ED_LOG_INFO("	{} meshes were loaded!", gltf_model.meshes.size());
-		ED_LOG_INFO("	{} textures were loaded!", gltf_model.textures.size());
-		ED_LOG_INFO("	{} materials were loaded!", gltf_model.materials.size());
-		ED_LOG_INFO("   {} vertices were loaded!", vertex_count);
+		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());
+		ED_LOG_INFO("	{} meshes were loaded!", gltfModel.meshes.size());
+		ED_LOG_INFO("	{} textures were loaded!", gltfModel.textures.size());
+		ED_LOG_INFO("	{} materials were loaded!", gltfModel.materials.size());
+		ED_LOG_INFO("   {} vertices were loaded!", vertexCount);
 	}
 
 	void MeshSource::Destroy()
@@ -259,44 +259,44 @@ namespace Eden
 		meshes.clear();
 	}
 
-	std::shared_ptr<Eden::Texture> MeshSource::LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltf_model, int32_t image_index)
+	std::shared_ptr<Eden::Texture> MeshSource::LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex)
 	{
-		tinygltf::Image& gltf_image = gltf_model.images[image_index];
+		tinygltf::Image& gltfImage = gltfModel.images[imageIndex];
 
 		unsigned char* buffer;
-		bool delete_buffer = false;
+		bool bDeleteBuffer = false;
 
-		if (gltf_image.component == 3)
+		if (gltfImage.component == 3)
 		{
-			uint64_t bufferSize = gltf_image.width * gltf_image.height * 4;
+			uint64_t bufferSize = gltfImage.width * gltfImage.height * 4;
 			buffer = enew unsigned char[bufferSize];
 			unsigned char* rgba = buffer;
-			unsigned char* rgb = &gltf_image.image[0];
+			unsigned char* rgb = &gltfImage.image[0];
 
-			for (size_t i = 0; i < gltf_image.width * gltf_image.height; ++i)
+			for (size_t i = 0; i < gltfImage.width * gltfImage.height; ++i)
 			{
 				memcpy(rgba, rgb, sizeof(unsigned char) * 3);
 				rgba += 4;
 				rgb += 3;
 			}
 
-			delete_buffer = true;
+			bDeleteBuffer = true;
 		}
 		else
 		{
-			buffer = &gltf_image.image[0];
+			buffer = &gltfImage.image[0];
 		}
 
-		textured = true;
+		bIsTextured = true;
 		TextureDesc desc = {};
 		desc.data = buffer;
-		desc.width = gltf_image.width;
-		desc.height = gltf_image.height;
-		desc.storage = false;
+		desc.width = gltfImage.width;
+		desc.height = gltfImage.height;
+		desc.bIsStorage = false;
 		auto texture = rhi->CreateTexture(&desc);
-		rhi->SetName(texture, gltf_image.name);
+		rhi->SetName(texture, gltfImage.name);
 
-		if (delete_buffer)
+		if (bDeleteBuffer)
 			edelete buffer;
 
 		return texture;

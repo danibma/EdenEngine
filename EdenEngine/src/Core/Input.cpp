@@ -51,10 +51,10 @@ namespace Eden
 			if (GetCursorMode() == CursorMode::Hidden)
 			{
 				RAWINPUT raw;
-				UINT raw_size = sizeof(raw);
+				UINT rawSize = sizeof(raw);
 
-				const UINT result_data = GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, &raw, &raw_size, sizeof(RAWINPUTHEADER));
-				if (result_data == -1)
+				const UINT resultData = GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, &raw, &rawSize, sizeof(RAWINPUTHEADER));
+				if (resultData == -1)
 					ED_LOG_FATAL("Failed to get RawInputData!");
 
 				if (raw.header.dwType == RIM_TYPEMOUSE)
@@ -67,9 +67,9 @@ namespace Eden
 		case WM_MOUSEMOVE:
 			if (GetCursorMode() == CursorMode::Visible)
 			{
-				POINT mouse_pos = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-				::ClientToScreen(hwnd, &mouse_pos);
-				s_MousePos = { mouse_pos.x, mouse_pos.y };
+				POINT mousePos = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+				::ClientToScreen(hwnd, &mousePos);
+				s_MousePos = { mousePos.x, mousePos.y };
 			}
 			break;
 		case WM_MOUSEWHEEL:

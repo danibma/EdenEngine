@@ -7,18 +7,18 @@ SamplerState LinearWrap : register(s1);
 struct Vertex
 {
     float4 position : SV_POSITION;
-    float4 pixel_pos : POSITION;
+    float4 pixelPos : POSITION;
     float2 uv : TEXCOORD;
     float3 normal : NORMAL;
     float3 color : COLOR;
-    float3 view_dir : VIEW_DIR;
+    float3 viewDir : VIEW_DIR;
 };
 
 cbuffer SceneData
 {
     float4x4 view;
-    float4x4 view_projection;
-    float4 view_position;
+    float4x4 viewProjection;
+    float4 viewPosition;
 };
 
 cbuffer Transform

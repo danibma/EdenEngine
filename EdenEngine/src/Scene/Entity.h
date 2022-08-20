@@ -14,7 +14,7 @@ namespace Eden
 
 	public:
 		Entity() = default;
-		Entity(entt::entity entity_handler, Scene* scene);
+		Entity(entt::entity entityHandler, Scene* scene);
 
 		// GetComponent, AddComponent, RemoveComponent, HasComponent
 		template<typename T>

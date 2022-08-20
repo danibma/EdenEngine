@@ -12,10 +12,10 @@
 
 namespace Eden
 {
-	SceneHierarchy::SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* current_scene)
+	SceneHierarchy::SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* currentScene)
 	{
 		m_RHI = rhi;
-		m_CurrentScene = current_scene;
+		m_CurrentScene = currentScene;
 	}
 
 	SceneHierarchy::~SceneHierarchy()
@@ -24,7 +24,7 @@ namespace Eden
 
 	void SceneHierarchy::DrawHierarchy()
 	{
-		ImGui::Begin(ICON_FA_BARS_STAGGERED  " Scene Hierarchy##hierarchy", &open_hierarchy, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin(ICON_FA_BARS_STAGGERED  " Scene Hierarchy##hierarchy", &bOpenHierarchy, ImGuiWindowFlags_NoCollapse);
 		
 		auto entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
 
@@ -60,9 +60,9 @@ namespace Eden
 
 		// Scene hierarchy popup to create new entities
 		if (Input::GetMouseButton(ED_MOUSE_RIGHT) && ImGui::IsWindowHovered())
-			ImGui::OpenPopup("hierarchy_popup");
+			ImGui::OpenPopup("hierarchyPopup");
 
-		if (ImGui::BeginPopup("hierarchy_popup"))
+		if (ImGui::BeginPopup("hierarchyPopup"))
 		{
 			EntityMenu();
 			ImGui::EndPopup();
@@ -77,31 +77,31 @@ namespace Eden
 	}
 
 	template <typename T>
-	static void DrawComponentProperty(Entity selected_entity, const char* title, std::function<void()> func)
+	static void DrawComponentProperty(Entity selectedEntity, const char* title, std::function<void()> func)
 	{
-		if (selected_entity.HasComponent<T>())
+		if (selectedEntity.HasComponent<T>())
 		{
 			ImGui::PushID((void*)typeid(T).hash_code());
 
-			bool open = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap);
+			bool bOpen = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap);
 			ImGui::SameLine(ImGui::GetWindowWidth() - 25.0f);
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 			if (ImGui::Button("...", ImVec2(20, 19)))
 			{
-				ImGui::OpenPopup("component_settings");
+				ImGui::OpenPopup("componentSettings");
 			}
 			ImGui::PopStyleColor();
 
-			if (ImGui::BeginPopup("component_settings"))
+			if (ImGui::BeginPopup("componentSettings"))
 			{
-				bool remove_component = true;
+				bool bRemoveComponent = true;
 				if (std::is_same<T, TransformComponent>::value)
-					remove_component = false;
+					bRemoveComponent = false;
 
-				if (ImGui::MenuItem("Remove Component", nullptr, false, remove_component))
+				if (ImGui::MenuItem("Remove Component", nullptr, false, bRemoveComponent))
 				{
-					selected_entity.RemoveComponent<T>();
-					open = false;
+					selectedEntity.RemoveComponent<T>();
+					bOpen = false;
 
 					ImGui::CloseCurrentPopup();
 				}
@@ -110,7 +110,7 @@ namespace Eden
 			}
 			ImGui::PopID();
 
-			if (open)
+			if (bOpen)
 				func();
 
 		}
@@ -186,21 +186,21 @@ namespace Eden
 		}
 	}
 
-	void SceneHierarchy::SetCurrentScene(Scene* current_scene)
+	void SceneHierarchy::SetCurrentScene(Scene* currentScene)
 	{
-		m_CurrentScene = current_scene;
+		m_CurrentScene = currentScene;
 	}
 
 	void SceneHierarchy::EntityProperties()
 	{
-		ImGui::Begin(ICON_FA_CIRCLE_INFO " Inspector##inspector", &open_inspector, ImGuiWindowFlags_NoCollapse);
+		ImGui::Begin(ICON_FA_CIRCLE_INFO " Inspector##inspector", &bOpenInspector, ImGuiWindowFlags_NoCollapse);
 
-		Entity selected_entity = m_CurrentScene->GetSelectedEntity();
-		if (!selected_entity) goto end;
+		Entity selectedEntity = m_CurrentScene->GetSelectedEntity();
+		if (!selectedEntity) goto end;
 
-		if (selected_entity.HasComponent<TagComponent>())
+		if (selectedEntity.HasComponent<TagComponent>())
 		{
-			auto& tag = selected_entity.GetComponent<TagComponent>().tag;
+			auto& tag = selectedEntity.GetComponent<TagComponent>().tag;
 			constexpr size_t num_chars = 256;
 			char buffer[num_chars];
 			strcpy_s(buffer, tag.c_str());
@@ -212,28 +212,28 @@ namespace Eden
 		ImGui::SameLine();
 		{
 			if (UI::AlignedButton("Add Component", UI::Align::Right))
-				ImGui::OpenPopup("addc_popup");
+				ImGui::OpenPopup("addcPopup");
 
-			if (ImGui::BeginPopup("addc_popup"))
+			if (ImGui::BeginPopup("addcPopup"))
 			{
-				bool mesh_component = !selected_entity.HasComponent<MeshComponent>();
-				bool light_component = !selected_entity.HasComponent<PointLightComponent>() && !selected_entity.HasComponent<DirectionalLightComponent>();
+				bool bHasMeshComponent = !selectedEntity.HasComponent<MeshComponent>();
+				bool bHasLightComponent = !selectedEntity.HasComponent<PointLightComponent>() && !selectedEntity.HasComponent<DirectionalLightComponent>();
 
-				if (ImGui::MenuItem("Mesh Component", 0, false, mesh_component))
+				if (ImGui::MenuItem("Mesh Component", 0, false, bHasMeshComponent))
 				{
-					selected_entity.AddComponent<MeshComponent>();
+					selectedEntity.AddComponent<MeshComponent>();
 					ImGui::CloseCurrentPopup();
 				}
 
-				if (ImGui::MenuItem("Point Light Component", 0, false, light_component))
+				if (ImGui::MenuItem("Point Light Component", 0, false, bHasLightComponent))
 				{
-					selected_entity.AddComponent<PointLightComponent>();
+					selectedEntity.AddComponent<PointLightComponent>();
 					ImGui::CloseCurrentPopup();
 				}
 
-				if (ImGui::MenuItem("Directional Light Component", 0, false, light_component))
+				if (ImGui::MenuItem("Directional Light Component", 0, false, bHasLightComponent))
 				{
-					selected_entity.AddComponent<DirectionalLightComponent>();
+					selectedEntity.AddComponent<DirectionalLightComponent>();
 					ImGui::CloseCurrentPopup();
 				}
 
@@ -241,8 +241,8 @@ namespace Eden
 			}
 		}
 
-		DrawComponentProperty<TransformComponent>(selected_entity, "Transform", [&]() {
-			auto& transform = selected_entity.GetComponent<TransformComponent>();
+		DrawComponentProperty<TransformComponent>(selectedEntity, "Transform", [&]() {
+			auto& transform = selectedEntity.GetComponent<TransformComponent>();
 			UI::DrawVec3("Translation", transform.translation);
 			glm::vec3 rotation = glm::degrees(transform.rotation);
 			UI::DrawVec3("Rotation", rotation);
@@ -253,25 +253,25 @@ namespace Eden
 		ImGui::Spacing();
 		ImGui::Spacing();
 
-		DrawComponentProperty<MeshComponent>(selected_entity, "Mesh", [&]() {
-			auto& mc = selected_entity.GetComponent<MeshComponent>();
+		DrawComponentProperty<MeshComponent>(selectedEntity, "Mesh", [&]() {
+			auto& mc = selectedEntity.GetComponent<MeshComponent>();
 
 			ImGui::Text("File Path");
 			ImGui::SameLine();
 			constexpr size_t num_chars = 256;
 			char buffer[num_chars];
 			memset(buffer, 0, num_chars);
-			memcpy(buffer, mc.mesh_path.c_str(), mc.mesh_path.length());
+			memcpy(buffer, mc.meshPath.c_str(), mc.meshPath.length());
 			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.9f);
 			ImGui::InputText("###meshpath", buffer, num_chars, ImGuiInputTextFlags_ReadOnly);
 			ImGui::PopItemWidth();
 			ImGui::SameLine();
 			if (UI::AlignedButton("...", UI::Align::Right))
 			{
-				std::string new_path = Application::Get()->OpenFileDialog("Model formats (.gltf, .glb)\0*.gltf;*.glb\0");
-				if (!new_path.empty())
+				std::string newPath = Application::Get()->OpenFileDialog("Model formats (.gltf, .glb)\0*.gltf;*.glb\0");
+				if (!newPath.empty())
 				{
-					mc.mesh_path = new_path;
+					mc.meshPath = newPath;
 					m_CurrentScene->AddPreparation([&]() {
 						mc.LoadMeshSource(m_RHI);
 					});
@@ -282,9 +282,9 @@ namespace Eden
 		ImGui::Spacing();
 		ImGui::Spacing();
 
-		DrawComponentProperty<PointLightComponent>(selected_entity, "Point Light", [&]() {
-			auto& pl = selected_entity.GetComponent<PointLightComponent>();
-			auto& transform = selected_entity.GetComponent<TransformComponent>();
+		DrawComponentProperty<PointLightComponent>(selectedEntity, "Point Light", [&]() {
+			auto& pl = selectedEntity.GetComponent<PointLightComponent>();
+			auto& transform = selectedEntity.GetComponent<TransformComponent>();
 
 			pl.position = glm::vec4(transform.translation, 1.0f);
 
@@ -295,9 +295,9 @@ namespace Eden
 		ImGui::Spacing();
 		ImGui::Spacing();
 
-		DrawComponentProperty<DirectionalLightComponent>(selected_entity, "Directional Light", [&]() {
-			auto& dl = selected_entity.GetComponent<DirectionalLightComponent>();
-			auto& transform = selected_entity.GetComponent<TransformComponent>();
+		DrawComponentProperty<DirectionalLightComponent>(selectedEntity, "Directional Light", [&]() {
+			auto& dl = selectedEntity.GetComponent<DirectionalLightComponent>();
+			auto& transform = selectedEntity.GetComponent<TransformComponent>();
 
 			dl.direction = glm::vec4(transform.rotation, 1.0f);
 
@@ -311,14 +311,14 @@ namespace Eden
 	void SceneHierarchy::DuplicateSelectedEntity()
 	{
 		m_CurrentScene->AddPreparation([&]() {
-			auto new_entity = m_CurrentScene->DuplicateEntity(m_CurrentScene->GetSelectedEntity());
-			if (new_entity.HasComponent<MeshComponent>())
+			auto newEntity = m_CurrentScene->DuplicateEntity(m_CurrentScene->GetSelectedEntity());
+			if (newEntity.HasComponent<MeshComponent>())
 			{
-				auto& mc = new_entity.GetComponent<MeshComponent>();
+				auto& mc = newEntity.GetComponent<MeshComponent>();
 				mc.LoadMeshSource(m_RHI);
 			}
 
-			m_CurrentScene->SetSelectedEntity(new_entity);
+			m_CurrentScene->SetSelectedEntity(newEntity);
 		});
 	}
 
@@ -331,9 +331,9 @@ namespace Eden
 
 	void SceneHierarchy::Render()
 	{
-		if (open_inspector)
+		if (bOpenInspector)
 			EntityProperties();
-		if (open_hierarchy)
+		if (bOpenHierarchy)
 			DrawHierarchy();
 	}
 

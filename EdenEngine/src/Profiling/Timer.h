@@ -18,8 +18,8 @@ namespace Eden
 		inline float ElapsedSeconds()
 		{
 			auto timestamp2 = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<float> time_span = std::chrono::duration_cast<std::chrono::duration<float>>(timestamp2 - timestamp);
-			return time_span.count();
+			std::chrono::duration<float> timeSpan = std::chrono::duration_cast<std::chrono::duration<float>>(timestamp2 - timestamp);
+			return timeSpan.count();
 		}
 
 		// Elapsed time in milliseconds since the Timer creation or last call to record()

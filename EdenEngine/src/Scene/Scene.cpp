@@ -7,10 +7,10 @@ namespace Eden
 	Scene::~Scene()
 	{
 		auto entities = GetAllEntitiesWith<MeshComponent>();
-		for (auto entity_id : entities)
+		for (auto entityId : entities)
 		{
-			Entity mesh_entity = { entity_id, this };
-			mesh_entity.GetComponent<MeshComponent>().mesh_source->Destroy();
+			Entity meshEntity = { entityId, this };
+			meshEntity.GetComponent<MeshComponent>().meshSource->Destroy();
 		}
 
 		m_Preparations.clear();
@@ -52,14 +52,14 @@ namespace Eden
 		return m_ScenePath;
 	}
 
-	void Scene::SetSceneLoaded(bool loaded)
+	void Scene::SetSceneLoaded(bool bWantToLoad)
 	{
-		m_Loaded = loaded;
+		m_bIsSceneLoaded = bWantToLoad;
 	}
 
 	bool Scene::IsSceneLoaded()
 	{
-		return m_Loaded;
+		return m_bIsSceneLoaded;
 	}
 
 	void Scene::ExecutePreparations()
@@ -88,12 +88,12 @@ namespace Eden
 	Entity Scene::DuplicateEntity(Entity entity)
 	{
 		std::string name = entity.GetComponent<TagComponent>().tag;
-		auto new_entity = CreateEntity(name);
-		entity.CopyComponentIfExists<TransformComponent>(new_entity);
-		entity.CopyComponentIfExists<MeshComponent>(new_entity);
-		entity.CopyComponentIfExists<PointLightComponent>(new_entity);
-		entity.CopyComponentIfExists<DirectionalLightComponent>(new_entity);
+		auto newEntity = CreateEntity(name);
+		entity.CopyComponentIfExists<TransformComponent>(newEntity);
+		entity.CopyComponentIfExists<MeshComponent>(newEntity);
+		entity.CopyComponentIfExists<PointLightComponent>(newEntity);
+		entity.CopyComponentIfExists<DirectionalLightComponent>(newEntity);
 
-		return new_entity;
+		return newEntity;
 	}
 }
