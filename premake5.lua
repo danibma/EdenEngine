@@ -47,7 +47,8 @@ project "EdenEngine"
 		"%{prj.name}/src/**.hpp", 
 		"%{prj.name}/src/**.cpp",
         "%{prj.name}/shaders/**.hlsl",
-        "%{prj.name}/shaders/**.hlsli"
+        "%{prj.name}/shaders/**.hlsli",
+        "%{prj.name}/resource.rc"
 	}
 
     includedirs

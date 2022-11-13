@@ -17,7 +17,7 @@ float3 CalculateDirectionLight(Vertex vertex, DirectionalLight directional_light
 {
     // Lighting
     float3 lightColor = float3(1.0f, 1.0f, 1.0f);
-    
+
     // Ambient Light
     float ambientStrength = 0.1f;
     float3 ambient = ambientStrength * lightColor * vertex.color;

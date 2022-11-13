@@ -79,8 +79,8 @@ namespace Eden
 		wc.hInstance		= GetModuleHandle(nullptr);
 		wc.lpszClassName	= title;
 		wc.hCursor			= LoadCursor(nullptr, IDC_ARROW);
-		wc.hIcon			= LoadIconW(GetModuleHandle(nullptr), L"IDI_ICON");
-		wc.hIconSm			= LoadIconW(GetModuleHandle(nullptr), L"IDI_ICON");
+		wc.hIcon			= LoadIcon(GetModuleHandle(nullptr), "IDI_ICON");
+		wc.hIconSm			= LoadIcon(GetModuleHandle(nullptr), "IDI_ICON");
 		RegisterClassEx(&wc);
 
 		// Create the window.
