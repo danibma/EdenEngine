@@ -1,5 +1,6 @@
 # **Requirements**
 Windows 10 or newer
+Windows 10 SDK 10.0.20348.0
 
 # **Build**
 ### **Windows:**
