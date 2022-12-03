@@ -3,6 +3,7 @@
 #undef UNICODE
 #include <windows.h>
 #include <functional>
+#include <string>
 
 namespace Eden
 {
