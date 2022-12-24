@@ -1,5 +1,6 @@
 #include "Window.h"
 #include "Base.h"
+#include "Assertions.h"
 #include "Input.h"
 #include "UI/UI.h"
 

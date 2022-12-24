@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Base.h"
+#include "Core/Assertions.h"
 #include "Core/Window.h"
 #include "Graphics/RHI.h"
 #include "d3dx12.h"
@@ -16,6 +17,9 @@
 
 
 using namespace Microsoft::WRL;
+
+// Helper macros
+#define SAFE_RELEASE(x) if (x) x->Release();
 
 namespace Eden
 {

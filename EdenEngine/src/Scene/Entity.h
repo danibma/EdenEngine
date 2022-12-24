@@ -4,6 +4,7 @@
 
 #include "Scene.h"
 #include "Core/Base.h"
+#include "Core/Assertions.h"
 
 namespace Eden
 {

@@ -14,6 +14,7 @@
 #include "Core/Memory.h"
 #include "Core/Log.h"
 #include "Core/Base.h"
+#include "Core/Assertions.h"
 #include "Graphics/RHI.h"
 
 namespace Eden
