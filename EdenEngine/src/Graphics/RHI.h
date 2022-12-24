@@ -274,7 +274,7 @@ namespace Eden
 		virtual void GenerateMips(std::shared_ptr<Texture>& texture) = 0;
 
 		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) = 0;
-		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) = 0;
+		virtual void ensureMsgResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) = 0;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) = 0;
 

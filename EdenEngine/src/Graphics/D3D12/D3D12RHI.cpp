@@ -118,12 +118,12 @@ namespace Eden
 	#endif
 
 		if (FAILED(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_Factory))))
-			ED_ASSERT_MB(false, "Failed to create dxgi factory!");
+			ensureMsg(false, "Failed to create dxgi factory!");
 
 		GetHardwareAdapter();
 
 		if (FAILED(D3D12CreateDevice(m_Adapter.Get(), s_FeatureLevel, IID_PPV_ARGS(&m_Device))))
-			ED_ASSERT_MB(false, "Faile to create device");
+			ensureMsg(false, "Faile to create device");
 
 	#ifdef ED_DEBUG
 		{
@@ -151,7 +151,7 @@ namespace Eden
 		allocatorDesc.pAdapter = m_Adapter.Get();
 
 		if (FAILED(D3D12MA::CreateAllocator(&allocatorDesc, &m_Allocator)))
-			ED_ASSERT_MB(false, "Failed to create allocator!");
+			ensureMsg(false, "Failed to create allocator!");
 
 		// Create commands
 		CreateCommands();
@@ -169,7 +169,7 @@ namespace Eden
 
 		ComPtr<IDXGISwapChain1> swapchain;
 		if (FAILED(m_Factory->CreateSwapChainForHwnd(m_CommandQueue.Get(), window->GetHandle(), &swapchainDesc, nullptr, nullptr, &swapchain)))
-			ED_ASSERT_MB(false, "Failed to create swapchain!");
+			ensureMsg(false, "Failed to create swapchain!");
 
 		// NOTE(Daniel): Disable fullscreen
 		m_Factory->MakeWindowAssociation(window->GetHandle(), DXGI_MWA_NO_ALT_ENTER);
@@ -183,12 +183,12 @@ namespace Eden
 		// Create synchronization objects
 		{
 			if (FAILED(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence))))
-				ED_ASSERT_MB(false, "Failed to create fence!");
+				ensureMsg(false, "Failed to create fence!");
 			m_FenceValues[m_FrameIndex]++;
 
 			// Create an event handler to use for frame synchronization
 			m_FenceEvent = CreateEvent(nullptr, false, false, nullptr);
-			ED_ASSERT_MB(m_FenceEvent != nullptr, HRESULT_FROM_WIN32(GetLastError()));
+			ensureMsg(m_FenceEvent != nullptr, Utils::GetLastErrorMessage());
 
 			// Wait for the command list to execute; we are reusing the same command 
 			// list in our main loop but for now, we just want to wait for setup to 
@@ -266,7 +266,7 @@ namespace Eden
 		if (!source)
 		{
 			ED_LOG_ERROR("Could not find the program shader file: {}", filePath);
-			ED_ASSERT(false);
+			ensure(false);
 		}
 
 		DxcBuffer sourceBuffer;
@@ -562,7 +562,7 @@ namespace Eden
 		{
 			heapType = D3D12_HEAP_TYPE_READBACK;
 			state = ResourceState::COPY_DEST;
-			ED_ASSERT_LOG(!initial_data, "A readback buffer cannot have initial data!");
+			ensureMsg(!initial_data, "A readback buffer cannot have initial data!");
 			initial_data = nullptr;
 		}
 
@@ -637,7 +637,7 @@ namespace Eden
 				auto attachmentInternal_state = ToInternal(attachment.get());
 
 				if (FAILED(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&attachmentInternal_state->resource))))
-					ED_ASSERT_MB(false, "Failed to get render target from swapchain!");
+					ensureMsg(false, "Failed to get render target from swapchain!");
 
 				m_Device->CreateRenderTargetView(attachmentInternal_state->resource.Get(), nullptr, rtvHandle);
 				rtvHandle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
@@ -912,7 +912,7 @@ namespace Eden
 		psoDesc.NumRenderTargets = attachmentsIndex;
 
 		if (FAILED(m_Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&internal_state->pipelineState))))
-			ED_ASSERT_MB(false, "Failed to create graphics pipeline state!");
+			ensureMsg(false, "Failed to create graphics pipeline state!");
 
 		std::wstring pipelineName;
 		Utils::StringConvert(desc->programName, pipelineName);
@@ -941,7 +941,7 @@ namespace Eden
 		psoDesc.pRootSignature = internal_state->rootSignature.Get();
 		psoDesc.CS = { computeShader.blob->GetBufferPointer(), computeShader.blob->GetBufferSize() };
 		if (FAILED(m_Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&internal_state->pipelineState))))
-			ED_ASSERT_MB(false, "Failed to create compute pipeline state!");
+			ensureMsg(false, "Failed to create compute pipeline state!");
 
 		std::wstring pipelineName;
 		Utils::StringConvert(desc->programName, pipelineName);
@@ -957,20 +957,20 @@ namespace Eden
 		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 		commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 		if (FAILED(m_Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_CommandQueue))))
-			ED_ASSERT_MB(false, "Failed to create command queue!");
+			ensureMsg(false, "Failed to create command queue!");
 
 		// Create graphics command allocator
 		if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator))))
-			ED_ASSERT_MB(false, "Failed to create command allocator!");
+			ensureMsg(false, "Failed to create command allocator!");
 		m_CommandAllocator->SetName(L"gfxCommandAllocator");
 
 		// Create graphics command list
 		if (FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList))))
-			ED_ASSERT_MB(false, "Failed to create command list!");
+			ensureMsg(false, "Failed to create command list!");
 		m_CommandList->SetName(L"gfxCommandList");
 	}
 
-	void D3D12RHI::EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState)
+	void D3D12RHI::ensureMsgResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState)
 	{
 		if (resource->currentState != destResourceState)
 		{
@@ -996,7 +996,7 @@ namespace Eden
 
 		if (desc->type == Graphics)
 		{
-			ED_ASSERT(desc->renderPass);
+			ensure(desc->renderPass);
 			CreateGraphicsPipeline(pipeline, internal_state, desc);
 		}
 		else if (desc->type == Compute)
@@ -1052,7 +1052,7 @@ namespace Eden
 	{
 		ED_PROFILE_FUNCTION();
 
-		ED_ASSERT_LOG(desc->type == TextureDesc::Texture2D, "Only texture2d is implemented!");
+		ensureMsg(desc->type == TextureDesc::Texture2D, "Only texture2d is implemented!");
 
 		std::shared_ptr<Texture> texture = std::make_shared<Texture>();
 		auto internal_state = std::make_shared<D3D12Texture>();
@@ -1094,11 +1094,11 @@ namespace Eden
 
 		if (desc->data)
 		{
-			EnsureResourceState(texture, ResourceState::COPY_DEST);
+			ensureMsgResourceState(texture, ResourceState::COPY_DEST);
 			SetTextureData(texture);
 			if (desc->bGenerateMips)
 				GenerateMips(texture);
-			EnsureResourceState(texture, destResourceState);
+			ensureMsgResourceState(texture, destResourceState);
 		}
 
 		// Describe and create a the main SRV for the texture
@@ -1125,8 +1125,8 @@ namespace Eden
 
 	std::shared_ptr<RenderPass> D3D12RHI::CreateRenderPass(RenderPassDesc* desc)
 	{
-		ED_ASSERT_LOG(desc->width > 0, "Render Pass width has to be > 0");
-		ED_ASSERT_LOG(desc->height > 0, "Render Pass height has to be > 0");
+		ensureMsg(desc->width > 0, "Render Pass width has to be > 0");
+		ensureMsg(desc->height > 0, "Render Pass height has to be > 0");
 
 		std::shared_ptr<RenderPass> renderPass = std::make_shared<RenderPass>();
 		auto internal_state = std::make_shared<D3D12RenderPass>();
@@ -1137,8 +1137,8 @@ namespace Eden
 		internal_state->rtvHeap = CreateDescriptorHeap(s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		internal_state->dsvHeap = CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
-		ED_ASSERT_LOG(desc->attachmentsFormats.size() > 0, "Can't create render pass without attachments");
-		ED_ASSERT_LOG(desc->attachmentsFormats.size() < 8, "Can't create a render pass with more than 8 attachments");
+		ensureMsg(desc->attachmentsFormats.size() > 0, "Can't create render pass without attachments");
+		ensureMsg(desc->attachmentsFormats.size() < 8, "Can't create a render pass with more than 8 attachments");
 
 		// NOTE: For now it is only possible to have one depth attachment
 		CreateAttachments(renderPass);
@@ -1235,7 +1235,7 @@ namespace Eden
 
 		BindPipeline(m_MipsPipeline);
 		SetDescriptorHeap(m_SRVHeap);
-		EnsureResourceState(texture, ResourceState::UNORDERED_ACCESS);
+		ensureMsgResourceState(texture, ResourceState::UNORDERED_ACCESS);
 		for (uint32_t i = 0; i < texture->mipCount - 1; ++i)
 		{
 			// Update source texture subresource state
@@ -1324,8 +1324,8 @@ namespace Eden
 	void D3D12RHI::BindVertexBuffer(std::shared_ptr<Buffer>& vertexBuffer)
 	{
 		auto internal_state = ToInternal(vertexBuffer.get());
-		ED_ASSERT_LOG(internal_state->resource != nullptr, "Can't bind a empty vertex buffer!");
-		ED_ASSERT_LOG(m_BoundPipeline->desc.type == Graphics, "Can't bind a vertex buffer on a compute pipeline!");
+		ensureMsg(internal_state->resource != nullptr, "Can't bind a empty vertex buffer!");
+		ensureMsg(m_BoundPipeline->desc.type == Graphics, "Can't bind a vertex buffer on a compute pipeline!");
 
 		m_BoundVertexBuffer.BufferLocation	= internal_state->resource->GetGPUVirtualAddress();
 		m_BoundVertexBuffer.SizeInBytes		= vertexBuffer->size;
@@ -1335,8 +1335,8 @@ namespace Eden
 	void D3D12RHI::BindIndexBuffer(std::shared_ptr<Buffer>& indexBuffer)
 	{
 		auto internal_state = ToInternal(indexBuffer.get());
-		ED_ASSERT_LOG(internal_state->resource != nullptr, "Can't bind a empty index buffer!");
-		ED_ASSERT_LOG(m_BoundPipeline->desc.type == Graphics, "Can't bind a index buffer on a compute pipeline!");
+		ensureMsg(internal_state->resource != nullptr, "Can't bind a empty index buffer!");
+		ensureMsg(m_BoundPipeline->desc.type == Graphics, "Can't bind a index buffer on a compute pipeline!");
 
 		m_BoundIndexBuffer.BufferLocation	= internal_state->resource->GetGPUVirtualAddress();
 		m_BoundIndexBuffer.SizeInBytes		= indexBuffer->size;
@@ -1358,11 +1358,11 @@ namespace Eden
 		{
 			gpuHandle.ptr += static_cast<uint64_t>(m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-			EnsureResourceState(texture, ResourceState::UNORDERED_ACCESS);
+			ensureMsgResourceState(texture, ResourceState::UNORDERED_ACCESS);
 		}
 		else
 		{
-			EnsureResourceState(texture, ResourceState::PIXEL_SHADER);
+			ensureMsgResourceState(texture, ResourceState::PIXEL_SHADER);
 		}
 		BindRootParameter(parameterName, gpuHandle);
 	}
@@ -1455,7 +1455,7 @@ namespace Eden
 		if (renderPass->desc.bIsSwapchainTarget)
 		{
 			rtvHandle = GetCPUHandle(internal_state->rtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
-			EnsureResourceState(renderPass->colorAttachments[m_FrameIndex], ResourceState::RENDER_TARGET);
+			ensureMsgResourceState(renderPass->colorAttachments[m_FrameIndex], ResourceState::RENDER_TARGET);
 		}
 		else
 		{
@@ -1467,7 +1467,7 @@ namespace Eden
 					CreateAttachments(renderPass);
 				}
 				rtvHandle = GetCPUHandle(internal_state->rtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
-				EnsureResourceState(attachment, ResourceState::RENDER_TARGET);
+				ensureMsgResourceState(attachment, ResourceState::RENDER_TARGET);
 			}
 		}
 
@@ -1495,7 +1495,7 @@ namespace Eden
 
 	void D3D12RHI::SetSwapchainTarget(std::shared_ptr<RenderPass>& renderPass)
 	{
-		ED_ASSERT_LOG(renderPass->desc.bIsSwapchainTarget, "SetSwapchainTarget render pass was not created as a swapchain target!");
+		ensureMsg(renderPass->desc.bIsSwapchainTarget, "SetSwapchainTarget render pass was not created as a swapchain target!");
 		m_SwapchainTarget = renderPass;
 	}
 
@@ -1519,12 +1519,12 @@ namespace Eden
 
 		if (renderPass->desc.bIsSwapchainTarget)
 		{
-			EnsureResourceState(renderPass->colorAttachments[m_FrameIndex], ResourceState::PRESENT);
+			ensureMsgResourceState(renderPass->colorAttachments[m_FrameIndex], ResourceState::PRESENT);
 		}
 		else
 		{
 			for (auto& attachment : renderPass->colorAttachments)
-				EnsureResourceState(attachment, ResourceState::PIXEL_SHADER);
+				ensureMsgResourceState(attachment, ResourceState::PIXEL_SHADER);
 		}
 	}
 
@@ -1538,8 +1538,8 @@ namespace Eden
 	{
 		auto internal_state = ToInternal(m_BoundPipeline.get());
 
-		ED_ASSERT_LOG(internal_state->pipelineState != nullptr, "Can't Draw without a valid pipeline bound!");
-		ED_ASSERT_LOG(internal_state->rootSignature != nullptr, "Can't Draw without a valid pipeline bound!");
+		ensureMsg(internal_state->pipelineState != nullptr, "Can't Draw without a valid pipeline bound!");
+		ensureMsg(internal_state->rootSignature != nullptr, "Can't Draw without a valid pipeline bound!");
 
 		ED_PROFILE_FUNCTION();
 
@@ -1610,10 +1610,10 @@ namespace Eden
 		}
 		else
 		{
-			ED_ASSERT_MB(false, "Failed to get IDXGIFactory6!");
+			ensureMsg(false, "Failed to get IDXGIFactory6!");
 		}
 
-		ED_ASSERT_MB(adapter.Get() != nullptr, "Failed to get a compatible adapter!");
+		ensureMsg(adapter.Get() != nullptr, "Failed to get a compatible adapter!");
 
 		 adapter.Swap(m_Adapter);
 	}
@@ -1625,7 +1625,7 @@ namespace Eden
 		ED_PROFILE_GPU_FUNCTION("D3D12RHI::Render");
 
 		if (FAILED(m_CommandList->Close()))
-			ED_ASSERT_MB(false, "Failed to close command list");
+			ensureMsg(false, "Failed to close command list");
 
 		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
 		m_CommandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
@@ -1659,7 +1659,7 @@ namespace Eden
 
 	void D3D12RHI::Resize(uint32_t width, uint32_t height)
 	{
-		ED_ASSERT_LOG(m_SwapchainTarget, "Failed to resize, no Render Target Render Pass assigned");
+		ensureMsg(m_SwapchainTarget, "Failed to resize, no Render Target Render Pass assigned");
 
 		auto internal_state = ToInternal(m_SwapchainTarget.get());
 		if (m_Device && m_Swapchain)
@@ -1668,7 +1668,7 @@ namespace Eden
 
 			WaitForGPU();
 			if (FAILED(m_CommandList->Close()))
-				ED_ASSERT_MB(false, "Failed to close command list");
+				ensureMsg(false, "Failed to close command list");
 
 			for (size_t i = 0; i < s_FrameCount; ++i)
 			{
@@ -1746,9 +1746,9 @@ namespace Eden
 		srcRegion.back = 1;
 		srcRegion.front = 0;
 
-		EnsureResourceState(texture, ResourceState::COPY_SRC);
+		ensureMsgResourceState(texture, ResourceState::COPY_SRC);
 		m_CommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcRegion);
-		EnsureResourceState(texture, ResourceState::PIXEL_SHADER);
+		ensureMsgResourceState(texture, ResourceState::PIXEL_SHADER);
 
 		m_CommandList->Close();
 		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
@@ -1793,7 +1793,7 @@ namespace Eden
 	uint32_t D3D12RHI::AllocateHandle(std::shared_ptr<DescriptorHeap> descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType /*= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV*/)
 	{
 		if (heapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-			ED_ASSERT_LOG(descriptorHeap->offset < s_SRVDescriptorCount, "This SRV Descriptor heap is full!");
+			ensureMsg(descriptorHeap->offset < s_SRVDescriptorCount, "This SRV Descriptor heap is full!");
 
 		auto handleOffset = descriptorHeap->offset;
 		descriptorHeap->offset++;
@@ -1810,7 +1810,7 @@ namespace Eden
 		heapDesc.Flags = flags;
 
 		if (FAILED(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap->heap))))
-			ED_ASSERT_MB(false, "Failed to create Shader Resource View descriptor heap!");
+			ensureMsg(false, "Failed to create Shader Resource View descriptor heap!");
 
 		return descriptorHeap;
 	}
@@ -1840,7 +1840,7 @@ namespace Eden
 		auto rootParameterIndex = m_BoundPipeline->rootParameterIndices.find(parameterName.data());
 
 		bool bWasRootParameterFound = rootParameterIndex != m_BoundPipeline->rootParameterIndices.end();
-		ED_ASSERT_LOG(bWasRootParameterFound, "Failed to find root parameter!");
+		ensureMsg(bWasRootParameterFound, "Failed to find root parameter!");
 
 		return rootParameterIndex->second;
 	}

@@ -130,7 +130,7 @@ namespace Eden
 		virtual void GenerateMips(std::shared_ptr<Texture>& texture) override;
 
 		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) override;
-		virtual void EnsureResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) override;
+		virtual void ensureMsgResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) override;
 
 		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) override;
 

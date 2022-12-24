@@ -2,6 +2,7 @@
 #include "Core/Memory.h"
 #include "Core/Input.h"
 #include "Core/Log.h"
+#include "Core/Assertions.h"
 #include "Core/Application.h"
 #include "UI/UI.h"
 #include "Core/Camera.h"
@@ -474,7 +475,7 @@ public:
 		ImVec2 imageSize;
 		imageSize.x = static_cast<float>(m_OutputTexture->desc.width);
 		imageSize.y = static_cast<float>(m_OutputTexture->desc.height);
-		rhi->EnsureResourceState(m_OutputTexture, ResourceState::PIXEL_SHADER);
+		rhi->ensureMsgResourceState(m_OutputTexture, ResourceState::PIXEL_SHADER);
 		ImGui::Image((ImTextureID)rhi->GetTextureID(m_OutputTexture), imageSize);
 		ImGui::Separator();
 

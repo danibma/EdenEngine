@@ -1,13 +1,37 @@
-// Asserts
+#pragma once
 
 #include "Log.h"
 
+inline void EnsureMsgImpl(bool condition, const char* msg)
+{
+	if(!(condition)) 
+	{ 
+		ED_LOG_FATAL("Assertion Failed: {}", msg); 
+		__debugbreak(); 
+	}
+}
+
+inline void EnsureMsgImpl(bool condition, const std::string& msg)
+{
+	if(!(condition)) 
+	{ 
+		ED_LOG_FATAL("Assertion Failed: {}", msg); 
+		__debugbreak(); 
+	}
+}
+
+inline void EnsureImpl(bool condition)
+{
+	if(!(condition)) 
+	{ 
+		__debugbreak(); 
+	}
+}
+
 #if defined(ED_DEBUG) || defined(ED_PROFILING)
-#define ED_ASSERT_MB(condition, ...) if(!(condition)) { ED_LOG_FATAL("Assertion Failed: {}", __VA_ARGS__); MessageBoxA(nullptr, #__VA_ARGS__, "Eden Engine Error!", MB_OK); __debugbreak(); }
-#define ED_ASSERT_LOG(condition, ...) if(!(condition)) { ED_LOG_FATAL("Assertion Failed: {}", __VA_ARGS__); __debugbreak(); }
-#define ED_ASSERT(condition) if(!(condition)) { __debugbreak(); }
+#define ensureMsg(condition, msg) EnsureMsgImpl(!!(condition), msg)
+#define ensure(condition) EnsureImpl(!!(condition))
 #else
-#define ED_ASSERT_MB(condition, ...) {}
-#define ED_ASSERT_LOG(condition, ...) {}
-#define ED_ASSERT(condition) {}
+#define ensureMsg(condition, ...) {}
+#define ensure(condition) {}
 #endif

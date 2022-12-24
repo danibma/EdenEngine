@@ -96,7 +96,7 @@ namespace Eden
 								  GetModuleHandle(nullptr),		 // Instance handle
 								  NULL);						 // Additional application data
 
-		ED_ASSERT(m_Handle);
+		ensure(m_Handle);
 
 		SetWindowLongPtrA(m_Handle, GWLP_USERDATA, (LONG_PTR)this);
 
@@ -140,7 +140,7 @@ namespace Eden
 		Rid.dwFlags = RIDEV_INPUTSINK;
 		Rid.hwndTarget = m_Handle;
 		if (!RegisterRawInputDevices(&Rid, 1, sizeof(RAWINPUTDEVICE)))
-			ED_ASSERT_MB(false, "Failed to register raw input device");
+			ensureMsg(false, "Failed to register raw input device");
 	}
 
 	Window::~Window()

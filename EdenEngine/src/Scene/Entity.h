@@ -21,21 +21,21 @@ namespace Eden
 		template<typename T>
 		T& GetComponent()
 		{
-			ED_ASSERT_LOG(HasComponent<T>(), "Entity does not have component");
+			ensureMsg(HasComponent<T>(), "Entity does not have component");
 			return m_Scene->m_Registry.get<T>(m_EntityHandler);
 		}
 
 		template<typename T, typename... Args>
 		T& AddComponent(Args&&... args)
 		{
-			ED_ASSERT_LOG(!HasComponent<T>(), "Entity already has component");
+			ensureMsg(!HasComponent<T>(), "Entity already has component");
 			return m_Scene->m_Registry.emplace<T>(m_EntityHandler, std::forward<Args>(args)...);
 		}
 
 		template<typename T>
 		void RemoveComponent()
 		{
-			ED_ASSERT_LOG(HasComponent<T>(), "Entity does not have component");
+			ensureMsg(HasComponent<T>(), "Entity does not have component");
 			m_Scene->m_Registry.remove<T>(m_EntityHandler);
 		}
 

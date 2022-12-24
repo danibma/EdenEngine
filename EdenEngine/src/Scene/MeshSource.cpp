@@ -50,7 +50,7 @@ namespace Eden
 		if (!err.empty())
 			ED_LOG_ERROR("{}", err.c_str());
 
-		ED_ASSERT_LOG(bIsGLTFModelValid, "Failed to parse GLTF Model!");
+		ensureMsg(bIsGLTFModelValid, "Failed to parse GLTF Model!");
 
 		uint32_t blackTextureData = 0xff000000;
 		TextureDesc blackDesc = {};
