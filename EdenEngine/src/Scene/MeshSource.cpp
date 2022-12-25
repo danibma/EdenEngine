@@ -59,7 +59,8 @@ namespace Eden
 		blackDesc.height = 1;
 		blackDesc.bIsStorage = false;
 		blackDesc.bGenerateMips = false;
-		auto blackTexture = rhi->CreateTexture(&blackDesc);
+		Texture blackTexture;
+		rhi->CreateTexture(&blackTexture, &blackDesc);
 
 		std::string parent_path = file.parent_path().string() + "/";
 
@@ -215,7 +216,7 @@ namespace Eden
 					auto material_index = gltfMaterial.values["baseColorTexture"].TextureIndex();
 					auto textureIndex = gltfModel.textures[material_index].source;
 				
-					submesh->diffuseTexture = LoadImage(rhi, gltfModel, textureIndex);
+					LoadImage(&submesh->diffuseTexture, rhi, gltfModel, textureIndex);
 				}
 
 				if (gltfMaterial.emissiveTexture.index > -1)
@@ -223,7 +224,7 @@ namespace Eden
 					auto material_index = gltfMaterial.emissiveTexture.index;
 					auto textureIndex = gltfModel.textures[material_index].source;
 				
-					submesh->emissiveTexture = LoadImage(rhi, gltfModel, textureIndex);
+					LoadImage(&submesh->emissiveTexture, rhi, gltfModel, textureIndex);
 				}
 
 				mesh->submeshes.emplace_back(submesh);
@@ -239,13 +240,13 @@ namespace Eden
 		vbDesc.elementCount = vertexCount;
 		vbDesc.stride = sizeof(VertexData);
 		vbDesc.usage = BufferDesc::Vertex_Index;
-		meshVb = rhi->CreateBuffer(&vbDesc, vertices.data());
+		rhi->CreateBuffer(&meshVb, &vbDesc, vertices.data());
 
 		BufferDesc ibDesc;
 		ibDesc.elementCount = indexCount;
 		ibDesc.stride = sizeof(uint32_t);
 		ibDesc.usage = BufferDesc::Vertex_Index;
-		meshIb = rhi->CreateBuffer(&ibDesc, indices.data());
+		rhi->CreateBuffer(&meshIb, &ibDesc, indices.data());
 		bHasMesh = true;
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());
@@ -260,7 +261,7 @@ namespace Eden
 		meshes.clear();
 	}
 
-	std::shared_ptr<Eden::Texture> MeshSource::LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex)
+	void MeshSource::LoadImage(Texture* texture, std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex)
 	{
 		tinygltf::Image& gltfImage = gltfModel.images[imageIndex];
 
@@ -294,12 +295,10 @@ namespace Eden
 		desc.width = gltfImage.width;
 		desc.height = gltfImage.height;
 		desc.bIsStorage = false;
-		auto texture = rhi->CreateTexture(&desc);
+		rhi->CreateTexture(texture, &desc);
 		rhi->SetName(texture, gltfImage.name);
 
 		if (bDeleteBuffer)
 			edelete buffer;
-
-		return texture;
 	}
 }

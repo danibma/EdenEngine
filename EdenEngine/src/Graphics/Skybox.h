@@ -4,16 +4,16 @@
 #include <string>
 #include <glm/glm.hpp>
 
+#include "Graphics/RHI.h"
+
 namespace Eden
 {
 	class IRHI;
-	struct Texture;
-	struct Buffer;
 	struct MeshSource;
 	class Skybox
 	{
 		std::unique_ptr<MeshSource> m_SkyboxCube;
-		std::shared_ptr<Texture> m_SkyboxTexture;
+		Texture m_SkyboxTexture;
 		std::string m_SkyboxTexturePath;
 		glm::mat4 m_ViewProjection;
 

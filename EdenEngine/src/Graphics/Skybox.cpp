@@ -1,6 +1,5 @@
 #include "Skybox.h"
 
-#include "Graphics/RHI.h"
 #include "Scene/MeshSource.h"
 
 namespace Eden
@@ -13,7 +12,7 @@ namespace Eden
 
 		m_SkyboxCube = std::make_unique<MeshSource>();
 		m_SkyboxCube->LoadGLTF(rhi, "assets/models/basic/cube.glb");
-		m_SkyboxTexture = rhi->CreateTexture(m_SkyboxTexturePath, false);
+		rhi->CreateTexture(&m_SkyboxTexture, m_SkyboxTexturePath, false);
 	}
 
 	Skybox::~Skybox()
@@ -22,8 +21,8 @@ namespace Eden
 
 	void Skybox::Render(std::shared_ptr<IRHI>& rhi, glm::mat4 viewProjectMatrix)
 	{
-		rhi->BindVertexBuffer(m_SkyboxCube->meshVb);
-		rhi->BindIndexBuffer(m_SkyboxCube->meshIb);
+		rhi->BindVertexBuffer(&m_SkyboxCube->meshVb);
+		rhi->BindIndexBuffer(&m_SkyboxCube->meshIb);
 		for (auto& mesh : m_SkyboxCube->meshes)
 		{
 			m_ViewProjection = viewProjectMatrix;
@@ -31,7 +30,7 @@ namespace Eden
 			rhi->BindParameter("SkyboxData", &m_ViewProjection, sizeof(glm::mat4));
 			for (auto& submesh : mesh->submeshes)
 			{
-				rhi->BindParameter("g_CubemapTexture", m_SkyboxTexture);
+				rhi->BindParameter("g_CubemapTexture", &m_SkyboxTexture);
 				rhi->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 			}
 		}
@@ -44,7 +43,7 @@ namespace Eden
 
 	void Skybox::UpdateNewTexture(std::shared_ptr<IRHI>& rhi)
 	{
-		m_SkyboxTexture = rhi->CreateTexture(m_SkyboxTexturePath, false);
+		rhi->CreateTexture(&m_SkyboxTexture, m_SkyboxTexturePath, false);
 	}
 
 }

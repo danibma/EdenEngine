@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 
 #include "Core/Window.h"
+#include "Core/Memory.h"
  
 namespace Eden
 {
@@ -15,116 +16,126 @@ namespace Eden
 	// TODO: Right now just use a huge number here, and refactor when bindless descriptors are added
 	constexpr uint32_t s_SRVDescriptorCount = 10000; 
 
-	enum ShaderStage
+	enum class GfxResult
 	{
-		VS = 0,
-		PS,
-		CS,
-		COUNT // Don't use this
+		kNoError = 0,
+		kInvalidParameter,
+		kOutOfMemory,
+		kInternalError,
+
+		kCount
+	};
+
+	enum class ShaderStage
+	{
+		kVS = 0,
+		kPS,
+		kCS,
+		kCount // Don't use this
 	};
 
 	enum class ComparisonFunc
 	{
-		NEVER,
-		LESS,
-		EQUAL,
-		LESS_EQUAL,
-		GREATER,
-		NOT_EQUAL,
-		GREATER_EQUAL,
-		ALWAYS
+		kNever,
+		kLess,
+		kEqual,
+		kLessEqual,
+		kGreater,
+		kNotEqual,
+		kGreaterEqual,
+		kAlways
 	};
 
 	enum class CullMode
 	{
-		NONE,
-		FRONT,
-		BACK
+		kNone,
+		kFront,
+		kBack
 	};
 
 	enum class Blend
 	{
-		ZERO,
-		ONE,
-		SRC_COLOR,
-		INV_SRC_COLOR,
-		SRC_ALPHA,
-		INV_SRC_ALPHA,
-		DEST_ALPHA,
-		INV_DEST_ALPHA,
-		DEST_COLOR,
-		INV_DEST_COLOR,
-		SRC_ALPHA_SAT,
-		BLEND_FACTOR,
-		INV_BLEND_FACTOR,
-		SRC1_COLOR,
-		INV_SRC1_COLOR,
-		SRC1_ALPHA,
-		INV_SRC1_ALPHA,
+		kZero,
+		kOne,
+		kSrcColor,
+		kInvSrcColor,
+		kSrcAlpha,
+		kInvSrcAlpha,
+		kDestAlpha,
+		kInvDestAlpha,
+		kDestColor,
+		kInvDestColor,
+		kSrcAlphaSat,
+		kBlendFactor,
+		kInvBlendFactor,
+		kSrc1Color,
+		kInvSrc1Color,
+		kSrc1Alpha,
+		kInvSrc1Alpha,
 	};
 	enum class BlendOp
 	{
-		ADD,
-		SUBTRACT,
-		REV_SUBTRACT,
-		MIN,
-		MAX,
+		kAdd,
+		kSubtract,
+		kRevSubtract,
+		kMin,
+		kMax,
 	};
 
 	enum class Format
 	{
-		UNKNOWN,
+		kUnknown,
 
-		R8_UNORM,
-		R8_UINT,
-		R16_UINT,
-		R32_UINT,
-		R32_FLOAT,
-		RG8_UNORM,
-		RG16_FLOAT,
-		RG32_FLOAT,
-		RGBA8_UNORM,
-		RGBA16_FLOAT,
-		RGBA32_FLOAT,
+		kR8_UNORM,
+		kR8_UINT,
+		kR16_UINT,
+		kR32_UINT,
+		kR32_FLOAT,
+		kRG8_UNORM,
+		kRG16_FLOAT,
+		kRG32_FLOAT,
+		kRGBA8_UNORM,
+		kRGBA16_FLOAT,
+		kRGBA32_FLOAT,
 
-		SRGB,
+		kSRGB,
 
-		DEPTH32_FLOAT_STENCIL8X24_UINT,
-		DEPTH32_FLOAT,
-		DEPTH24_STENCIL8,
+		kDepth32FloatStencil8X24_UINT,
+		kDepth32_FLOAT,
+		kDepth24Stencil8,
 
-		R32_FLOAT_X8X24_TYPELESS,
-		R32_TYPELESS,
-		R24_X8_TYPELESS,
+		kR32_FLOAT_X8X24_TYPELESS,
+		kR32_TYPELESS,
+		kR24_X8_TYPELESS,
 
 		// Defaults
-		Depth = DEPTH24_STENCIL8,
+		Depth = kDepth24Stencil8,
 	};
 
 	enum class ResourceState
 	{
-		COMMON,
-		RENDER_TARGET,
-		PRESENT,
-		UNORDERED_ACCESS,
-		PIXEL_SHADER,
-		NON_PIXEL_SHADER,
-		READ,
-		COPY_DEST,
-		COPY_SRC,
-		DEPTH_READ,
-		DEPTH_WRITE
+		kCommon,
+		kRenderTarget,
+		kPresent,
+		kUnorderedAccess,
+		kPixelShader,
+		kNonPixelShader,
+		kRead,
+		kCopyDest,
+		kCopySrc,
+		kDepthRead,
+		kDepthWrite
 	};
 
 	enum PipelineType
 	{
-		Graphics,
-		Compute // Not implemented
+		kPipelineType_Graphics,
+		kPipelineType_Compute // Not implemented
 	};
 
 	enum API
 	{
-		D3D12
+		kApi_D3D12
 	};
 
 	enum TextureUsage
@@ -137,7 +148,7 @@ namespace Eden
 	{
 		std::string debugName;
 		std::shared_ptr<void> internal_state;
-		bool IsValid() { return internal_state.get() != nullptr; }
+		bool IsValid() { return internal_state != nullptr; }
 		operator bool()
 		{
 			return IsValid();
@@ -209,8 +220,8 @@ namespace Eden
 
 	struct RenderPass : GraphicsChild
 	{
-		std::vector<std::shared_ptr<Texture>> colorAttachments;
-		std::shared_ptr<Texture> depthStencil;
+		std::vector<Texture> colorAttachments;
+		Texture depthStencil;
 		RenderPassDesc desc;
 	};
 
@@ -220,10 +231,10 @@ namespace Eden
 		bool bEnableBlending = false;
 		bool bIsFrontCounterClockwise = true;
 		float minDepth = 0.0f;
-		CullMode cull_mode = CullMode::BACK;
-		ComparisonFunc depthFunc = ComparisonFunc::LESS;
-		PipelineType type = Graphics;
-		std::shared_ptr<RenderPass> renderPass;
+		CullMode cull_mode = CullMode::kBack;
+		ComparisonFunc depthFunc = ComparisonFunc::kLess;
+		PipelineType type = kPipelineType_Graphics;
+		RenderPass* renderPass;
 	};
 
 	struct Pipeline : GraphicsChild
@@ -239,7 +250,7 @@ namespace Eden
 	{
 		double elapsedTime = 0.0f;
 
-		std::shared_ptr<Buffer> readbackBuffer;
+		Buffer readbackBuffer;
 	};
 
 	class IRHI
@@ -255,45 +266,45 @@ namespace Eden
 		int32_t GetCurrentFrameIndex() { return m_FrameIndex; }
 		API GetCurrentAPI() { return m_CurrentAPI; }
 
-		virtual void Init(Window* window) = 0;
+		virtual GfxResult Init(Window* window) = 0;
 		virtual void Shutdown() = 0;
 
-		virtual std::shared_ptr<Buffer> CreateBuffer(BufferDesc* desc, const void* initial_data) = 0;
-		virtual std::shared_ptr<Pipeline> CreatePipeline(PipelineDesc* desc) = 0;
-		virtual std::shared_ptr<Texture> CreateTexture(std::string path, bool bGenerateMips) = 0;
-		virtual std::shared_ptr<Texture> CreateTexture(TextureDesc* desc) = 0;
-		virtual std::shared_ptr<RenderPass> CreateRenderPass(RenderPassDesc* desc) = 0;
-		virtual std::shared_ptr<GPUTimer> CreateGPUTimer() = 0;
+		virtual GfxResult CreateBuffer(Buffer* buffer, BufferDesc* desc, const void* initial_data) = 0;
+		virtual GfxResult CreatePipeline(Pipeline* pipeline, PipelineDesc* desc) = 0;
+		virtual GfxResult CreateTexture(Texture* texture, std::string path, bool bGenerateMips) = 0;
+		virtual GfxResult CreateTexture(Texture* texture, TextureDesc* desc) = 0;
+		virtual GfxResult CreateRenderPass(RenderPass* renderPass, RenderPassDesc* desc) = 0;
+		virtual GfxResult CreateGPUTimer(GPUTimer* timer) = 0;
 
-		virtual void SetName(std::shared_ptr<Resource> child, std::string& name) = 0;
+		virtual void SetName(Resource* child, std::string& name) = 0;
 
-		virtual void BeginGPUTimer(std::shared_ptr<GPUTimer>& timer) = 0;
-		virtual void EndGPUTimer(std::shared_ptr<GPUTimer>& timer) = 0;
+		virtual void BeginGPUTimer(GPUTimer* timer) = 0;
+		virtual void EndGPUTimer(GPUTimer* timer) = 0;
 
-		virtual void UpdateBufferData(std::shared_ptr<Buffer>& buffer, const void* data, uint32_t count = 0) = 0;
-		virtual void GenerateMips(std::shared_ptr<Texture>& texture) = 0;
+		virtual GfxResult UpdateBufferData(Buffer* buffer, const void* data, uint32_t count = 0) = 0;
+		virtual void GenerateMips(Texture* texture) = 0;
 
-		virtual void ChangeResourceState(std::shared_ptr<Texture>& resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) = 0;
-		virtual void ensureMsgResourceState(std::shared_ptr<Texture>& resource, ResourceState destResourceState) = 0;
+		virtual void ChangeResourceState(Texture* resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) = 0;
+		virtual void EnsureMsgResourceState(Texture* resource, ResourceState destResourceState) = 0;
 
-		virtual uint64_t GetTextureID(std::shared_ptr<Texture>& texture) = 0;
+		virtual uint64_t GetTextureID(Texture* texture) = 0;
 
-		virtual void ReloadPipeline(std::shared_ptr<Pipeline>& pipeline) = 0;
+		virtual GfxResult ReloadPipeline(Pipeline* pipeline) = 0;
 
 		virtual void EnableImGui() = 0;
 		virtual void ImGuiNewFrame() = 0;
 
-		virtual void BindPipeline(const std::shared_ptr<Pipeline>& pipeline) = 0;
-		virtual void BindVertexBuffer(std::shared_ptr<Buffer>& vertexBuffer) = 0;
-		virtual void BindIndexBuffer(std::shared_ptr<Buffer>& indexBuffer) = 0;
-		virtual void BindParameter(const std::string& parameterName, std::shared_ptr<Buffer>& buffer) = 0;
-		virtual void BindParameter(const std::string& parameterName, std::shared_ptr<Texture>& texture, TextureUsage usage = kReadOnly) = 0;
+		virtual void BindPipeline(Pipeline* pipeline) = 0;
+		virtual void BindVertexBuffer(Buffer* vertexBuffer) = 0;
+		virtual void BindIndexBuffer(Buffer* indexBuffer) = 0;
+		virtual void BindParameter(const std::string& parameterName, Buffer* buffer) = 0;
+		virtual void BindParameter(const std::string& parameterName, Texture* texture, TextureUsage usage = kReadOnly) = 0;
 		virtual void BindParameter(const std::string& parameterName, void* data, size_t size) = 0; // Use only for constants
 
 		virtual void BeginRender() = 0;
-		virtual void BeginRenderPass(std::shared_ptr<RenderPass>& renderPass) = 0;
-		virtual void SetSwapchainTarget(std::shared_ptr<RenderPass>& renderPass) = 0;
-		virtual void EndRenderPass(std::shared_ptr<RenderPass>& renderPass) = 0;
+		virtual void BeginRenderPass(RenderPass* renderPass) = 0;
+		virtual void SetSwapchainTarget(RenderPass* renderPass) = 0;
+		virtual void EndRenderPass(RenderPass* renderPass) = 0;
 		virtual void EndRender() = 0;
 
 		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) = 0;
@@ -301,9 +312,9 @@ namespace Eden
 		virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) = 0;
 
 		virtual void Render() = 0;
-		virtual void Resize(uint32_t width, uint32_t height) = 0;
+		virtual GfxResult Resize(uint32_t width, uint32_t height) = 0;
 
-		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, std::shared_ptr<Texture> texture, glm::vec4& pixel) = 0;
+		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, Texture* texture, glm::vec4& pixel) = 0;
 
 	protected:
 		int GetDepthFormatIndex(std::vector<Format>& formats)
@@ -319,9 +330,9 @@ namespace Eden
 
 		bool IsDepthFormat(Format format)
 		{
-			if (format == Format::DEPTH32_FLOAT_STENCIL8X24_UINT ||
-				format == Format::DEPTH32_FLOAT ||
-				format == Format::DEPTH24_STENCIL8)
+			if (format == Format::kDepth32FloatStencil8X24_UINT ||
+				format == Format::kDepth32_FLOAT ||
+				format == Format::kDepth24Stencil8)
 			{
 				return true;
 			}
@@ -340,9 +351,9 @@ namespace Eden
 		{
 			switch (target)
 			{
-			case VS:
+			case ShaderStage::kVS:
 				return "Vertex";
-			case PS:
+			case ShaderStage::kPS:
 				return "Pixel";
 			default:
 				return "Null";
@@ -353,7 +364,7 @@ namespace Eden
 		{
 			switch (api)
 			{
-			case API::D3D12:
+			case API::kApi_D3D12:
 				return "<D3D12>";
 			default:
 				return "";

@@ -33,8 +33,8 @@ namespace Eden
 		{
 			struct SubMesh
 			{
-				std::shared_ptr<Texture> diffuseTexture;
-				std::shared_ptr<Texture> emissiveTexture;
+				Texture diffuseTexture;
+				Texture emissiveTexture;
 				uint32_t vertexStart;
 				uint32_t indexStart;
 				uint32_t indexCount;
@@ -46,8 +46,8 @@ namespace Eden
 
 		uint32_t vertexCount;
 		uint32_t indexCount;
-		std::shared_ptr<Buffer> meshVb;
-		std::shared_ptr<Buffer> meshIb;
+		Buffer meshVb;
+		Buffer meshIb;
 		std::vector<std::shared_ptr<Mesh>> meshes;
 		bool bHasMesh = false;
 		bool bIsTextured = false;
@@ -62,7 +62,7 @@ namespace Eden
 		}
 
 	private:
-		std::shared_ptr<Texture> LoadImage(std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex);
+		void LoadImage(Texture* texture, std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex);
 	};
 }
 
