@@ -1,21 +1,20 @@
 #include "SceneHierarchy.h"
 
 #include <imgui/imgui.h>
+#include <imgui/ImguiHelper.h>
 
+#include "Editor/Icons/IconsFontAwesome6.h"
 #include "Scene/Scene.h"
 #include "Scene/Entity.h"
 #include "Scene/Components.h"
-#include "UI/UI.h"
 #include "Core/Input.h"
 #include "Core/Application.h"
-#include "Graphics/RHI.h"
+#include "Graphics/Renderer.h"
 
 namespace Eden
 {
-	SceneHierarchy::SceneHierarchy(std::shared_ptr<IRHI>& rhi, Scene* currentScene)
+	SceneHierarchy::SceneHierarchy()
 	{
-		m_RHI = rhi;
-		m_CurrentScene = currentScene;
 	}
 
 	SceneHierarchy::~SceneHierarchy()
@@ -26,23 +25,23 @@ namespace Eden
 	{
 		ImGui::Begin(ICON_FA_BARS_STAGGERED  " Scene Hierarchy##hierarchy", &bOpenHierarchy, ImGuiWindowFlags_NoCollapse);
 		
-		auto entities = m_CurrentScene->GetAllEntitiesWith<TagComponent>();
+		auto entities = Renderer::GetCurrentScene()->GetAllEntitiesWith<TagComponent>();
 
 		// This loop is inversed because that way the last added entity shows at the bottom
 		int num_entities = static_cast<int>(entities.size() - 1);
 		for (int i = num_entities; i >= 0; --i)
 		{
 
-			Entity e = { entities[i], m_CurrentScene };
+			Entity e = { entities[i], Renderer::GetCurrentScene() };
 			ImGui::PushID(e.GetID());
 			auto& tag = e.GetComponent<TagComponent>();
 			if (tag.tag.length() == 0) tag.tag = " "; // If the tag is empty add a space to it doesnt crash
-			if (ImGui::Selectable(tag.tag.c_str(), m_CurrentScene->GetSelectedEntity() == e))
-				m_CurrentScene->SetSelectedEntity(e);
+			if (ImGui::Selectable(tag.tag.c_str(), Renderer::GetCurrentScene()->GetSelectedEntity() == e))
+				Renderer::GetCurrentScene()->SetSelectedEntity(e);
 
 			if (ImGui::BeginPopupContextItem())
 			{
-				m_CurrentScene->SetSelectedEntity(e);
+				Renderer::GetCurrentScene()->SetSelectedEntity(e);
 				
 				if (ImGui::MenuItem("Duplicate", "Ctrl-D"))
 					DuplicateSelectedEntity();
@@ -120,7 +119,7 @@ namespace Eden
 	{
 		if (ImGui::MenuItem("Create Empty Entity"))
 		{
-			m_CurrentScene->CreateEntity();
+			Renderer::GetCurrentScene()->CreateEntity();
 
 			ImGui::CloseCurrentPopup();
 		}
@@ -129,10 +128,10 @@ namespace Eden
 		{
 			if (ImGui::MenuItem("Cube"))
 			{
-				m_CurrentScene->AddPreparation([&]()
+				Renderer::GetCurrentScene()->AddPreparation([&]()
 				{
-					auto e = m_CurrentScene->CreateEntity("Cube");
-					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cube.glb");
+					auto e = Renderer::GetCurrentScene()->CreateEntity("Cube");
+					e.AddComponent<MeshComponent>().LoadMeshSource("assets/models/basic/cube.glb");
 				});
 
 				ImGui::CloseCurrentPopup();
@@ -140,10 +139,10 @@ namespace Eden
 
 			if (ImGui::MenuItem("Plane"))
 			{
-				m_CurrentScene->AddPreparation([&]()
+				Renderer::GetCurrentScene()->AddPreparation([&]()
 				{
-					auto e = m_CurrentScene->CreateEntity("Plane");
-					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/plane.glb");
+					auto e = Renderer::GetCurrentScene()->CreateEntity("Plane");
+					e.AddComponent<MeshComponent>().LoadMeshSource("assets/models/basic/plane.glb");
 				});
 
 				ImGui::CloseCurrentPopup();
@@ -151,10 +150,10 @@ namespace Eden
 
 			if (ImGui::MenuItem("Sphere"))
 			{
-				m_CurrentScene->AddPreparation([&]()
+				Renderer::GetCurrentScene()->AddPreparation([&]()
 				{
-					auto e = m_CurrentScene->CreateEntity("Sphere");
-					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/sphere.glb");
+					auto e = Renderer::GetCurrentScene()->CreateEntity("Sphere");
+					e.AddComponent<MeshComponent>().LoadMeshSource("assets/models/basic/sphere.glb");
 				});
 
 				ImGui::CloseCurrentPopup();
@@ -162,10 +161,10 @@ namespace Eden
 
 			if (ImGui::MenuItem("Cone"))
 			{
-				m_CurrentScene->AddPreparation([&]()
+				Renderer::GetCurrentScene()->AddPreparation([&]()
 				{
-					auto e = m_CurrentScene->CreateEntity("Cone");
-					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cone.glb");
+					auto e = Renderer::GetCurrentScene()->CreateEntity("Cone");
+					e.AddComponent<MeshComponent>().LoadMeshSource("assets/models/basic/cone.glb");
 				});
 
 				ImGui::CloseCurrentPopup();
@@ -173,10 +172,10 @@ namespace Eden
 
 			if (ImGui::MenuItem("Cylinder"))
 			{
-				m_CurrentScene->AddPreparation([&]()
+				Renderer::GetCurrentScene()->AddPreparation([&]()
 				{
-					auto e = m_CurrentScene->CreateEntity("Cylinder");
-					e.AddComponent<MeshComponent>().LoadMeshSource(m_RHI, "assets/models/basic/cylinder.glb");
+					auto e = Renderer::GetCurrentScene()->CreateEntity("Cylinder");
+					e.AddComponent<MeshComponent>().LoadMeshSource("assets/models/basic/cylinder.glb");
 				});
 
 				ImGui::CloseCurrentPopup();
@@ -186,16 +185,11 @@ namespace Eden
 		}
 	}
 
-	void SceneHierarchy::SetCurrentScene(Scene* currentScene)
-	{
-		m_CurrentScene = currentScene;
-	}
-
 	void SceneHierarchy::EntityProperties()
 	{
 		ImGui::Begin(ICON_FA_CIRCLE_INFO " Inspector##inspector", &bOpenInspector, ImGuiWindowFlags_NoCollapse);
 
-		Entity selectedEntity = m_CurrentScene->GetSelectedEntity();
+		Entity selectedEntity = Renderer::GetCurrentScene()->GetSelectedEntity();
 		if (!selectedEntity) goto end;
 
 		if (selectedEntity.HasComponent<TagComponent>())
@@ -272,8 +266,8 @@ namespace Eden
 				if (!newPath.empty())
 				{
 					mc.meshPath = newPath;
-					m_CurrentScene->AddPreparation([&]() {
-						mc.LoadMeshSource(m_RHI);
+					Renderer::GetCurrentScene()->AddPreparation([&]() {
+						mc.LoadMeshSource();
 					});
 				}
 			}
@@ -310,22 +304,22 @@ namespace Eden
 
 	void SceneHierarchy::DuplicateSelectedEntity()
 	{
-		m_CurrentScene->AddPreparation([&]() {
-			auto newEntity = m_CurrentScene->DuplicateEntity(m_CurrentScene->GetSelectedEntity());
+		Renderer::GetCurrentScene()->AddPreparation([&]() {
+			auto newEntity = Renderer::GetCurrentScene()->DuplicateEntity(Renderer::GetCurrentScene()->GetSelectedEntity());
 			if (newEntity.HasComponent<MeshComponent>())
 			{
 				auto& mc = newEntity.GetComponent<MeshComponent>();
-				mc.LoadMeshSource(m_RHI);
+				mc.LoadMeshSource();
 			}
 
-			m_CurrentScene->SetSelectedEntity(newEntity);
+			Renderer::GetCurrentScene()->SetSelectedEntity(newEntity);
 		});
 	}
 
 	void SceneHierarchy::DeleteSelectedEntity()
 	{
-		m_CurrentScene->AddPreparation([&]() {
-			m_CurrentScene->DeleteEntity(m_CurrentScene->GetSelectedEntity());
+		Renderer::GetCurrentScene()->AddPreparation([&]() {
+			Renderer::GetCurrentScene()->DeleteEntity(Renderer::GetCurrentScene()->GetSelectedEntity());
 		});
 	}
 

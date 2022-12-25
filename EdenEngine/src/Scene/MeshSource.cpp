@@ -16,11 +16,12 @@
 #include "Core/Base.h"
 #include "Core/Assertions.h"
 #include "Graphics/RHI.h"
+#include "Graphics/Renderer.h"
 
 namespace Eden
 {
 	// Based on Sascha Willems gltfloading.cpp
-	void MeshSource::LoadGLTF(std::shared_ptr<IRHI>& rhi, std::filesystem::path file)
+	void MeshSource::LoadGLTF(std::filesystem::path file)
 	{
 		// Destroy the current mesh source
 		if (bHasMesh)
@@ -60,7 +61,7 @@ namespace Eden
 		blackDesc.bIsStorage = false;
 		blackDesc.bGenerateMips = false;
 		Texture blackTexture;
-		rhi->CreateTexture(&blackTexture, &blackDesc);
+		Renderer::CreateTexture(&blackTexture, &blackDesc);
 
 		std::string parent_path = file.parent_path().string() + "/";
 
@@ -216,7 +217,7 @@ namespace Eden
 					auto material_index = gltfMaterial.values["baseColorTexture"].TextureIndex();
 					auto textureIndex = gltfModel.textures[material_index].source;
 				
-					LoadImage(&submesh->diffuseTexture, rhi, gltfModel, textureIndex);
+					LoadImage(&submesh->diffuseTexture, gltfModel, textureIndex);
 				}
 
 				if (gltfMaterial.emissiveTexture.index > -1)
@@ -224,7 +225,7 @@ namespace Eden
 					auto material_index = gltfMaterial.emissiveTexture.index;
 					auto textureIndex = gltfModel.textures[material_index].source;
 				
-					LoadImage(&submesh->emissiveTexture, rhi, gltfModel, textureIndex);
+					LoadImage(&submesh->emissiveTexture, gltfModel, textureIndex);
 				}
 
 				mesh->submeshes.emplace_back(submesh);
@@ -240,13 +241,13 @@ namespace Eden
 		vbDesc.elementCount = vertexCount;
 		vbDesc.stride = sizeof(VertexData);
 		vbDesc.usage = BufferDesc::Vertex_Index;
-		rhi->CreateBuffer(&meshVb, &vbDesc, vertices.data());
+		Renderer::CreateBuffer(&meshVb, &vbDesc, vertices.data());
 
 		BufferDesc ibDesc;
 		ibDesc.elementCount = indexCount;
 		ibDesc.stride = sizeof(uint32_t);
 		ibDesc.usage = BufferDesc::Vertex_Index;
-		rhi->CreateBuffer(&meshIb, &ibDesc, indices.data());
+		Renderer::CreateBuffer(&meshIb, &ibDesc, indices.data());
 		bHasMesh = true;
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());
@@ -261,7 +262,7 @@ namespace Eden
 		meshes.clear();
 	}
 
-	void MeshSource::LoadImage(Texture* texture, std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex)
+	void MeshSource::LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex)
 	{
 		tinygltf::Image& gltfImage = gltfModel.images[imageIndex];
 
@@ -295,8 +296,8 @@ namespace Eden
 		desc.width = gltfImage.width;
 		desc.height = gltfImage.height;
 		desc.bIsStorage = false;
-		rhi->CreateTexture(texture, &desc);
-		rhi->SetName(texture, gltfImage.name);
+		Renderer::CreateTexture(texture, &desc);
+		Renderer::SetName(texture, gltfImage.name);
 
 		if (bDeleteBuffer)
 			edelete buffer;

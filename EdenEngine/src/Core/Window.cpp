@@ -2,8 +2,9 @@
 #include "Base.h"
 #include "Assertions.h"
 #include "Input.h"
-#include "UI/UI.h"
+#include "Editor/Icons/IconsFontAwesome6.h"
 
+#include <imgui/ImguiHelper.h>
 #include <imgui/backends/imgui_impl_win32.h>
 
 // Forward declare message handler from imgui_impl_win32.cpp

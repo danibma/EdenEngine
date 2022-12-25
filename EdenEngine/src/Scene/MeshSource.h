@@ -53,7 +53,7 @@ namespace Eden
 		bool bIsTextured = false;
 
 		MeshSource() = default;
-		void LoadGLTF(std::shared_ptr<IRHI>& rhi, std::filesystem::path file);
+		void LoadGLTF(std::filesystem::path file);
 		void Destroy();
 
 		~MeshSource()
@@ -62,7 +62,7 @@ namespace Eden
 		}
 
 	private:
-		void LoadImage(Texture* texture, std::shared_ptr<IRHI>& rhi, tinygltf::Model& gltfModel, int32_t imageIndex);
+		void LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex);
 	};
 }
 

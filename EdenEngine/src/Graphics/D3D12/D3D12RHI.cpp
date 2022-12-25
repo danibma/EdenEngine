@@ -8,13 +8,13 @@
 
 #include <imgui/backends/imgui_impl_dx12.h>
 #include <imgui/backends/imgui_impl_win32.h>
+#include <imgui/ImGuizmo.h>
 
 #include <dxgidebug.h>
 #include <dxgi1_6.h>
 
 #include "Utilities/Utils.h"
 #include "Profiling/Profiler.h"
-#include "UI/ImGuizmo.h"
 #include <WinPixEventRuntime/pix3.h>
 
 // From Guillaume Boisse "gfx" https://github.com/gboisse/gfx/blob/b83878e562c2c205000b19c99cf24b13973dedb2/gfx_core.h#L77

@@ -23,6 +23,10 @@ project "ImGui"
         "backends/imgui_impl_dx12.cpp",
         "backends/imgui_impl_win32.h",
         "backends/imgui_impl_win32.cpp",
+		"ImguiHelper.h",
+		"ImguiHelper.cpp",
+		"ImGuizmo.h",
+		"ImGuizmo.cpp",
 	}
     
     includedirs
@@ -38,11 +42,18 @@ project "ImGui"
 		runtime "Debug"
 		symbols "on"
 
-	filter "configurations:Release"
+	filter "configurations:DebugEditor"
+		runtime "Debug"
+		symbols "on"
+
+	filter "configurations:Profiling"
 		runtime "Release"
 		optimize "on"
 
-    filter "configurations:Dist"
+	filter "configurations:ProfilingEditor"
 		runtime "Release"
 		optimize "on"
-        symbols "off"
+
+	filter "configurations:Release"
+		runtime "Release"
+		optimize "on"

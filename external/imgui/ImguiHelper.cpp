@@ -1,6 +1,5 @@
-#include "UI.h"
-#include "glm/gtc/type_ptr.hpp"
-#include "Graphics/D3D12/D3D12RHI.h"
+#include "ImGuiHelper.h"
+#include "../glm/gtc/type_ptr.hpp"
 
 namespace Eden::UI
 {

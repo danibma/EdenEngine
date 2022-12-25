@@ -3,17 +3,20 @@
 
 #include "Profiling/Timer.h"
 #include <memory>
+#include "Editor/Editor.h"
 
 namespace Eden
 {
 	class Window;
-	class IRHI;
+	class EdenEd;
 
 	class Application
 	{
+		friend class EdenEd; // temporary until there's no Renderer class
+
 	protected:
 		Window* window;
-		std::shared_ptr<IRHI> rhi;
+		EdenEd* editor;
 
 		float deltaTime = 0.0f;
 		float creationTime = 0.0f; // Time since the application creation
@@ -36,6 +39,10 @@ namespace Eden
 		static Application* Get();
 
 		void ChangeWindowTitle(const std::string& title);
+		void RequestClose();
+
+		float GetDeltaTime() { return deltaTime; }
+		float GetTimeSinceCreation() { return creationTime; }
 
 		virtual void OnInit();
 		virtual void OnUpdate();

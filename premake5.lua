@@ -1,13 +1,14 @@
 workspace "EdenEngine"
-    configurations { "Debug", "Release" }
     targetdir "bin"
     startproject "EdenEngine"
 
     configurations 
     { 
         "Debug", 
-        "Release",
-        "Profiling"
+		"DebugEditor", 
+        "Profiling",
+		"ProfilingEditor",
+        "Release"
     }
 
     flags 
@@ -109,6 +110,17 @@ project "EdenEngine"
             "ED_TRACK_MEMORY"
 		}
 
+	filter "configurations:DebugEditor"
+		symbols "On"
+        kind "ConsoleApp"
+
+		defines 
+		{
+			"ED_DEBUG",
+            "ED_TRACK_MEMORY",
+			"WITH_EDITOR"
+		}
+
     filter "configurations:Profiling"
         optimize "On"
         kind "WindowedApp"
@@ -117,6 +129,17 @@ project "EdenEngine"
         {
             "ED_PROFILING",
             "ED_TRACK_MEMORY"
+        }
+
+	filter "configurations:ProfilingEditor"
+        optimize "On"
+        kind "WindowedApp"
+
+        defines
+        {
+            "ED_PROFILING",
+            "ED_TRACK_MEMORY",
+			"WITH_EDITOR"
         }
 
 	filter "configurations:Release"

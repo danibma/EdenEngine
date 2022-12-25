@@ -20,11 +20,18 @@ project "D3D12MemoryAllocator"
 		runtime "Debug"
 		symbols "on"
 
-	filter "configurations:Release"
+	filter "configurations:DebugEditor"
+		runtime "Debug"
+		symbols "on"
+
+	filter "configurations:Profiling"
 		runtime "Release"
 		optimize "on"
 
-    filter "configurations:Dist"
+	filter "configurations:ProfilingEditor"
 		runtime "Release"
 		optimize "on"
-        symbols "off"
+
+	filter "configurations:Release"
+		runtime "Release"
+		optimize "on"

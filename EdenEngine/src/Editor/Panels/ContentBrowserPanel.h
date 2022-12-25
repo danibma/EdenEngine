@@ -20,13 +20,11 @@ namespace Eden
 		std::vector<DirectoryInfo> subDirectories;
 	};
 
-	class IRHI;
 	struct Texture;
 	class ContentBrowserPanel
 	{
 	public:
-		ContentBrowserPanel() = default;
-		ContentBrowserPanel(std::shared_ptr<IRHI>& rhi);
+		ContentBrowserPanel();
 		~ContentBrowserPanel();
 		void Render();
 
@@ -41,7 +39,6 @@ namespace Eden
 		char m_SearchBuffer[32] = "\0";
 		float m_ThumbnailPadding = 16.0f;
 		float m_ThumbnailSize = 91.0f;
-		std::shared_ptr<IRHI> m_RHI;
 
 	public:
 		bool bOpenContentBrowser = true;

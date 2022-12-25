@@ -1,12 +1,11 @@
 #pragma once
 
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
+#include "imgui.h"
+#include "imgui_internal.h"
 #include <string>
-#include <glm/glm.hpp>
+#include "../glm/glm.hpp"
 
 #include "ImGuizmo.h"
-#include "IconsFontAwesome6.h"
 
 namespace Eden::UI
 {

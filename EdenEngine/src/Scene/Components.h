@@ -59,11 +59,11 @@ namespace Eden
 		MeshComponent& operator=(MeshComponent& other) = default;
 		MeshComponent& operator=(MeshComponent&& other) noexcept = default;
 
-		void LoadMeshSource(std::shared_ptr<IRHI>& rhi, std::filesystem::path path = "")
+		void LoadMeshSource(std::filesystem::path path = "")
 		{
 			if (!path.empty())
 				meshPath = path.string();
-			meshSource->LoadGLTF(rhi, meshPath);
+			meshSource->LoadGLTF(meshPath);
 		}
 	};
 
