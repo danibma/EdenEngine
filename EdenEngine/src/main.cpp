@@ -121,10 +121,13 @@ public:
 		m_SceneData.viewProjection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.viewPosition = glm::vec4(m_Camera.position, 1.0f);
 
+		GfxResult error;
+
 		BufferDesc sceneDataDesc = {};
 		sceneDataDesc.elementCount = 1;
 		sceneDataDesc.stride = sizeof(SceneData);
-		rhi->CreateBuffer(&m_SceneDataCB, &sceneDataDesc, &m_SceneData);
+		error = rhi->CreateBuffer(&m_SceneDataCB, &sceneDataDesc, &m_SceneData);
+		ensure(error == GfxResult::kNoError);
 
 		m_CurrentScene = enew Scene();
 		std::string defaultScene = "assets/scenes/cube.escene";
@@ -137,14 +140,16 @@ public:
 		dl_desc.elementCount = MAX_DIRECTIONAL_LIGHTS;
 		dl_desc.stride = sizeof(DirectionalLightComponent);
 		dl_desc.usage = BufferDesc::Storage;
-		rhi->CreateBuffer(&m_DirectionalLightsBuffer, &dl_desc, nullptr);
+		error = rhi->CreateBuffer(&m_DirectionalLightsBuffer, &dl_desc, nullptr);
+		ensure(error == GfxResult::kNoError);
 		UpdateDirectionalLights();
 
 		BufferDesc pl_desc = {};
 		pl_desc.elementCount = MAX_POINT_LIGHTS;
 		pl_desc.stride = sizeof(PointLightComponent);
 		pl_desc.usage = BufferDesc::Storage;
-		rhi->CreateBuffer(&m_PointLightsBuffer, &pl_desc, nullptr);
+		error = rhi->CreateBuffer(&m_PointLightsBuffer, &pl_desc, nullptr);
+		ensure(error == GfxResult::kNoError);
 		UpdatePointLights();
 
 
@@ -156,12 +161,14 @@ public:
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
 			desc.clearColor = glm::vec4(-1);
-			rhi->CreateRenderPass(&m_ObjectPickerPass, &desc);
+			error = rhi->CreateRenderPass(&m_ObjectPickerPass, &desc);
+			ensure(error == GfxResult::kNoError);
 
 			PipelineDesc pipelineDesc = {};
 			pipelineDesc.programName = "ObjectPicker";
 			pipelineDesc.renderPass = &m_ObjectPickerPass;
-			rhi->CreatePipeline(&m_Pipelines["Object Picker"], &pipelineDesc);
+			error = rhi->CreatePipeline(&m_Pipelines["Object Picker"], &pipelineDesc);
+			ensure(error == GfxResult::kNoError);
 		}
 
 		// GBuffer
@@ -171,13 +178,15 @@ public:
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
-			rhi->CreateRenderPass(&m_GBuffer, &desc);
+			error = rhi->CreateRenderPass(&m_GBuffer, &desc);
+			ensure(error == GfxResult::kNoError);
 
 			PipelineDesc phongLightingDesc = {};
 			phongLightingDesc.bEnableBlending = true;
 			phongLightingDesc.programName = "PhongLighting";
 			phongLightingDesc.renderPass = &m_GBuffer;
-			rhi->CreatePipeline(&m_Pipelines["Phong Lighting"], &phongLightingDesc);
+			error = rhi->CreatePipeline(&m_Pipelines["Phong Lighting"], &phongLightingDesc);
+			ensure(error == GfxResult::kNoError);
 
 			PipelineDesc skyboxDesc = {};
 			skyboxDesc.cull_mode = CullMode::kNone;
@@ -185,7 +194,8 @@ public:
 			skyboxDesc.minDepth = 1.0f;
 			skyboxDesc.programName = "Skybox";
 			skyboxDesc.renderPass = &m_GBuffer;
-			rhi->CreatePipeline(&m_Pipelines["Skybox"], &skyboxDesc);
+			error = rhi->CreatePipeline(&m_Pipelines["Skybox"], &skyboxDesc);
+			ensure(error == GfxResult::kNoError);
 		}
 
 	#if WITH_EDITOR
@@ -196,12 +206,14 @@ public:
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
-			rhi->CreateRenderPass(&m_SceneComposite, &desc);
+			error = rhi->CreateRenderPass(&m_SceneComposite, &desc);
+			ensure(error == GfxResult::kNoError);
 
 			PipelineDesc sceneCompositeDesc = {};
 			sceneCompositeDesc.programName = "SceneComposite";
 			sceneCompositeDesc.renderPass = &m_SceneComposite;
-			rhi->CreatePipeline(&m_Pipelines["Scene Composite"], &sceneCompositeDesc);
+			error = rhi->CreatePipeline(&m_Pipelines["Scene Composite"], &sceneCompositeDesc);
+			ensure(error == GfxResult::kNoError);
 		}
 
 		{
@@ -212,7 +224,8 @@ public:
 			desc.bIsImguiPass = true;
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
-			rhi->CreateRenderPass(&m_ImGuiPass, &desc);
+			error = rhi->CreateRenderPass(&m_ImGuiPass, &desc);
+			ensure(error == GfxResult::kNoError);
 			rhi->SetSwapchainTarget(&m_ImGuiPass);
 			rhi->EnableImGui();
 		}
@@ -228,20 +241,23 @@ public:
 			desc.bIsSwapchainTarget = true;
 			desc.width = static_cast<uint32_t>(m_ViewportSize.x);
 			desc.height = static_cast<uint32_t>(m_ViewportSize.y);
-			rhi->CreateRenderPass(&m_SceneComposite, &desc);
+			error = rhi->CreateRenderPass(&m_SceneComposite, &desc);
+			ensure(error == GfxResult::kNoError);
 			rhi->SetSwapchainTarget(&m_SceneComposite);
 
 			PipelineDesc sceneCompositeDesc = {};
 			sceneCompositeDesc.programName = "SceneComposite";
 			sceneCompositeDesc.renderPass = m_SceneComposite;
-			rhi->CreatePipeline(&m_Pipelines["Scene Composite"], &sceneCompositeDesc);
+			error = rhi->CreatePipeline(&m_Pipelines["Scene Composite"], &sceneCompositeDesc);
+			ensure(error == GfxResult::kNoError);
 		}
 	#endif
 
 		PipelineDesc cubesTestDesc = {};
 		cubesTestDesc.programName = "CubesCS";
 		cubesTestDesc.type = kPipelineType_Compute;
-		rhi->CreatePipeline(&m_Pipelines["Cubes Test"], &cubesTestDesc);
+		error = rhi->CreatePipeline(&m_Pipelines["Cubes Test"], &cubesTestDesc);
+		ensure(error == GfxResult::kNoError);
 
 		float quadVertices[] = {
 			// positions   // texCoords
@@ -257,20 +273,23 @@ public:
 		quadDesc.stride = sizeof(float) * 4;
 		quadDesc.elementCount = 6;
 		quadDesc.usage = BufferDesc::Vertex_Index;
-		rhi->CreateBuffer(&m_QuadBuffer, &quadDesc, quadVertices);
+		error = rhi->CreateBuffer(&m_QuadBuffer, &quadDesc, quadVertices);
+		ensure(error == GfxResult::kNoError);
 
 		BufferDesc sceneSettingsDesc = {};
 		sceneSettingsDesc.elementCount = 1;
 		sceneSettingsDesc.stride = sizeof(SceneSettings);
 		sceneSettingsDesc.usage = BufferDesc::Uniform;
-		rhi->CreateBuffer(&m_SceneSettingsBuffer, &sceneSettingsDesc, &m_SceneSettings);
+		error = rhi->CreateBuffer(&m_SceneSettingsBuffer, &sceneSettingsDesc, &m_SceneSettings);
+		ensure(error == GfxResult::kNoError);
 
 		// Compute shader
 		m_ComputeData.resolution = glm::vec2(m_ViewportSize.x, m_ViewportSize.y);
 		BufferDesc computeDataDesc = {};
 		computeDataDesc.elementCount = 1;
 		computeDataDesc.stride = sizeof(SceneData);
-		rhi->CreateBuffer(&m_ComputeBuffer, &computeDataDesc, &m_ComputeData);
+		error = rhi->CreateBuffer(&m_ComputeBuffer, &computeDataDesc, &m_ComputeData);
+		ensure(error == GfxResult::kNoError);
 
 		TextureDesc computeOutputDesc = {};
 		computeOutputDesc.data = nullptr;
@@ -278,10 +297,13 @@ public:
 		computeOutputDesc.height = static_cast<uint32_t>(180);
 		computeOutputDesc.bIsStorage = true;
 		computeOutputDesc.bGenerateMips = false;
-		rhi->CreateTexture(&m_OutputTexture, &computeOutputDesc);
+		error = rhi->CreateTexture(&m_OutputTexture, &computeOutputDesc);
+		ensure(error == GfxResult::kNoError);
 
-		rhi->CreateGPUTimer(&m_RenderTimer);
-		rhi->CreateGPUTimer(&m_ComputeTimer);
+		error = rhi->CreateGPUTimer(&m_RenderTimer);
+		ensure(error == GfxResult::kNoError);
+		error = rhi->CreateGPUTimer(&m_ComputeTimer);
+		ensure(error == GfxResult::kNoError);
 	}
 
 	std::pair<uint32_t, uint32_t> GetViewportMousePos()
@@ -530,7 +552,7 @@ public:
 		if (ImGui::Button("Reload all pipelines"))
 		{
 			for (auto& pipeline : m_Pipelines)
-				m_CurrentScene->AddPreparation([&]() {rhi->ReloadPipeline(&pipeline.second); });
+				m_CurrentScene->AddPreparation([&]() { GfxResult error = rhi->ReloadPipeline(&pipeline.second); ensure(error == GfxResult::kNoError); });
 		}
 		ImGui::Columns(1);
 		for (auto& pipeline : m_Pipelines)
@@ -540,7 +562,7 @@ public:
 			ImGui::Text(pipeline.first);
 			ImGui::NextColumn();
 			if (ImGui::Button("Reload pipeline"))
-				m_CurrentScene->AddPreparation([&]() {rhi->ReloadPipeline(&pipeline.second); });
+				m_CurrentScene->AddPreparation([&]() { GfxResult error = rhi->ReloadPipeline(&pipeline.second); ensure(error == GfxResult::kNoError); });
 			ImGui::Columns(1);
 			ImGui::PopID();
 		}
@@ -727,7 +749,8 @@ public:
 		}
 
 		const void* data = pointLightComponents.data();
-		rhi->UpdateBufferData(&m_PointLightsBuffer, data);
+		GfxResult error = rhi->UpdateBufferData(&m_PointLightsBuffer, data);
+		ensure(error == GfxResult::kNoError);
 	}
 
 	void UpdateDirectionalLights()
@@ -750,7 +773,8 @@ public:
 			m_DirectionalLight = { directional_lights[0], m_CurrentScene };
 
 		const void* data = directional_lightComponents.data();
-		rhi->UpdateBufferData(&m_DirectionalLightsBuffer, data);
+		GfxResult error = rhi->UpdateBufferData(&m_DirectionalLightsBuffer, data);
+		ensure(error == GfxResult::kNoError);
 	}
 
 	void ObjectPickerPass()
@@ -839,7 +863,8 @@ public:
 		rhi->BindPipeline(&m_Pipelines["Scene Composite"]);
 		rhi->BindVertexBuffer(&m_QuadBuffer);
 		rhi->BindParameter("g_SceneTexture", &m_GBuffer.colorAttachments[0]);
-		rhi->UpdateBufferData(&m_SceneSettingsBuffer, &m_SceneSettings);
+		GfxResult error = rhi->UpdateBufferData(&m_SceneSettingsBuffer, &m_SceneSettings);
+		ensure(error == GfxResult::kNoError);
 		rhi->BindParameter("SceneSettings", &m_SceneSettingsBuffer);
 		rhi->Draw(6);
 		rhi->EndRenderPass(&m_SceneComposite);
@@ -862,7 +887,8 @@ public:
 		m_SceneData.view = m_ViewMatrix;
 		m_SceneData.viewProjection = m_ProjectionMatrix * m_ViewMatrix;
 		m_SceneData.viewPosition = glm::vec4(m_Camera.position, 1.0f);
-		rhi->UpdateBufferData(&m_SceneDataCB, &m_SceneData);
+		GfxResult error = rhi->UpdateBufferData(&m_SceneDataCB, &m_SceneData);
+		ensure(error == GfxResult::kNoError);
 		
 		EditorInput();
 		
@@ -877,7 +903,8 @@ public:
 		rhi->BindPipeline(&m_Pipelines["Cubes Test"]);
 		m_ComputeData.resolution = glm::vec2(m_OutputTexture.desc.width, m_OutputTexture.desc.height);
 		m_ComputeData.time = creationTime;
-		rhi->UpdateBufferData(&m_ComputeBuffer, &m_ComputeData);
+		error = rhi->UpdateBufferData(&m_ComputeBuffer, &m_ComputeData);
+		ensure(error == GfxResult::kNoError);
 		rhi->BindParameter("RenderingInfo", &m_ComputeBuffer);
 		rhi->BindParameter("OutputTexture", &m_OutputTexture, kReadWrite);
 		//! 8 is the num of threads, changing in there requires to change in shader

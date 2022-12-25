@@ -212,7 +212,11 @@ namespace Eden
 		}
 
 		// Associate the graphics device Resize with the window resize callback
-		window->SetResizeCallback([&](uint32_t x, uint32_t y) { Resize(x, y); });
+		window->SetResizeCallback([&](uint32_t x, uint32_t y) 
+		{ 
+			GfxResult error = Resize(x, y); 
+			ensure(error == GfxResult::kNoError);
+		});
 
 		// Setup profiler
 		ID3D12Device* pDevice = m_Device.Get();

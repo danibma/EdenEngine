@@ -22,7 +22,8 @@ namespace Eden
 	#endif 
 
 		rhi = std::make_shared<D3D12RHI>();
-		rhi->Init(window);
+		GfxResult error = rhi->Init(window);
+		ensureMsg(error == GfxResult::kNoError, "Failed to initialize RHI");
 
 		m_CreationTimer.Record();
 		s_Instance = this;
