@@ -195,6 +195,8 @@ namespace Eden
 		ensure(error == GfxResult::kNoError);
 		error = g_RHI->CreateGPUTimer(&g_Data->computeTimer);
 		ensure(error == GfxResult::kNoError);
+
+		ED_LOG_INFO("Renderer has been initialized!");
 	}
 
 	void Renderer::BeginRender()

@@ -43,10 +43,6 @@ namespace Eden
 
 		float GetDeltaTime() { return deltaTime; }
 		float GetTimeSinceCreation() { return creationTime; }
-
-		virtual void OnInit();
-		virtual void OnUpdate();
-		virtual void OnDestroy();
 	};
 }
 

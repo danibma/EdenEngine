@@ -259,16 +259,26 @@ namespace Eden
 
 	void EdenEd::UI_MemoryPanel()
 	{
-		auto stats = Memory::GetAllocationStats();
-
-		std::string total_allocated = "Total Allocated: " + Utils::BytesToString(stats.total_allocated);
-		std::string total_freed = "Total Freed: " + Utils::BytesToString(stats.total_freed);
-		std::string currentUsage = "Current Usage: " + Utils::BytesToString(stats.total_allocated - stats.total_freed);
-
 		ImGui::Begin(ICON_FA_BUG " Memory##memory", &m_bOpenMemoryPanel);
-		ImGui::Text(total_allocated.c_str());
-		ImGui::Text(total_freed.c_str());
-		ImGui::Text(currentUsage.c_str());
+		ImGui::Text("Memory Sources:");
+		{
+			std::string total_allocated = "Total Allocated: " + Utils::BytesToString(Memory::MemoryManager::GetTotalAllocated());
+			ImGui::Text(total_allocated.c_str());
+		}
+		{
+			std::string total_freed = "Total Freed: " + Utils::BytesToString(Memory::MemoryManager::GetTotalFreed());
+			ImGui::Text(total_freed.c_str());
+		}
+		{
+			std::string currentUsage = "Current Usage: " + Utils::BytesToString(Memory::MemoryManager::GetCurrentAllocated());
+			ImGui::Text(currentUsage.c_str());
+		}
+		ImGui::Separator();
+		for (const auto& sources : Memory::MemoryManager::GetCurrentAllocatedSources())
+		{
+			std::string currentUsage = Utils::BytesToString(sources.second);
+			ImGui::Text("%s: %s", sources.first, currentUsage.c_str());
+		}
 		ImGui::End();
 	}
 

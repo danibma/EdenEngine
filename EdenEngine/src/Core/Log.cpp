@@ -31,6 +31,8 @@ namespace Eden
 
 		s_CoreLogger = std::make_shared<spdlog::logger>("EDEN", coreSinks.begin(), coreSinks.end());
 		s_CoreLogger->set_level(spdlog::level::trace);
+
+		ED_LOG_INFO("Log manager has been initialized!");
 	}
 
 	void Log::Shutdown()

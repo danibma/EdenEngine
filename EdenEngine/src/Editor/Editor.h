@@ -6,7 +6,7 @@
 
 #include <imgui/ImguiHelper.h>
 
-#include "Core/Memory.h"
+#include "Core/Memory/Memory.h"
 #include "Panels/ContentBrowserPanel.h"
 #include "Panels/SceneHierarchy.h"
 #include "Graphics/Renderer.h"

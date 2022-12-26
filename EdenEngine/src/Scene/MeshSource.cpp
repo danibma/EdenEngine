@@ -11,7 +11,7 @@
 #define TINYGLTF_IMPLEMENTATION
 #include <tinygltf/tiny_gltf.h>
 
-#include "Core/Memory.h"
+#include "Core/Memory/Memory.h"
 #include "Core/Log.h"
 #include "Core/Base.h"
 #include "Core/Assertions.h"

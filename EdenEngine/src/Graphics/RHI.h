@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 
 #include "Core/Window.h"
-#include "Core/Memory.h"
+#include "Core/Memory/Memory.h"
  
 namespace Eden
 {

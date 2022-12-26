@@ -49,8 +49,6 @@ namespace Eden
 
 	void Application::Run()
 	{
-		OnInit();
-
 		while (!window->IsCloseRequested())
 		{
 			ED_PROFILE_FRAME("MainThread");
@@ -64,7 +62,6 @@ namespace Eden
 
 			if (!window->IsMinimized())
 			{
-				OnUpdate();
 				Renderer::BeginRender();
 				Renderer::Render();
 #ifdef WITH_EDITOR
@@ -74,8 +71,6 @@ namespace Eden
 				Renderer::WaitAndRender();
 			}
 		}
-
-		OnDestroy();
 	}
 
 	std::string Application::OpenFileDialog(const char* filter /*= ""*/)
@@ -103,17 +98,4 @@ namespace Eden
 	{
 		window->CloseWasRequested();
 	}
-
-	void Application::OnInit()
-	{
-	}
-
-	void Application::OnUpdate()
-	{
-	}
-
-	void Application::OnDestroy()
-	{
-	}
-
 }
