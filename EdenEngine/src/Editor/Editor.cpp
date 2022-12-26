@@ -11,6 +11,7 @@
 #include "Scene/Components.h"
 #include "Graphics/Renderer.h"
 #include "Scene/Entity.h"
+#include "stdio.h"
 
 namespace Eden
 {
@@ -74,7 +75,7 @@ namespace Eden
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::BeginMenu("Entity"))
+			if (ImGui::BeginMenu("World"))
 			{
 				m_SceneHierarchy->EntityMenu();
 				ImGui::EndMenu();
@@ -96,6 +97,11 @@ namespace Eden
 
 				ImGui::EndMenu();
 			}
+
+			char fpsText[256];
+			snprintf(fpsText, 256, "fps: %.0f | cpu: %.1fms | gpu: %.1fms", (1000.0f / Application::Get()->GetDeltaTime()) / 1000.0f, Application::Get()->GetDeltaTime() * 1000.0f, Renderer::GetRenderTimer().elapsedTime);
+			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(fpsText).x) * 0.99f);
+			ImGui::Text(fpsText);
 
 			ImGui::EndMenuBar();
 		}
