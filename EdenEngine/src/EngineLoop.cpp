@@ -2,7 +2,6 @@
 #include "Core/Application.h"
 #include "Core/Memory/Memory.h"
 
-#include "Core/Memory/SharedPtr.h"
 #include "Scene/MeshSource.h"
 
 using namespace Eden;
