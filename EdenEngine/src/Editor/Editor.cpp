@@ -66,6 +66,7 @@ namespace Eden
 			if (ImGui::BeginMenu("View"))
 			{
 				ImGui::MenuItem("Statistics", NULL, &m_bOpenStatisticsWindow);
+				ImGui::MenuItem("Memory Inspector", NULL, &m_bOpenMemoryPanel);
 				ImGui::MenuItem("Inspector", NULL, &m_SceneHierarchy->bOpenInspector);
 				ImGui::MenuItem("Hierarchy", NULL, &m_SceneHierarchy->bOpenHierarchy);
 				ImGui::MenuItem("Scene Properties", NULL, &m_bOpenSceneProperties);
@@ -100,7 +101,7 @@ namespace Eden
 
 			char fpsText[256];
 			snprintf(fpsText, 256, "fps: %.0f | cpu: %.1fms | gpu: %.1fms", (1000.0f / Application::Get()->GetDeltaTime()) / 1000.0f, Application::Get()->GetDeltaTime() * 1000.0f, Renderer::GetRenderTimer().elapsedTime);
-			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(fpsText).x) * 0.99f);
+			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(fpsText).x) * 0.995f);
 			ImGui::Text(fpsText);
 
 			ImGui::EndMenuBar();

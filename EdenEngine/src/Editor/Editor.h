@@ -16,7 +16,7 @@ namespace Eden
 	class Window;
 	class EdenEd
 	{
-		bool m_bOpenStatisticsWindow = true;
+		bool m_bOpenStatisticsWindow = false;
 		bool m_bOpenSceneProperties = true;
 		bool m_bOpenPipelinesPanel = true;
 		bool m_bOpenMemoryPanel = true;
