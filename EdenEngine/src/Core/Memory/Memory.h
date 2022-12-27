@@ -79,18 +79,16 @@ namespace Eden::Memory
 _NODISCARD _Ret_notnull_ _Post_writable_byte_size_(size) _VCRT_ALLOCATOR
 void* __CRTDECL operator new(size_t size);
 void* __CRTDECL operator new(size_t size, const char* source);
-
 _NODISCARD _Ret_notnull_ _Post_writable_byte_size_(size) _VCRT_ALLOCATOR
 void* __CRTDECL operator new[](size_t size);
 void* __CRTDECL operator new[](size_t size, const char* source);
-
 
 void __CRTDECL operator delete(void* memory);
 void __CRTDECL operator delete(void* memory, const char* source);
 void __CRTDECL operator delete[](void* memory);
 void __CRTDECL operator delete[](void* memory, const char* source);
 
-#define enew new
+#define enew new("enew")
 #define edelete delete
 
 #else

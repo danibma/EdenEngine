@@ -9,6 +9,7 @@
 
 #include "Core/Window.h"
 #include "Core/Memory/Memory.h"
+#include "Core/Memory/SharedPtr.h"
  
 namespace Eden
 {
@@ -144,10 +145,18 @@ namespace Eden
 		kReadWrite // Used for UAV's
 	};
 
+	struct ResourceInternal
+	{
+		virtual ~ResourceInternal()
+		{
+			// empty destructor so that the derived class destructor is called
+		}
+	};
+
 	struct GraphicsChild
 	{
 		std::string debugName;
-		std::shared_ptr<void> internal_state;
+		SharedPtr<ResourceInternal> internal_state;
 		bool IsValid() { return internal_state != nullptr; }
 		operator bool()
 		{

@@ -72,7 +72,7 @@ namespace Eden
 			if (gltfNode.mesh < 0)
 				continue;
 
-			std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
+			SharedPtr<Mesh> mesh = MakeShared<Mesh>();
 
 			// Get the local node matrix
 			// It's either made up from translation, rotation, scale or a 4x4 matrix
@@ -101,7 +101,7 @@ namespace Eden
 			const auto& gltfMesh = gltfModel.meshes[gltfNode.mesh];
 			for (size_t p = 0; p < gltfMesh.primitives.size(); ++p)
 			{
-				std::shared_ptr<Mesh::SubMesh> submesh = std::make_shared<Mesh::SubMesh>();
+				SharedPtr<Mesh::SubMesh> submesh = MakeShared<Mesh::SubMesh>();
 				auto& gltfPrimitive = gltfMesh.primitives[p];
 				submesh->vertexStart = (uint32_t)vertices.size();
 				submesh->indexStart = (uint32_t)indices.size();

@@ -29,32 +29,32 @@ namespace Eden
 	// Internal Helpers
 	D3D12Resource* ToInternal(const Resource* resource)
 	{
-		return static_cast<D3D12Resource*>(resource->internal_state.get());
+		return static_cast<D3D12Resource*>(resource->internal_state.Get());
 	}
 
 	D3D12Buffer* ToInternal(const Buffer* buffer)
 	{
-		return static_cast<D3D12Buffer*>(buffer->internal_state.get());
+		return static_cast<D3D12Buffer*>(buffer->internal_state.Get());
 	}
 
 	D3D12Texture* ToInternal(const Texture* texture)
 	{
-		return static_cast<D3D12Texture*>(texture->internal_state.get());
+		return static_cast<D3D12Texture*>(texture->internal_state.Get());
 	}
 
 	D3D12Pipeline* ToInternal(const Pipeline* pipeline)
 	{
-		return static_cast<D3D12Pipeline*>(pipeline->internal_state.get());
+		return static_cast<D3D12Pipeline*>(pipeline->internal_state.Get());
 	}
 
 	D3D12RenderPass* ToInternal(const RenderPass* renderPass)
 	{
-		return static_cast<D3D12RenderPass*>(renderPass->internal_state.get());
+		return static_cast<D3D12RenderPass*>(renderPass->internal_state.Get());
 	}
 
 	D3D12GPUTimer* ToInternal(const GPUTimer* gpuTimer)
 	{
-		return static_cast<D3D12GPUTimer*>(gpuTimer->internal_state.get());
+		return static_cast<D3D12GPUTimer*>(gpuTimer->internal_state.Get());
 	}
 
 	// Debug message callback
@@ -571,7 +571,7 @@ namespace Eden
 		if (buffer == nullptr) return GfxResult::kInvalidParameter;
 		if (desc   == nullptr) return GfxResult::kInvalidParameter;
 
-		std::shared_ptr<D3D12Buffer> internal_state = std::make_shared<D3D12Buffer>();
+		SharedPtr<D3D12Buffer> internal_state = MakeShared<D3D12Buffer>();
 		buffer->internal_state = internal_state;
 		buffer->desc = *desc;
 
@@ -656,7 +656,7 @@ namespace Eden
 			for (uint32_t i = 0; i < s_FrameCount; ++i)
 			{
 				Texture attachment;
-				attachment.internal_state = std::make_shared<D3D12Texture>();
+				attachment.internal_state = MakeShared<D3D12Texture>();
 				attachment.imageFormat = Format::kRGBA8_UNORM;
 				renderPass->colorAttachments.emplace_back(attachment);
 
@@ -738,7 +738,7 @@ namespace Eden
 				{
 					auto offset = AllocateHandle(&m_SRVHeap);
 					Texture attachment = {};
-					attachment.internal_state = std::make_shared<D3D12Texture>();
+					attachment.internal_state = MakeShared<D3D12Texture>();
 					attachment.imageFormat = format;
 					D3D12Texture* internal_state = ToInternal(&attachment);
 					internal_state->cpuHandle = GetCPUHandle(&m_SRVHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, offset);
@@ -775,7 +775,7 @@ namespace Eden
 			}
 
 			renderPass->depthStencil = {};
-			auto dsvInternal_state = std::make_shared<D3D12Texture>();
+			auto dsvInternal_state = MakeShared<D3D12Texture>();
 			renderPass->depthStencil.internal_state = dsvInternal_state;
 			renderPass->depthStencil.imageFormat = depthFormat;
 			renderPass->depthStencil.currentState = ResourceState::kDepthWrite;
@@ -1019,7 +1019,7 @@ namespace Eden
 
 		ED_PROFILE_FUNCTION();
 
-		std::shared_ptr<D3D12Pipeline> internal_state = std::make_shared<D3D12Pipeline>();
+		auto internal_state = MakeShared<D3D12Pipeline>();
 		pipeline->internal_state = internal_state;
 		pipeline->desc = *desc;
 
@@ -1089,7 +1089,7 @@ namespace Eden
 
 		ensureMsg(desc->type == TextureDesc::Texture2D, "Only texture2d is implemented!");
 
-		std::shared_ptr<D3D12Texture> internal_state = std::make_shared<D3D12Texture>();
+		auto internal_state = MakeShared<D3D12Texture>();
 		texture->internal_state = internal_state;
 		texture->desc = *desc;
 		texture->imageFormat = texture->desc.bIsSrgb ? Format::kRGBA32_FLOAT : Format::kRGBA8_UNORM;
@@ -1166,7 +1166,7 @@ namespace Eden
 		ensureMsg(desc->width > 0, "Render Pass width has to be > 0");
 		ensureMsg(desc->height > 0, "Render Pass height has to be > 0");
 
-		std::shared_ptr<D3D12RenderPass> internal_state = std::make_shared<D3D12RenderPass>();
+		auto internal_state = MakeShared<D3D12RenderPass>();
 		renderPass->internal_state = internal_state;
 		renderPass->desc = *desc;
 		renderPass->debugName = renderPass->desc.debugName;
@@ -1187,7 +1187,7 @@ namespace Eden
 	{
 		if (timer == nullptr) return GfxResult::kInvalidParameter;
 
-		std::shared_ptr<D3D12GPUTimer> internal_state = std::make_shared<D3D12GPUTimer>();
+		auto internal_state = MakeShared<D3D12GPUTimer>();
 		timer->internal_state = internal_state;
 
 		D3D12_QUERY_HEAP_DESC heapDesc = { };

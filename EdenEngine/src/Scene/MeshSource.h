@@ -40,7 +40,7 @@ namespace Eden
 				uint32_t indexCount;
 			};
 
-			std::vector<std::shared_ptr<SubMesh>> submeshes;
+			std::vector<SharedPtr<SubMesh>> submeshes;
 			glm::mat4 gltfMatrix = glm::mat4(1.0f);
 		};
 
@@ -48,7 +48,7 @@ namespace Eden
 		uint32_t indexCount;
 		Buffer meshVb;
 		Buffer meshIb;
-		std::vector<std::shared_ptr<Mesh>> meshes;
+		std::vector<SharedPtr<Mesh>> meshes;
 		bool bHasMesh = false;
 		bool bIsTextured = false;
 

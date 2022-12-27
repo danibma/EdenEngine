@@ -53,7 +53,7 @@ namespace Eden
 		Camera camera;
 
 		// Skybox
-		std::shared_ptr<Skybox> skybox;
+		SharedPtr<Skybox> skybox;
 		bool bIsSkyboxEnabled = true;
 
 		// Scene

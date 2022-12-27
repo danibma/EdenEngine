@@ -22,7 +22,7 @@ using namespace Microsoft::WRL;
 
 namespace Eden
 {
-	struct D3D12Resource
+	struct D3D12Resource : public ResourceInternal
 	{
 		ComPtr<ID3D12Resource> resource;
 		ComPtr<D3D12MA::Allocation> allocation;
@@ -40,7 +40,7 @@ namespace Eden
 		//! Created in case we need things specific for the texture
 	};
 
-	struct D3D12Pipeline
+	struct D3D12Pipeline : public ResourceInternal
 	{
 		ComPtr<ID3D12RootSignature> rootSignature;
 		ComPtr<ID3D12PipelineState> pipelineState;
@@ -55,15 +55,16 @@ namespace Eden
 		uint32_t offset = 0;
 	};
 
-	struct D3D12RenderPass
+	struct D3D12RenderPass : public ResourceInternal
 	{
 		DescriptorHeap rtvHeap;
 		DescriptorHeap dsvHeap;
 		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtvDesc;
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsvDesc;
+
 	};
 
-	struct D3D12GPUTimer
+	struct D3D12GPUTimer : public ResourceInternal
 	{
 		ComPtr<ID3D12QueryHeap> queryHeap;
 	};

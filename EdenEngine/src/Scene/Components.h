@@ -43,17 +43,17 @@ namespace Eden
 
 	struct MeshComponent
 	{
-		std::shared_ptr<MeshSource> meshSource;
+		SharedPtr<MeshSource> meshSource;
 		std::string meshPath;
 
 		MeshComponent()
 		{
-			meshSource = std::make_shared<MeshSource>();
+			meshSource = MakeShared<MeshSource>();
 		}
 		MeshComponent(MeshComponent& component)
 		{
 			meshPath = component.meshPath;
-			meshSource = std::make_shared<MeshSource>();
+			meshSource = MakeShared<MeshSource>();
 		}
 		MeshComponent(MeshComponent&& component) noexcept = default;
 		MeshComponent& operator=(MeshComponent& other) = default;

@@ -41,7 +41,7 @@ namespace Eden
 		std::string defaultScene = "assets/scenes/cube.escene";
 		OpenScene(defaultScene);
 
-		g_Data->skybox = std::make_shared<Skybox>("assets/skyboxes/san_giuseppe_bridge.hdr");
+		g_Data->skybox = MakeShared<Skybox>("assets/skyboxes/san_giuseppe_bridge.hdr");
 
 		// Lights
 		BufferDesc dl_desc = {};
@@ -317,7 +317,7 @@ namespace Eden
 		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, g_Data->currentScene };
-			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().meshSource;
+			MeshSource* ms = e.GetComponent<MeshComponent>().meshSource.Get();
 			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
@@ -351,7 +351,7 @@ namespace Eden
 		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, g_Data->currentScene };
-			std::shared_ptr<MeshSource> ms = e.GetComponent<MeshComponent>().meshSource;
+			MeshSource* ms = e.GetComponent<MeshComponent>().meshSource.Get();
 			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
@@ -408,7 +408,7 @@ namespace Eden
 
 	void Renderer::PrepareScene()
 	{
-		if (g_Data->currentScene->IsSceneLoaded())
+		if (g_Data->currentScene && g_Data->currentScene->IsSceneLoaded())
 		{
 			g_Data->currentScene->ExecutePreparations();
 			return;
