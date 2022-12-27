@@ -274,10 +274,11 @@ namespace Eden
 			ImGui::Text(currentUsage.c_str());
 		}
 		ImGui::Separator();
-		for (const auto& sources : Memory::MemoryManager::GetCurrentAllocatedSources())
+		ImGui::Text("Memory Allocation sources:");
+		for (const auto& source : Memory::MemoryManager::GetCurrentAllocatedSources())
 		{
-			std::string currentUsage = Utils::BytesToString(sources.second);
-			ImGui::Text("%s: %s", sources.first, currentUsage.c_str());
+			std::string currentUsage = Utils::BytesToString(source.first);
+			ImGui::Text("    %s: %s", source.second, currentUsage.c_str());
 		}
 		ImGui::End();
 	}

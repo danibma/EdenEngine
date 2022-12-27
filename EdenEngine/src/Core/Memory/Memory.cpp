@@ -96,13 +96,13 @@ namespace Eden::Memory
 		return GetTotalAllocated() - GetTotalFreed();
 	}
 
-	std::unordered_map<const char*, size_t> MemoryManager::GetCurrentAllocatedSources()
+	std::map<size_t, const char*, std::greater<size_t>> MemoryManager::GetCurrentAllocatedSources()
 	{
-		std::unordered_map<const char*, size_t> result;
-		for (const auto allocStats : s_Data->AllocationStatsMap)
+		std::map<size_t, const char*, std::greater<size_t>> result;
+		for (const auto& allocStats : s_Data->AllocationStatsMap)
 		{
 			size_t currentUsage = allocStats.second.total_allocated - allocStats.second.total_freed;
-			result.emplace(allocStats.first, currentUsage);
+			result.emplace(currentUsage, allocStats.first);
 		}
 
 		return result;

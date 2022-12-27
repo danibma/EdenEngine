@@ -2,7 +2,6 @@
 
 #include <vcruntime.h>
 #include <map>
-#include <unordered_map>
 
 // Memory Tracking
 namespace Eden::Memory
@@ -64,7 +63,7 @@ namespace Eden::Memory
 		static size_t GetTotalAllocated();
 		static size_t GetTotalFreed();
 		static size_t GetCurrentAllocated();
-		static std::unordered_map<const char*, size_t> GetCurrentAllocatedSources();
+		static std::map<size_t, const char*, std::greater<size_t>> GetCurrentAllocatedSources();
 
 	private:
 		static void  Init();
@@ -88,7 +87,7 @@ void __CRTDECL operator delete(void* memory, const char* source);
 void __CRTDECL operator delete[](void* memory);
 void __CRTDECL operator delete[](void* memory, const char* source);
 
-#define enew new("enew")
+#define enew new("Engine \"enew\" allocation")
 #define edelete delete
 
 #else

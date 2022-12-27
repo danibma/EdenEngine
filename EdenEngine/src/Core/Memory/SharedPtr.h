@@ -8,12 +8,6 @@
 
 namespace Eden
 {
-	namespace Memory
-	{
-		void AddToLiveReferences(void* ref);
-		void RemoveFromLiveReferences(void* ref);
-	}
-
 	template<class T>
 	class SharedPtr
 	{
@@ -200,7 +194,6 @@ namespace Eden
 			if (m_Instance)
 			{
 				++(*m_RefCount);
-				Memory::AddToLiveReferences(static_cast<void*>(m_Instance));
 			}
 		}
 
@@ -212,7 +205,6 @@ namespace Eden
 				if (*m_RefCount == 0)
 				{
 					delete m_Instance;
-					Memory::RemoveFromLiveReferences(static_cast<void*>(m_Instance));
 					m_Instance = nullptr;
 
 					edelete m_RefCount;
