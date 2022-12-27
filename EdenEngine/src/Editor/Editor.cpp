@@ -143,7 +143,7 @@ namespace Eden
 
 		float windowX = m_ViewportPos.x;
 		float windowY = m_ViewportPos.y;
-		ImGuizmo::SetRect(windowX, windowY, Renderer::GetViewportSize().x, Renderer::GetViewportSize().x);
+		ImGuizmo::SetRect(windowX, windowY, Renderer::GetViewportSize().x, Renderer::GetViewportSize().y);
 
 		auto& transform_component = Renderer::GetCurrentScene()->GetSelectedEntity().GetComponent<TransformComponent>();
 		glm::mat4 transform = transform_component.GetTransform();
@@ -249,7 +249,7 @@ namespace Eden
 		{
 			Renderer::GetCurrentScene()->AddPreparation([&]() {
 				auto selectedEntity = Renderer::GetCurrentScene()->GetSelectedEntity();
-			Renderer::GetCurrentScene()->DeleteEntity(selectedEntity);
+				Renderer::GetCurrentScene()->DeleteEntity(selectedEntity);
 			});
 		}
 

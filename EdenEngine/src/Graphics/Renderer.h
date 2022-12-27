@@ -94,7 +94,6 @@ namespace Eden
 		static void BeginRender();
 		static void Render();
 		static void EndRender();
-		static void WaitAndRender();
 		static void Shutdown();
 
 		static API GetCurrentAPI();
@@ -118,8 +117,8 @@ namespace Eden
 		static GPUTimer& GetRenderTimer();
 		static GPUTimer& GetComputeTimer();
 
-		static glm::mat4& GetViewMatrix();
-		static glm::mat4& GetProjectionMatrix();
+		static glm::mat4 GetViewMatrix();
+		static glm::mat4 GetProjectionMatrix();
 
 		// Renderer API
 		static void CreateRenderpass(RenderPass* renderPass, RenderPassDesc* desc);

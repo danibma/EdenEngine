@@ -245,17 +245,12 @@ namespace Eden
 		ObjectPickerPass();
 		MainColorPass();
 		SceneCompositePass();
-
-		g_RHI->EndGPUTimer(&g_Data->renderTimer);
 	}
 
 	void Renderer::EndRender()
 	{
+		g_RHI->EndGPUTimer(&g_Data->renderTimer);
 		g_RHI->EndRender();
-	}
-
-	void Renderer::WaitAndRender()
-	{
 		g_RHI->Render();
 	}
 
@@ -552,12 +547,12 @@ namespace Eden
 		return g_Data->computeTimer;
 	}
 
-	glm::mat4& Renderer::GetViewMatrix()
+	glm::mat4 Renderer::GetViewMatrix()
 	{
 		return g_Data->viewMatrix;
 	}
 
-	glm::mat4& Renderer::GetProjectionMatrix()
+	glm::mat4 Renderer::GetProjectionMatrix()
 	{
 		return g_Data->projectionMatrix;
 	}

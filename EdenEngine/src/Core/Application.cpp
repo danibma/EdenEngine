@@ -68,7 +68,6 @@ namespace Eden
 				editor->Update();
 #endif
 				Renderer::EndRender();
-				Renderer::WaitAndRender();
 			}
 		}
 	}

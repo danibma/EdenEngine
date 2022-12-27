@@ -1839,6 +1839,10 @@ namespace Eden
 
 		WaitForGPU();
 
+		// definitely not the best way to do it, we need this here because the EditorInput() calls this function,
+		// which resets the command list, and makes us set the descriptor heap again, todo: fix this later
+		SetDescriptorHeap(&m_SRVHeap);
+
 		void* pixel_data;
 		stagingBuffer->Map(0, nullptr, &pixel_data);
 		pixel = *(glm::vec4*)pixel_data;
