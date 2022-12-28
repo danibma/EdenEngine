@@ -1020,6 +1020,7 @@ namespace Eden
 		ED_PROFILE_FUNCTION();
 
 		auto internal_state = MakeShared<D3D12Pipeline>();
+		pipeline->rootParameterIndices.clear();
 		pipeline->internal_state = internal_state;
 		pipeline->desc = *desc;
 

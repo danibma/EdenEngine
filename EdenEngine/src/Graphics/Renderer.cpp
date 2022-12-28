@@ -687,7 +687,7 @@ namespace Eden
 		return g_Data->outputTexture;
 	}
 
-	std::unordered_map<const char*, Eden::Pipeline>& Renderer::GetPipelines()
+	std::unordered_map<const char*, Pipeline>& Renderer::GetPipelines()
 	{
 		return g_Data->pipelines;
 	}
