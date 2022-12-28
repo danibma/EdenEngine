@@ -20,6 +20,7 @@ namespace Eden
 		bool m_bOpenSceneProperties = true;
 		bool m_bOpenPipelinesPanel = true;
 		bool m_bOpenMemoryPanel = true;
+		bool m_bOpenOutputLog = true;
 		int m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 		glm::vec2 m_ViewportPos;
 		bool m_bIsViewportFocused = false;
@@ -27,6 +28,8 @@ namespace Eden
 		std::unique_ptr<ContentBrowserPanel> m_ContentBrowserPanel;
 		std::unique_ptr<SceneHierarchy> m_SceneHierarchy;
 		RenderPass m_ImGuiPass;
+
+		size_t m_AmountOfLogMsgs = 0;
 
 	private:
 		void UI_Dockspace();
@@ -36,6 +39,7 @@ namespace Eden
 		void UI_PipelinesPanel();
 		void UI_SceneProperties();
 		void UI_MemoryPanel();
+		void UI_OutputLog();
 		void EditorInput();
 		std::pair<uint32_t, uint32_t> GetViewportMousePos();
 

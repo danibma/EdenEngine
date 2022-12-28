@@ -5,10 +5,12 @@
 #include <spdlog/sinks/msvc_sink.h>
 
 #include <filesystem>
+#include <iostream>
 
 namespace Eden
 {
 	std::shared_ptr<spdlog::logger> Log::s_CoreLogger;
+	std::vector<std::string> Log::s_OutputLog;
 
 	void Log::Init()
 	{
@@ -20,8 +22,8 @@ namespace Eden
 		std::vector<spdlog::sink_ptr> coreSinks =
 		{
 			std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/core.log", true),
-			std::make_shared<spdlog::sinks::stdout_color_sink_mt>(),
-			std::make_shared<spdlog::sinks::msvc_sink_mt>()
+			std::make_shared<spdlog::sinks::msvc_sink_mt>(),
+			std::make_shared<OutputLogSynk<std::mutex>>()
 		};
 
 		const std::string corePattern = "%^%n[%l]: %v%$";

@@ -102,7 +102,7 @@ project "EdenEngine"
 
     filter "configurations:Debug"
 		symbols "On"
-        kind "ConsoleApp"
+        kind "WindowedApp"
 
 		defines 
 		{
@@ -112,7 +112,7 @@ project "EdenEngine"
 
 	filter "configurations:DebugEditor"
 		symbols "On"
-        kind "ConsoleApp"
+        kind "WindowedApp"
 
 		defines 
 		{

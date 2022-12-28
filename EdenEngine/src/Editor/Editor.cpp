@@ -283,6 +283,45 @@ namespace Eden
 		ImGui::End();
 	}
 
+	void EdenEd::UI_OutputLog()
+	{
+		ImGui::Begin(ICON_FA_CIRCLE_INFO " Output Log##outputlog", &m_bOpenOutputLog);
+		std::vector<std::string> msgs = Log::GetOutputLog();
+		size_t currentAmount = msgs.size();
+
+		for (auto& logMsg : msgs)
+		{
+			if (logMsg.find("trace") != std::string::npos)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(150, 150, 150, 255));
+			}
+			else if (logMsg.find("info") != std::string::npos)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 200, 0, 255));
+			}
+			else if (logMsg.find("warn") != std::string::npos)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 200, 200, 255));
+			}
+			else if (logMsg.find("error") != std::string::npos)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(200, 0, 0, 200));
+			}
+			else if (logMsg.find("critical") != std::string::npos)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+			}
+
+			ImGui::Text(logMsg.c_str());
+			ImGui::PopStyleColor();
+		}
+
+		if (currentAmount > m_AmountOfLogMsgs)
+			ImGui::SetScrollHereY(1.0f);
+		m_AmountOfLogMsgs = currentAmount;
+		ImGui::End();
+	}
+
 	std::pair<uint32_t, uint32_t> EdenEd::GetViewportMousePos()
 	{
 		std::pair<uint32_t, uint32_t> viewportMousePos;
@@ -371,6 +410,8 @@ namespace Eden
 
 		UI_Dockspace();
 		UI_Viewport();
+		if (m_bOpenOutputLog)
+			UI_OutputLog();
 		m_ContentBrowserPanel->Render();
 		m_SceneHierarchy->Render();
 		if (m_bOpenStatisticsWindow)
