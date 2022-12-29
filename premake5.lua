@@ -59,7 +59,8 @@ project "EdenEngine"
 		"%{wks.location}/external",
         "%{wks.location}/external/ImGui",
         "%{wks.location}/external/Optick/src",
-        "%{wks.location}/external/yaml-cpp/include"
+        "%{wks.location}/external/yaml-cpp/include",
+		"%{VULKAN_SDK}/Include"
 	}
 
     links

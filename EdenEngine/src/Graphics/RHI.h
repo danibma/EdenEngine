@@ -136,7 +136,8 @@ namespace Eden
 
 	enum API
 	{
-		kApi_D3D12
+		kApi_D3D12,
+		kApi_Vulkan
 	};
 
 	enum TextureUsage
@@ -375,6 +376,8 @@ namespace Eden
 			{
 			case API::kApi_D3D12:
 				return "<D3D12>";
+			case API::kApi_Vulkan:
+				return "<Vulkan>";
 			default:
 				return "";
 			}

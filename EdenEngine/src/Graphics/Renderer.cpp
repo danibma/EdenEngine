@@ -1,10 +1,18 @@
 #include "Renderer.h"
 
 #include "D3D12/D3D12RHI.h"
+#include "Vulkan/VulkanRHI.h"
 #include "Scene/Components.h"
 #include "Scene/Entity.h"
 #include "Core/Application.h"
 #include "Profiling/Profiler.h"
+
+// TODO: In the future make this work through command line args
+#if 1
+#define RENDERING_API VulkanRHI
+#else
+#define RENDERING_API D3D12RHI
+#endif
 
 namespace Eden
 {
@@ -18,9 +26,9 @@ namespace Eden
 		g_Data = enew RendererData();
 		g_Data->viewportSize = { static_cast<float>(window->GetWidth()), static_cast<float>(window->GetHeight()) };
 
-		g_RHI = enew D3D12RHI();
+		g_RHI = enew RENDERING_API();
 		GfxResult error = g_RHI->Init(window);
-		ensureMsg(error == GfxResult::kNoError, "Failed to initialize RHI");
+		ensureMsgf(error == GfxResult::kNoError, "Failed to initialize RHI \"%s\"", Utils::APIToString(g_RHI->GetCurrentAPI()));
 
 		g_Data->window = window;
 		g_Data->camera = Camera(window->GetWidth(), window->GetHeight());
