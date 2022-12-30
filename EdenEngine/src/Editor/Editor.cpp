@@ -404,6 +404,10 @@ namespace Eden
 			Renderer::EnableImGui();
 		}
 
+		Renderer::CreateTexture(&g_EditorIcons["File"], "assets/editor/file.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["Folder"], "assets/editor/folder.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["Back"], "assets/editor/icon_back.png", false);
+
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>();
 		m_SceneHierarchy = std::make_unique<SceneHierarchy>();
 	}
