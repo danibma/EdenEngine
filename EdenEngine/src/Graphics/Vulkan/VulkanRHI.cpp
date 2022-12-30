@@ -126,6 +126,8 @@ namespace Eden
 
 	void VulkanRHI::Shutdown()
 	{
+		vkDestroyDevice(m_Device, nullptr);
+		vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 		vkDestroyInstance(m_Instance, nullptr);
 	}
 

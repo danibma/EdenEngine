@@ -268,7 +268,7 @@ namespace Eden
 		edelete g_Data;
 
 		g_RHI->Shutdown();
-		edelete static_cast<D3D12RHI*>(g_RHI);
+		edelete static_cast<RENDERING_API*>(g_RHI);
 	}
 
 	void Renderer::UpdatePointLights()
@@ -401,7 +401,8 @@ namespace Eden
 		g_RHI->BeginRenderPass(&g_Data->sceneComposite);
 		g_RHI->BindPipeline(&g_Data->pipelines["Scene Composite"]);
 		g_RHI->BindVertexBuffer(&g_Data->quadBuffer);
-		g_RHI->BindParameter("g_SceneTexture", &g_Data->gBuffer.colorAttachments[0]);
+		if (g_Data->gBuffer.colorAttachments.size() > 0)
+			g_RHI->BindParameter("g_SceneTexture", &g_Data->gBuffer.colorAttachments[0]);
 		GfxResult error = g_RHI->UpdateBufferData(&g_Data->sceneSettingsBuffer, &g_Data->sceneSettings);
 		ensure(error == GfxResult::kNoError);
 		g_RHI->BindParameter("SceneSettings", &g_Data->sceneSettingsBuffer);
