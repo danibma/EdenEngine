@@ -6,13 +6,7 @@
 #include "Scene/Entity.h"
 #include "Core/Application.h"
 #include "Profiling/Profiler.h"
-
-// TODO: In the future make this work through command line args
-#if 1
-#define RENDERING_API VulkanRHI
-#else
-#define RENDERING_API D3D12RHI
-#endif
+#include "Core/CommandLine.h"
 
 namespace Eden
 {
@@ -26,7 +20,20 @@ namespace Eden
 		g_Data = enew RendererData();
 		g_Data->viewportSize = { static_cast<float>(window->GetWidth()), static_cast<float>(window->GetHeight()) };
 
-		g_RHI = enew RENDERING_API();
+		if (CommandLine::HasArg("vulkan"))
+		{
+			g_RHI = enew VulkanRHI();
+		}
+		else if (CommandLine::HasArg("d3d12"))
+		{
+			g_RHI = enew D3D12RHI();
+		}
+		else
+		{
+			g_RHI = enew D3D12RHI();
+			ED_LOG_INFO("No Rendering was set through the command line arguments, choosing D3D12 by default!");
+		}
+
 		GfxResult error = g_RHI->Init(window);
 		ensureMsgf(error == GfxResult::kNoError, "Failed to initialize RHI \"%s\"", Utils::APIToString(g_RHI->GetCurrentAPI()));
 
@@ -268,7 +275,7 @@ namespace Eden
 		edelete g_Data;
 
 		g_RHI->Shutdown();
-		edelete static_cast<RENDERING_API*>(g_RHI);
+		edelete g_RHI;
 	}
 
 	void Renderer::UpdatePointLights()

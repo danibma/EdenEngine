@@ -272,6 +272,9 @@ namespace Eden
 
 	public:
 		IRHI() = default;
+		virtual ~IRHI()
+		{
+		}
 
 		int32_t GetCurrentFrameIndex() { return m_FrameIndex; }
 		API GetCurrentAPI() { return m_CurrentAPI; }
