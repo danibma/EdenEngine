@@ -34,7 +34,6 @@ namespace Eden
 		bool DrawDirectory(DirectoryInfo& info);
 
 	private:
-		std::unordered_map<const char*, Texture> m_EditorIcons;
 		std::filesystem::path m_CurrentPath = s_AssetsDirectory;
 		char m_SearchBuffer[32] = "\0";
 		float m_ThumbnailPadding = 16.0f;

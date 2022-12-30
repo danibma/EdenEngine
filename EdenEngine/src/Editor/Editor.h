@@ -47,5 +47,7 @@ namespace Eden
 		void Init(Window* window);
 		void Update();
 		void Shutdown();
+
+		static Texture GetEditorIcon(const char* iconName);
 	};
 }

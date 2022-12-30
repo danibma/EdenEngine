@@ -7,14 +7,12 @@
 #include "Scene/SceneSerializer.h"
 #include "Graphics/RHI.h"
 #include "Graphics/Renderer.h"
+#include "Editor/Editor.h"
 
 namespace Eden
 {
 	ContentBrowserPanel::ContentBrowserPanel()
 	{
-		Renderer::CreateTexture(&m_EditorIcons["File"], "assets/editor/file.png", false);
-		Renderer::CreateTexture(&m_EditorIcons["Folder"], "assets/editor/folder.png", false);
-		Renderer::CreateTexture(&m_EditorIcons["Back"], "assets/editor/icon_back.png", false);
 	}
 
 	ContentBrowserPanel::~ContentBrowserPanel()
@@ -33,7 +31,7 @@ namespace Eden
 		if (m_CurrentPath == directory.path())
 			baseFlags |= ImGuiTreeNodeFlags_Selected;
 
-		bool bIsNodeOpen = UI::TreeNodeWithIcon((ImTextureID)Renderer::GetTextureID(&m_EditorIcons["Folder"]) , ImVec2(18, 18), folderName.c_str(), baseFlags);
+		bool bIsNodeOpen = UI::TreeNodeWithIcon((ImTextureID)Renderer::GetTextureID(&EdenEd::GetEditorIcon("Folder")) , ImVec2(18, 18), folderName.c_str(), baseFlags);
 
 		if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
 			m_CurrentPath = directory.path();
@@ -76,7 +74,7 @@ namespace Eden
 		{
 			ImGui::PushID(info.filename.c_str());
 			ImGui::TableNextColumn();
-			ImGui::ImageButton((ImTextureID)Renderer::GetTextureID(&m_EditorIcons["Folder"]), ImVec2(m_ThumbnailSize, m_ThumbnailSize));
+			ImGui::ImageButton((ImTextureID)Renderer::GetTextureID(&EdenEd::GetEditorIcon("Folder")), ImVec2(m_ThumbnailSize, m_ThumbnailSize));
 			if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
 				m_CurrentPath = info.path;
 		}
@@ -89,7 +87,7 @@ namespace Eden
 			{
 				ImGui::PushID(info.filename.c_str());
 				ImGui::TableNextColumn();
-				ImGui::ImageButton((ImTextureID)Renderer::GetTextureID(&m_EditorIcons["File"]), ImVec2(m_ThumbnailSize, m_ThumbnailSize));
+				ImGui::ImageButton((ImTextureID)Renderer::GetTextureID(&EdenEd::GetEditorIcon("File")), ImVec2(m_ThumbnailSize, m_ThumbnailSize));
 				if (ImGui::BeginDragDropSource())
 				{
 					ImGui::SetDragDropPayload(CONTENT_BROWSER_DRAG_DROP, info.path.c_str(), info.path.size() + 1);
@@ -142,7 +140,7 @@ namespace Eden
 			ImGui::BeginChild("##cbItems");
 			// Back Button
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 6));
-			if (ImGui::ImageButton((ImTextureID)Renderer::GetTextureID(&m_EditorIcons["Back"]), ImVec2(20, 20), ImVec2(0, 0),
+			if (ImGui::ImageButton((ImTextureID)Renderer::GetTextureID(&EdenEd::GetEditorIcon("Back")), ImVec2(20, 20), ImVec2(0, 0),
 								   ImVec2(1, 1), -1, ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 0.7f)))
 			{
 				if (m_CurrentPath.string() != std::string(s_AssetsDirectory))

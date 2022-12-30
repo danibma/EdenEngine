@@ -15,6 +15,8 @@
 
 namespace Eden
 {
+	static std::unordered_map<const char*, Texture> g_EditorIcons;
+
 	void EdenEd::UI_Dockspace()
 	{
 		ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
@@ -379,6 +381,11 @@ namespace Eden
 			Renderer::SaveScene();
 	}
 
+	Texture EdenEd::GetEditorIcon(const char* iconName)
+	{
+		return g_EditorIcons[iconName];
+	}
+
 	void EdenEd::Init(Window* window)
 	{
 		Renderer::SetViewportSize(static_cast<float>(window->GetWidth()), static_cast<float>(window->GetHeight()));
@@ -430,6 +437,6 @@ namespace Eden
 
 	void EdenEd::Shutdown()
 	{
-
+		g_EditorIcons.clear();
 	}
 }
