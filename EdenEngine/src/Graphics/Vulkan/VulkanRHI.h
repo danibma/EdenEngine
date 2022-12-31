@@ -16,6 +16,7 @@ namespace Eden
 		VkPhysicalDevice m_PhysicalDevice;
 		VkDevice m_Device;
 		VkSurfaceKHR m_Surface;
+		VkSwapchainKHR m_Swapchain;
 		uint32_t m_GraphicsQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
 	public:

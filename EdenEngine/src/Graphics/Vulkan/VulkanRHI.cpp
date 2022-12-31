@@ -55,6 +55,37 @@ namespace Eden
 		surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
 		vkCreateWin32SurfaceKHR(m_Instance, &surfaceCreateInfo, nullptr, &m_Surface);
 
+		uint32_t surfaceFormatCount = 0;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &surfaceFormatCount, nullptr);
+		std::vector<VkSurfaceFormatKHR> surfaceFormats(surfaceFormatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &surfaceFormatCount, surfaceFormats.data());
+		VkSurfaceFormatKHR swapchainSurfaceFormat = {};
+		for (VkSurfaceFormatKHR& surfaceFormat : surfaceFormats)
+		{
+			if (surfaceFormat.format == VK_FORMAT_R8G8B8A8_UNORM || surfaceFormat.format == VK_FORMAT_B8G8R8A8_UNORM)
+			{
+				swapchainSurfaceFormat = surfaceFormat;
+				break;
+			}
+		}
+		ensure(swapchainSurfaceFormat.format != VK_FORMAT_UNDEFINED);
+
+		VkSwapchainCreateInfoKHR swapchainCreateInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+		swapchainCreateInfo.surface = m_Surface;
+		swapchainCreateInfo.minImageCount = 2;
+		swapchainCreateInfo.imageFormat = swapchainSurfaceFormat.format;
+		swapchainCreateInfo.imageColorSpace = swapchainSurfaceFormat.colorSpace;
+		swapchainCreateInfo.imageExtent.width = window->GetWidth();
+		swapchainCreateInfo.imageExtent.height = window->GetHeight();
+		swapchainCreateInfo.imageArrayLayers = 1;
+		swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		swapchainCreateInfo.queueFamilyIndexCount = 1;
+		swapchainCreateInfo.pQueueFamilyIndices = &m_GraphicsQueueFamilyIndex;
+		swapchainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+		swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+		swapchainCreateInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+		VK_CHECK(vkCreateSwapchainKHR(m_Device, &swapchainCreateInfo, nullptr, &m_Swapchain));
+
 		return GfxResult::kNoError;
 	}
 
