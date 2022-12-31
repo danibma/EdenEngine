@@ -3,10 +3,6 @@
 #include "VulkanHelper.h"
 #include "Core/Assertions.h"
 
-#ifdef ED_PLATFORM_WINDOWS
-#include <vulkan/vulkan_win32.h>
-#endif
-
 namespace Eden
 {
 	VkBool32 VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -34,38 +30,7 @@ namespace Eden
 		VkResult result = volkInitialize();
 		ensureMsgf(result == VK_SUCCESS, "Failed to initialize volk! \"%s\"", string_VkResult(result));
 		
-		VkApplicationInfo appInfo = {};
-		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pNext = nullptr;
-		appInfo.pApplicationName = "EdenEngine";
-		appInfo.applicationVersion = 1u;
-		appInfo.pEngineName = "Eden";
-		appInfo.engineVersion = 1u;
-		appInfo.apiVersion = VK_API_VERSION_1_3;
-
-		// TODO: add validation to all these extensions/layers, for the device too
-		std::vector<const char*> enabledInstanceExtensions = {
-			VK_KHR_SURFACE_EXTENSION_NAME,
-			VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
-			VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-			VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-		};
-
-		std::vector<const char*> enabledDeviceLayers = {
-			"VK_LAYER_KHRONOS_validation"
-		};
-
-		VkInstanceCreateInfo instanceInfo = {};
-		instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		instanceInfo.pNext = nullptr;
-		instanceInfo.pApplicationInfo = &appInfo;
-		instanceInfo.enabledLayerCount = static_cast<uint32_t>(enabledDeviceLayers.size());
-		instanceInfo.ppEnabledLayerNames = enabledDeviceLayers.data();
-		instanceInfo.enabledExtensionCount = static_cast<uint32_t>(enabledInstanceExtensions.size());
-		instanceInfo.ppEnabledExtensionNames = enabledInstanceExtensions.data();
-		
-		VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &m_Instance));
-		volkLoadInstance(m_Instance);
+		CreateInstance();
 
 		VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {};
 		messengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -75,45 +40,7 @@ namespace Eden
 		messengerCreateInfo.pfnUserCallback = VulkanDebugCallback;
 		VK_CHECK(vkCreateDebugUtilsMessengerEXT(m_Instance, &messengerCreateInfo, nullptr, &m_DebugMessenger));
 
-		uint32_t physicalDevicesCount = 0;
-		vkEnumeratePhysicalDevices(m_Instance, &physicalDevicesCount, nullptr);
-		ensureMsg(physicalDevicesCount > 0, "Couldn't find GPUs with Vulkan support!");
-		std::vector<VkPhysicalDevice> physicalDevices(physicalDevicesCount);
-		vkEnumeratePhysicalDevices(m_Instance, &physicalDevicesCount, physicalDevices.data());
-		for (VkPhysicalDevice& gpu : physicalDevices)
-		{
-			if (IsGPUSuitable(gpu))
-			{
-				m_PhysicalDevice = gpu;
-				break;
-			}
-		}
-		ensureMsg(m_PhysicalDevice != nullptr, "Could not find a suitable GPU!");
-
-		AcquireQueueFamilyIndicesFamily();
-		ensure(m_GraphicsQueueFamilyIndex != VK_QUEUE_FAMILY_IGNORED);
-
-		std::vector<const char*> enabledDeviceExtensions = 
-		{
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-			VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
-			//VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME,
-		};
-
-		float queuePriority = 1.0f;
-		VkDeviceQueueCreateInfo deviceQueueCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-		deviceQueueCreateInfo.pNext = nullptr;
-		deviceQueueCreateInfo.queueFamilyIndex = m_GraphicsQueueFamilyIndex;
-		deviceQueueCreateInfo.queueCount = 1;
-		deviceQueueCreateInfo.pQueuePriorities = &queuePriority;
-
-		VkDeviceCreateInfo deviceCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-		deviceCreateInfo.pNext = nullptr;
-		deviceCreateInfo.queueCreateInfoCount = 1;
-		deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
-		deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size());
-		deviceCreateInfo.ppEnabledExtensionNames = enabledDeviceExtensions.data();
-		vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
+		CreateDevice();
 
 		{
 			VkPhysicalDeviceProperties deviceProperties;
@@ -121,11 +48,19 @@ namespace Eden
 			ED_LOG_INFO("Initialized Vulkan device on {}", deviceProperties.deviceName);
 		}
 
+		VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
+		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+		surfaceCreateInfo.pNext = nullptr;
+		surfaceCreateInfo.hwnd = window->GetHandle();
+		surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
+		vkCreateWin32SurfaceKHR(m_Instance, &surfaceCreateInfo, nullptr, &m_Surface);
+
 		return GfxResult::kNoError;
 	}
 
 	void VulkanRHI::Shutdown()
 	{
+		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
 		vkDestroyDevice(m_Device, nullptr);
 		vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 		vkDestroyInstance(m_Instance, nullptr);
@@ -336,6 +271,87 @@ namespace Eden
 				break;
 			}
 		}
+	}
+
+	void VulkanRHI::CreateInstance()
+	{
+		VkApplicationInfo appInfo = {};
+		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		appInfo.pNext = nullptr;
+		appInfo.pApplicationName = "EdenEngine";
+		appInfo.applicationVersion = 1u;
+		appInfo.pEngineName = "Eden";
+		appInfo.engineVersion = 1u;
+		appInfo.apiVersion = VK_API_VERSION_1_3;
+
+		// TODO: add validation to all these extensions/layers, for the device too
+		std::vector<const char*> enabledInstanceExtensions = {
+			VK_KHR_SURFACE_EXTENSION_NAME,
+#ifdef ED_PLATFORM_WINDOWS
+			VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+#endif
+			VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+			VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+		};
+
+		std::vector<const char*> enabledDeviceLayers = {
+			"VK_LAYER_KHRONOS_validation"
+		};
+
+		VkInstanceCreateInfo instanceInfo = {};
+		instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		instanceInfo.pNext = nullptr;
+		instanceInfo.pApplicationInfo = &appInfo;
+		instanceInfo.enabledLayerCount = static_cast<uint32_t>(enabledDeviceLayers.size());
+		instanceInfo.ppEnabledLayerNames = enabledDeviceLayers.data();
+		instanceInfo.enabledExtensionCount = static_cast<uint32_t>(enabledInstanceExtensions.size());
+		instanceInfo.ppEnabledExtensionNames = enabledInstanceExtensions.data();
+
+		VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &m_Instance));
+		volkLoadInstance(m_Instance);
+	}
+
+	void VulkanRHI::CreateDevice()
+	{
+		uint32_t physicalDevicesCount = 0;
+		vkEnumeratePhysicalDevices(m_Instance, &physicalDevicesCount, nullptr);
+		ensureMsg(physicalDevicesCount > 0, "Couldn't find GPUs with Vulkan support!");
+		std::vector<VkPhysicalDevice> physicalDevices(physicalDevicesCount);
+		vkEnumeratePhysicalDevices(m_Instance, &physicalDevicesCount, physicalDevices.data());
+		for (VkPhysicalDevice& gpu : physicalDevices)
+		{
+			if (IsGPUSuitable(gpu))
+			{
+				m_PhysicalDevice = gpu;
+				break;
+			}
+		}
+		ensureMsg(m_PhysicalDevice != nullptr, "Could not find a suitable GPU!");
+
+		AcquireQueueFamilyIndicesFamily();
+		ensure(m_GraphicsQueueFamilyIndex != VK_QUEUE_FAMILY_IGNORED);
+
+		std::vector<const char*> enabledDeviceExtensions =
+		{
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+			VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
+			//VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME,
+		};
+
+		float queuePriority = 1.0f;
+		VkDeviceQueueCreateInfo deviceQueueCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+		deviceQueueCreateInfo.pNext = nullptr;
+		deviceQueueCreateInfo.queueFamilyIndex = m_GraphicsQueueFamilyIndex;
+		deviceQueueCreateInfo.queueCount = 1;
+		deviceQueueCreateInfo.pQueuePriorities = &queuePriority;
+
+		VkDeviceCreateInfo deviceCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+		deviceCreateInfo.pNext = nullptr;
+		deviceCreateInfo.queueCreateInfoCount = 1;
+		deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
+		deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size());
+		deviceCreateInfo.ppEnabledExtensionNames = enabledDeviceExtensions.data();
+		vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
 	}
 
 }

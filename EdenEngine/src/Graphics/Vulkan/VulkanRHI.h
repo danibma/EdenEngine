@@ -2,6 +2,9 @@
 
 #include "Graphics/RHI.h"
 
+#ifdef ED_PLATFORM_WINDOWS
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
 #include <Volk/volk.h>
 
 namespace Eden
@@ -12,6 +15,7 @@ namespace Eden
 		VkDebugUtilsMessengerEXT m_DebugMessenger;
 		VkPhysicalDevice m_PhysicalDevice;
 		VkDevice m_Device;
+		VkSurfaceKHR m_Surface;
 		uint32_t m_GraphicsQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
 	public:
@@ -70,5 +74,7 @@ namespace Eden
 	private:
 		bool IsGPUSuitable(VkPhysicalDevice& gpu);
 		void AcquireQueueFamilyIndicesFamily();
+		void CreateInstance();
+		void CreateDevice();
 	};
 }
