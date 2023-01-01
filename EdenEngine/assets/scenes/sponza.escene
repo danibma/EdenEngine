@@ -5,10 +5,10 @@ Entities:
       Tag: Sun
     TransformComponent:
       Translation: [0, 0, 0]
-      Rotation: [-6.4832624e-05, 0.674534261, 1.487764]
-      Scale: [0.999999523, 0.999999642, 0.999999881]
+      Rotation: [0.851101577, 0.674533486, 1.48776424]
+      Scale: [1.00000012, 0.999999881, 1.00000012]
     DirectionalLightComponent:
-      Intensity: 0.400000006
+      Intensity: 1
   - Entity: 1
     TagComponent:
       Tag: Sponza
@@ -22,11 +22,11 @@ Entities:
     TagComponent:
       Tag: Light
     TransformComponent:
-      Translation: [-1.15324068, 12.5769873, -12.8846836]
+      Translation: [-1.44003296, 8.45798969, -12.8846836]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     PointLightComponent:
-      Color: [1, 1, 1, 1]
+      Color: [0.869747877, 0.0328896493, 0.0328896493, 1]
       Intensity: 1
   - Entity: 3
     TagComponent:
