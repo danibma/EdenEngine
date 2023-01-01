@@ -280,9 +280,7 @@ namespace Eden
 				}
 				break;
 				case EdenExtension::kEnvironmentMap:
-					Renderer::GetCurrentScene()->AddPreparation([&]() {
-						Renderer::SetNewSkybox(path.string().c_str());
-					});
+					Renderer::SetNewSkybox(path.string().c_str());
 					break;
 				}
 			}

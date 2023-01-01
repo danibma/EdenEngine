@@ -19,6 +19,15 @@ namespace Eden
 	{
 	}
 
+	void Skybox::Prepare()
+	{
+		if (m_bTextureNeedsReload)
+		{
+			Renderer::CreateTexture(&m_SkyboxTexture, m_SkyboxTexturePath, false);
+			m_bTextureNeedsReload = false;
+		}
+	}
+
 	void Skybox::Render(glm::mat4 viewProjectMatrix)
 	{
 		Renderer::BindVertexBuffer(&m_SkyboxCube->meshVb);
@@ -38,6 +47,7 @@ namespace Eden
 
 	void Skybox::SetNewTexture(const char* texturePath)
 	{
-		Renderer::CreateTexture(&m_SkyboxTexture, texturePath, false);
+		m_SkyboxTexturePath = texturePath;
+		m_bTextureNeedsReload = true;
 	}
 }

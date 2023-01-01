@@ -54,10 +54,10 @@ namespace Eden
 		ensure(error == GfxResult::kNoError);
 
 		g_Data->currentScene = enew Scene();
-		std::string defaultScene = "assets/scenes/cube.escene";
+		std::string defaultScene = "assets/scenes/demo.escene";
 		OpenScene(defaultScene);
 
-		g_Data->skybox = MakeShared<Skybox>("assets/skyboxes/san_giuseppe_bridge.hdr");
+		g_Data->skybox = MakeShared<Skybox>("assets/skyboxes/studio_garden.hdr");
 
 		// Lights
 		BufferDesc dl_desc = {};
@@ -430,6 +430,7 @@ namespace Eden
 	{
 		if (g_Data->currentScene && g_Data->currentScene->IsSceneLoaded())
 		{
+			g_Data->skybox->Prepare();
 			g_Data->currentScene->ExecutePreparations();
 			return;
 		}
