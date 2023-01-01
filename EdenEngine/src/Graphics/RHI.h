@@ -266,6 +266,7 @@ namespace Eden
 	class IRHI
 	{
 	protected:
+		bool m_VSyncEnabled = true;
 		bool m_bIsImguiInitialized = false;
 		int32_t m_FrameIndex;
 		API m_CurrentAPI;

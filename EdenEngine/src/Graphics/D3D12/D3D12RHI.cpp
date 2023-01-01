@@ -175,6 +175,8 @@ namespace Eden
 		swapchainDesc.BufferCount = s_FrameCount;
 		swapchainDesc.Scaling = DXGI_SCALING_NONE;
 		swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		if (!m_VSyncEnabled)
+			swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
 		ComPtr<IDXGISwapChain1> swapchain;
 		if (FAILED(m_Factory->CreateSwapChainForHwnd(m_CommandQueue.Get(), window->GetHandle(), &swapchainDesc, nullptr, nullptr, &swapchain))) 
@@ -1710,7 +1712,10 @@ namespace Eden
 		m_CommandQueue->Signal(m_Fence.Get(), currentFenceValue);
 
 		ED_PROFILE_GPU_FLIP(m_Swapchain.Get());
-		m_Swapchain->Present(1, 0);
+		if (!m_VSyncEnabled)
+			m_Swapchain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+		else
+			m_Swapchain->Present(1, 0);
 
 		// Update the frame index
 		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
@@ -1757,7 +1762,10 @@ namespace Eden
 
 			m_SwapchainTarget->depthStencil = {};
 
-			if (FAILED(m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, 0)))
+			DXGI_SWAP_CHAIN_FLAG flags = {};
+			if (!m_VSyncEnabled)
+				flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+			if (FAILED(m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, flags)))
 				ensure(false);
 
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();

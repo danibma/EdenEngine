@@ -8,7 +8,7 @@ Entities:
       Rotation: [-0.191986218, 1.27409029, 0.052359879]
       Scale: [1, 1, 1]
     DirectionalLightComponent:
-      Intensity: 0.649999976
+      Intensity: 0.300000012
   - Entity: 1
     TagComponent:
       Tag: Helmet
