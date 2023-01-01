@@ -23,7 +23,7 @@ Run `GenerateProjects_vs2022.bat` to generate the Visual Studio 2022 solution, a
 ### Multiple Lights support
 ![Multiple Lights](img/multiple_lights.png)
 
-### HDR Pipeline with Gamma Correction
+### HDR Pipeline with Gamma Correction and Tonemapping
 | On | Off |
 |----|-----|
 | ![Multiple Lights](img/hdr_on.png) | ![Multiple Lights](img/hdr_off.png) |
