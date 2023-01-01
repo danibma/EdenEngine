@@ -1462,8 +1462,6 @@ namespace Eden
 		auto internal_state = ToInternal(texture);
 		uint32_t dataCount = texture->mipCount;
 
-		ComPtr<ID3D12Resource> textureUploadHeap;
-		D3D12MA::Allocation* uploadAllocation;
 		const uint64_t uploadBufferSize = GetRequiredIntermediateSize(internal_state->resource.Get(), 0, dataCount);
 
 		// Create the GPU upload buffer
@@ -1474,12 +1472,12 @@ namespace Eden
 									&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
 									D3D12_RESOURCE_STATE_GENERIC_READ,
 									nullptr,
-									&uploadAllocation,
-									IID_PPV_ARGS(&textureUploadHeap));
+									&internal_state->uploadAllocation,
+									IID_PPV_ARGS(&internal_state->uploadHeap));
 
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the Texture2D.
-		std::vector<D3D12_SUBRESOURCE_DATA> data(dataCount);
+		internal_state->data.resize(dataCount);
 		
 		uint32_t width = texture->desc.width;
 		uint32_t height = texture->desc.height;
@@ -1491,22 +1489,14 @@ namespace Eden
 			if (texture->desc.bIsSrgb)
 				textureData.RowPitch *= sizeof(float);
 			textureData.SlicePitch = height * textureData.RowPitch;
-			data[i] = textureData;
+			internal_state->data[i] = textureData;
 
 			width = std::max<uint32_t>(width / 2, 1u);
 			height = std::max<uint32_t>(height / 2, 1u);
 		}
-
-		UpdateSubresources(m_CommandList.Get(), internal_state->resource.Get(), textureUploadHeap.Get(), 0, 0, dataCount, data.data());
-
-		m_CommandList->Close();
-		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
-		m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
-
-		WaitForGPU();
-
-		uploadAllocation->Release();
+		internal_state->resource->SetName(L"texture_resource");
+		internal_state->uploadHeap->SetName(L"texture");
+		UpdateSubresources(m_CommandList.Get(), internal_state->resource.Get(), internal_state->uploadHeap.Get(), 0, 0, (uint32_t)internal_state->data.size(), internal_state->data.data());
 	}
 
 	void D3D12RHI::BeginRender()
@@ -1790,9 +1780,6 @@ namespace Eden
 
 		auto internal_state = ToInternal(texture);
 
-		ComPtr<ID3D12Resource> stagingBuffer;
-		ComPtr<D3D12MA::Allocation> stagingAllocation;
-		
 		uint64_t width = texture->desc.width * 32;
 		width = ALIGN(width, 256);
 
@@ -1805,8 +1792,8 @@ namespace Eden
 									&CD3DX12_RESOURCE_DESC::Buffer(stagingBufferSize),
 									D3D12_RESOURCE_STATE_COPY_DEST,
 									nullptr,
-									&stagingAllocation,
-									IID_PPV_ARGS(&stagingBuffer));
+									&pixelReadStagingBuffer.allocation,
+									IID_PPV_ARGS(&pixelReadStagingBuffer.resource));
 		ensure(hr == S_OK);
 
 		D3D12_SUBRESOURCE_FOOTPRINT subresourceFootprint = {};
@@ -1828,7 +1815,7 @@ namespace Eden
 		D3D12_TEXTURE_COPY_LOCATION dst = {};
 		dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 		dst.PlacedFootprint = textureFootprint;
-		dst.pResource = stagingBuffer.Get();
+		dst.pResource = pixelReadStagingBuffer.resource.Get();
 
 		D3D12_BOX srcRegion = {};
 		srcRegion.top = y;
@@ -1842,19 +1829,8 @@ namespace Eden
 		m_CommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcRegion);
 		EnsureMsgResourceState(texture, ResourceState::kPixelShader);
 
-		m_CommandList->Close();
-		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
-		m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
-		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
-
-		WaitForGPU();
-
-		// definitely not the best way to do it, we need this here because the EditorInput() calls this function,
-		// which resets the command list, and makes us set the descriptor heap again, todo: fix this later
-		SetDescriptorHeap(&m_SRVHeap);
-
 		void* pixel_data;
-		stagingBuffer->Map(0, nullptr, &pixel_data);
+		pixelReadStagingBuffer.resource->Map(0, nullptr, &pixel_data);
 		pixel = *(glm::vec4*)pixel_data;
 	}
 

@@ -60,8 +60,6 @@ namespace Eden
 		blackDesc.height = 1;
 		blackDesc.bIsStorage = false;
 		blackDesc.bGenerateMips = false;
-		Texture blackTexture;
-		Renderer::CreateTexture(&blackTexture, &blackDesc);
 
 		std::string parent_path = file.parent_path().string() + "/";
 
@@ -106,8 +104,6 @@ namespace Eden
 				submesh->vertexStart = (uint32_t)vertices.size();
 				submesh->indexStart = (uint32_t)indices.size();
 				submesh->indexCount = 0;
-				submesh->diffuseTexture = blackTexture;
-				submesh->emissiveTexture = blackTexture;
 
 				// Vertices
 				{
@@ -219,6 +215,10 @@ namespace Eden
 				
 					LoadImage(&submesh->diffuseTexture, gltfModel, textureIndex);
 				}
+				else
+				{
+					Renderer::CreateTexture(&submesh->diffuseTexture, &blackDesc);
+				}
 
 				if (gltfMaterial.emissiveTexture.index > -1)
 				{
@@ -226,6 +226,10 @@ namespace Eden
 					auto textureIndex = gltfModel.textures[material_index].source;
 				
 					LoadImage(&submesh->emissiveTexture, gltfModel, textureIndex);
+				}
+				else
+				{
+					Renderer::CreateTexture(&submesh->emissiveTexture, &blackDesc);
 				}
 
 				mesh->submeshes.emplace_back(submesh);

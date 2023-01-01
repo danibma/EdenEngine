@@ -37,7 +37,9 @@ namespace Eden
 
 	struct D3D12Texture : public D3D12Resource
 	{
-		//! Created in case we need things specific for the texture
+		ComPtr<ID3D12Resource> uploadHeap;
+		ComPtr<D3D12MA::Allocation> uploadAllocation;
+		std::vector<D3D12_SUBRESOURCE_DATA> data;
 	};
 
 	struct D3D12Pipeline : public ResourceInternal
@@ -85,6 +87,9 @@ namespace Eden
 		CD3DX12_RECT m_Scissor;
 
 		ComPtr<D3D12MA::Allocator> m_Allocator;
+
+		// Buffer used to get the pixel from the "ObjectPicker" color attachment
+		D3D12Resource pixelReadStagingBuffer;
 
 		bool m_bIsImguiInitialized = false;
 
