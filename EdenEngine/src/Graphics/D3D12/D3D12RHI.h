@@ -82,7 +82,7 @@ namespace Eden
 		DescriptorHeap m_SRVHeap; // TODO: Move this the descriptor heap things into the renderer, when the renderer is made
 		ComPtr<ID3D12Fence> m_Fence;
 		ComPtr<ID3D12CommandQueue> m_CommandQueue;
-		ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
+		ComPtr<ID3D12CommandAllocator> m_CommandAllocator[s_FrameCount];
 		ComPtr<ID3D12GraphicsCommandList4> m_CommandList;
 		CD3DX12_RECT m_Scissor;
 
@@ -170,6 +170,7 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
+		void MoveToNextFrame();
 		void CreateAttachments(RenderPass* renderPass);
 		uint32_t GetRootParameterIndex(const std::string& parameterName);
 		void CreateRootSignature(Pipeline* pipeline);

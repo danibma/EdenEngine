@@ -993,12 +993,15 @@ namespace Eden
 			ensureMsg(false, "Failed to create command queue!");
 
 		// Create graphics command allocator
-		if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator))))
-			ensureMsg(false, "Failed to create command allocator!");
-		m_CommandAllocator->SetName(L"gfxCommandAllocator");
+		for (int i = 0; i < s_FrameCount; ++i)
+		{
+			if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator[i]))))
+				ensureMsg(false, "Failed to create command allocator!");
+			m_CommandAllocator[i]->SetName(L"gfxCommandAllocator");
+		}
 
 		// Create graphics command list
-		if (FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList))))
+		if (FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator[m_FrameIndex].Get(), nullptr, IID_PPV_ARGS(&m_CommandList))))
 			ensureMsg(false, "Failed to create command list!");
 		m_CommandList->SetName(L"gfxCommandList");
 	}
@@ -1697,34 +1700,16 @@ namespace Eden
 		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
 		m_CommandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-		// Schedule a Signal command in the queue
-		const uint64_t currentFenceValue = m_FenceValues[m_FrameIndex];
-		m_CommandQueue->Signal(m_Fence.Get(), currentFenceValue);
-
 		ED_PROFILE_GPU_FLIP(m_Swapchain.Get());
 		if (!m_VSyncEnabled)
 			m_Swapchain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 		else
 			m_Swapchain->Present(1, 0);
 
-		// Update the frame index
-		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
+		MoveToNextFrame();
 
-		// If the next frame is not ready to be rendered yet, wait until it is ready
-		if (m_Fence->GetCompletedValue() < m_FenceValues[m_FrameIndex])
-		{
-			m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent);
-			WaitForSingleObject(m_FenceEvent, INFINITE); // wait for GPU to complete
-		}
-
-		// Set the fence value for the next frame
-		m_FenceValues[m_FrameIndex] = currentFenceValue + 1;
-
-		WaitForGPU();
-
-		m_CommandAllocator->Reset();
-
-		m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
+		m_CommandAllocator[m_FrameIndex]->Reset();
+		m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
 	}
 
 	GfxResult D3D12RHI::Resize(uint32_t width, uint32_t height)
@@ -1768,7 +1753,7 @@ namespace Eden
 			m_Scissor = CD3DX12_RECT(0, 0, width, height);
 
 			m_CommandAllocator->Reset();
-			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
+			m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
 		}
 
 		return GfxResult::kNoError;
@@ -1910,6 +1895,26 @@ namespace Eden
 
 		// Increment the fence value for the current frame
 		m_FenceValues[m_FrameIndex]++;
+	}
+
+	void D3D12RHI::MoveToNextFrame()
+	{
+		// Schedule a Signal command in the queue.
+		const UINT64 currentFenceValue = m_FenceValues[m_FrameIndex];
+		m_CommandQueue->Signal(m_Fence.Get(), currentFenceValue);
+
+		// Update the frame index
+		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
+
+		// If the next frame is not ready to be rendered yet, wait until it is ready
+		if (m_Fence->GetCompletedValue() < m_FenceValues[m_FrameIndex])
+		{
+			m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent);
+			WaitForSingleObject(m_FenceEvent, INFINITE); // wait for GPU to complete
+		}
+
+		// Set the fence value for the next frame
+		m_FenceValues[m_FrameIndex] = currentFenceValue + 1;
 	}
 
 	uint32_t D3D12RHI::GetRootParameterIndex(const std::string& parameterName)
