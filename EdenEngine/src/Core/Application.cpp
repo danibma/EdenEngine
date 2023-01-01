@@ -15,7 +15,7 @@ namespace Eden
 		Log::Init();
 
 	#ifdef ED_DEBUG
-		window = enew Window("Eden Engine[DEBUG]", 1600, 900);
+		window = enew Window("Eden Engine[Debug]", 1600, 900);
 	#elif defined(ED_PROFILING)
 		window = enew Window("Eden Engine[Profiling]", 1600, 900);
 	#else
@@ -89,12 +89,26 @@ namespace Eden
 
 	void Application::ChangeWindowTitle(const std::string& title)
 	{
-		std::string newTitle = title + " - " + window->GetDefaultTitle() + " " + Utils::APIToString(Renderer::GetCurrentAPI()); // NOTE(Daniel): in case of adding more API's make this dynamic
-		SetWindowTextA(window->GetHandle(), newTitle.c_str());
+		window->ChangeTitle(title);
 	}
 
 	void Application::RequestClose()
 	{
 		window->CloseWasRequested();
+	}
+
+	void Application::MaximizeWindow()
+	{
+		window->Maximize();
+	}
+
+	void Application::MinimizeWindow()
+	{
+		window->Minimize();
+	}
+
+	bool Application::IsWindowMaximized()
+	{
+		return window->IsMaximized();
 	}
 }

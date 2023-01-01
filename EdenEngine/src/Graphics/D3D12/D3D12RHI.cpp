@@ -1754,10 +1754,11 @@ namespace Eden
 				rtInternal_state->resource.Reset();
 				m_FenceValues[i] = m_FenceValues[m_FrameIndex];
 			}
-			
+
 			m_SwapchainTarget->depthStencil = {};
 
-			m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, 0);
+			if (FAILED(m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, 0)))
+				ensure(false);
 
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
 
@@ -1766,7 +1767,7 @@ namespace Eden
 			m_SwapchainTarget->desc.height = height;
 			CreateAttachments(m_SwapchainTarget);
 			
-			m_Scissor  = CD3DX12_RECT(0, 0, width, height);
+			m_Scissor = CD3DX12_RECT(0, 0, width, height);
 
 			m_CommandAllocator->Reset();
 			m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);

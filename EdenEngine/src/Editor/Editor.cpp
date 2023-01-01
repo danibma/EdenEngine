@@ -12,15 +12,17 @@
 #include "Graphics/Renderer.h"
 #include "Scene/Entity.h"
 #include "stdio.h"
+#include "Graphics/RHI.h"
 
 namespace Eden
 {
 	static std::unordered_map<const char*, Texture> g_EditorIcons;
+	bool EdenEd::s_bIsTitleBarHovered = false;
 
 	void EdenEd::UI_Dockspace()
 	{
 		ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
-		ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+		ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking;
 		const ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(viewport->WorkPos);
 		ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -43,8 +45,10 @@ namespace Eden
 		}
 
 		// Menubar
-		if (ImGui::BeginMenuBar())
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 8.0f));
+		if (ImGui::BeginMainMenuBar())
 		{
+			ImGui::PopStyleVar();
 			if (ImGui::BeginMenu("File"))
 			{
 				if (ImGui::MenuItem("New Scene", "Ctrl+N"))
@@ -101,12 +105,50 @@ namespace Eden
 				ImGui::EndMenu();
 			}
 
-			char fpsText[256];
-			snprintf(fpsText, 256, "fps: %.0f | cpu: %.1fms | gpu: %.1fms", (1000.0f / Application::Get()->GetDeltaTime()) / 1000.0f, Application::Get()->GetDeltaTime() * 1000.0f, Renderer::GetRenderTimer().elapsedTime);
-			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize(fpsText).x) * 0.995f);
-			ImGui::Text(fpsText);
+			const std::string title = Application::Get()->GetWindowTitle();
+			ImGui::SetCursorPosX(ImGui::GetWindowSize().x * 0.5f - (ImGui::CalcTextSize(title.c_str()).x / 2.0f));
+			ImGui::SetCursorPosY(5.0f);
+			ImGui::Image((ImTextureID)Renderer::GetTextureID(&g_EditorIcons["EdenIcon"]), ImVec2(22, 22));
+			ImGui::Text(title.c_str());
 
-			ImGui::EndMenuBar();
+			const float buttonSize = 12.0f;
+
+			char fpsText[256];
+			snprintf(fpsText, 256, "FPS: %.0f | CPU: %.1fms | GPU: %.1fms | API: %s", 
+				(1000.0f / Application::Get()->GetDeltaTime()) / 1000.0f, 
+				Application::Get()->GetDeltaTime() * 1000.0f, 
+				Renderer::GetRenderTimer().elapsedTime, 
+				Utils::APIToString(Renderer::GetCurrentAPI()));
+			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 400.0f));
+			ImGui::Text(fpsText);
+			ImTextureID closeID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(&g_EditorIcons["Close"]));
+			ImTextureID minimizeID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(&g_EditorIcons["Minimize"]));
+			ImTextureID maximizeID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(&g_EditorIcons["Maximize"]));
+			ImTextureID restoreID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(&g_EditorIcons["Restore"]));
+			if (!Application::Get()->IsWindowMaximized())
+				restoreID = maximizeID;
+
+			const float buttonTopPadding = 6.0f;
+			ImGui::SetCursorPosY(buttonTopPadding);
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+			if (ImGui::ImageButton(minimizeID, ImVec2(buttonSize, buttonSize)))
+			{
+				Application::Get()->MinimizeWindow();
+			}
+			ImGui::SetCursorPosY(buttonTopPadding);
+			if (ImGui::ImageButton(restoreID, ImVec2(buttonSize, buttonSize)))
+			{
+				Application::Get()->MaximizeWindow();
+			}
+			ImGui::SetCursorPosY(buttonTopPadding);
+			if (ImGui::ImageButton(closeID, ImVec2(buttonSize, buttonSize)))
+			{
+				Application::Get()->RequestClose();
+			}
+			ImGui::PopStyleColor();
+
+			s_bIsTitleBarHovered = !ImGui::IsAnyItemHovered() && ImGui::IsWindowHovered();
+			ImGui::EndMainMenuBar();
 		}
 
 		ImGui::End();
@@ -407,6 +449,11 @@ namespace Eden
 		Renderer::CreateTexture(&g_EditorIcons["File"], "assets/editor/file.png", false);
 		Renderer::CreateTexture(&g_EditorIcons["Folder"], "assets/editor/folder.png", false);
 		Renderer::CreateTexture(&g_EditorIcons["Back"], "assets/editor/icon_back.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["Close"], "assets/editor/window_close.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["Minimize"], "assets/editor/window_minimize.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["Maximize"], "assets/editor/window_maximize.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["Restore"], "assets/editor/window_restore.png", false);
+		Renderer::CreateTexture(&g_EditorIcons["EdenIcon"], "assets/editor/icon.png", false);
 
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>();
 		m_SceneHierarchy = std::make_unique<SceneHierarchy>();

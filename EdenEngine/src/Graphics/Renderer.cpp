@@ -14,6 +14,7 @@ namespace Eden
 	IRHI* g_RHI = nullptr;
 	// Renderer Data
 	RendererData* g_Data = nullptr;
+	bool g_IsRendererInitialized = false;
 
 	void Renderer::Init(Window* window)
 	{
@@ -212,14 +213,11 @@ namespace Eden
 		ensure(error == GfxResult::kNoError);
 
 		ED_LOG_INFO("Renderer has been initialized!");
+		g_IsRendererInitialized = true;
 	}
 
 	void Renderer::BeginRender()
 	{
-#if !WITH_EDITOR
-		g_Data->viewportSize = { g_Data->window->GetWidth(), g_Data->window->GetHeight() };
-#endif
-
 		PrepareScene();
 
 		// Update camera and scene data
@@ -256,8 +254,9 @@ namespace Eden
 		//! 8 is the num of threads, changing in there requires to change in shader
 		g_RHI->Dispatch(static_cast<uint32_t>(g_Data->outputTexture.desc.width / 8), static_cast<uint32_t>(g_Data->outputTexture.desc.height / 8), 1); // TODO: abstract the num of threads in some way
 		g_RHI->EndGPUTimer(&g_Data->computeTimer);
-
+#if WITH_EDITOR
 		ObjectPickerPass();
+#endif
 		MainColorPass();
 		SceneCompositePass();
 	}
@@ -276,6 +275,11 @@ namespace Eden
 
 		g_RHI->Shutdown();
 		edelete g_RHI;
+	}
+
+	bool Renderer::IsInitialized()
+	{
+		return g_IsRendererInitialized;
 	}
 
 	void Renderer::UpdatePointLights()

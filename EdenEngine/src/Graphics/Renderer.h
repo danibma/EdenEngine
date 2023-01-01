@@ -95,6 +95,7 @@ namespace Eden
 		static void Render();
 		static void EndRender();
 		static void Shutdown();
+		static bool IsInitialized();
 
 		static API GetCurrentAPI();
 

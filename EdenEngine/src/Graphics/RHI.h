@@ -378,9 +378,9 @@ namespace Eden
 			switch (api)
 			{
 			case API::kApi_D3D12:
-				return "<D3D12>";
+				return "D3D12";
 			case API::kApi_Vulkan:
-				return "<Vulkan>";
+				return "Vulkan";
 			default:
 				return "";
 			}

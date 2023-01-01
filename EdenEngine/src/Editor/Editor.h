@@ -31,6 +31,8 @@ namespace Eden
 
 		size_t m_AmountOfLogMsgs = 0;
 
+		static bool s_bIsTitleBarHovered;
+
 	private:
 		void UI_Dockspace();
 		void UI_Viewport();
@@ -49,5 +51,6 @@ namespace Eden
 		void Shutdown();
 
 		static Texture GetEditorIcon(const char* iconName);
+		static bool IsTitleBarHovered() { return s_bIsTitleBarHovered; }
 	};
 }

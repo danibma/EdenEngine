@@ -6,6 +6,7 @@
 
 #include <imgui/ImguiHelper.h>
 #include <imgui/backends/imgui_impl_win32.h>
+#include "Editor/Editor.h"
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -15,33 +16,118 @@ static LRESULT CALLBACK WindowProc(HWND handle, UINT uMsg, WPARAM wParam, LPARAM
 		return true;
 
 	Eden::Window* window = (Eden::Window*)GetWindowLongPtrA(handle, GWLP_USERDATA);
+
+	auto ValidateIfMaximized = [&handle, window](RECT& rect)
+	{
+		if (!window->IsMaximized())
+			return;
+		HMONITOR monitor = ::MonitorFromWindow(handle, MONITOR_DEFAULTTOPRIMARY);
+		if (!monitor)
+			return;
+		MONITORINFO monitorInfo{};
+		monitorInfo.cbSize = sizeof(monitorInfo);
+		if (!::GetMonitorInfoW(monitor, &monitorInfo))
+			return;
+		rect = monitorInfo.rcWork;
+	};
+
+	auto hitTest = [&handle, window](POINT cursor)
+	{
+		// identify borders and corners to allow resizing the window.
+		// Note: On Windows 10, windows behave differently and
+		// allow resizing outside the visible window frame.
+		// This implementation does not replicate that behavior.
+		const POINT border = 
+		{
+			::GetSystemMetrics(SM_CXFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER),
+			::GetSystemMetrics(SM_CYFRAME) + ::GetSystemMetrics(SM_CXPADDEDBORDER)
+		};
+		RECT windowRect;
+		if (!::GetWindowRect(handle, &windowRect))
+			return HTNOWHERE;
+
+		enum region_mask {
+			client = 0b0000,
+			left = 0b0001,
+			right = 0b0010,
+			top = 0b0100,
+			bottom = 0b1000,
+		};
+
+		const auto result =
+			left   * (cursor.x  < (windowRect.left   + border.x)) |
+			right  * (cursor.x >= (windowRect.right  - border.x)) |
+			top    * (cursor.y  < (windowRect.top    + border.y)) |
+			bottom * (cursor.y >= (windowRect.bottom - border.y));
+
+		if (Eden::EdenEd::IsTitleBarHovered() && result != top)
+			return HTCAPTION;
+
+		switch (result) 
+		{
+		case left: return HTLEFT;
+		case right: return HTRIGHT;
+		case top: return HTTOP;
+		case bottom: return HTBOTTOM;
+		case top | left: return HTTOPLEFT;
+		case top | right: return HTTOPRIGHT;
+		case bottom | left: return HTBOTTOMLEFT;
+		case bottom | right: return HTBOTTOMRIGHT;
+		default: return HTCLIENT;
+		}
+	};
+
 	if (window)
 	{
 		switch (uMsg)
 		{
-		case WM_SIZE:
+#if WITH_EDITOR
+		case WM_NCCALCSIZE: 
+		{
+			if (wParam == TRUE) 
 			{
-				if (wParam == SIZE_MINIMIZED)
-				{
-					window->SetMinimized(IsIconic(window->GetHandle()));
-				}
-				else if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED) // When the user click on the maximize/"unmaximize" button on the window
-				{
-					UINT width = LOWORD(lParam);
-					UINT height = HIWORD(lParam);
-					window->Resize(width, height);
-					window->ResizeCallback();
-				}
-				else // When the user is resizing the window manually, wait until the user stops resizing to call the resize callback
-				{
-					UINT width = LOWORD(lParam);
-					UINT height = HIWORD(lParam);
-					window->Resize(width, height);
-				}
+				auto& params = *reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+				ValidateIfMaximized(params.rgrc[0]);
+				return 0;
 			}
 			break;
+		}
+		case WM_NCHITTEST: 
+		{
+			// When we have no border or title bar, we need to perform our
+			// own hit testing to allow resizing and moving.
+			return hitTest(POINT 
+				{
+					((int)(short)LOWORD(lParam)),
+					((int)(short)HIWORD(lParam))
+				});
+			break;
+		}
+#endif
+		case WM_SIZE:
+		{
+			if (wParam == SIZE_MINIMIZED)
+			{
+				window->SetMinimized(IsIconic(window->GetHandle()));
+			}
+			else if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED) // When the user click on the maximize/"unmaximize" button on the window
+			{
+				UINT width = LOWORD(lParam);
+				UINT height = HIWORD(lParam);
+				window->Resize(width, height);
+				window->ResizeCallback();
+			}
+			else // When the user is resizing the window manually, wait until the user stops resizing to call the resize callback
+			{
+				UINT width = LOWORD(lParam);
+				UINT height = HIWORD(lParam);
+				window->Resize(width, height);
+			}
+		}
+		break;
 		case WM_EXITSIZEMOVE:
-			window->ResizeCallback();
+			if (wParam == SC_SIZE)
+				window->ResizeCallback();
 			break;
 		case WM_DESTROY:
 			window->CloseWasRequested();
@@ -85,11 +171,17 @@ namespace Eden
 		wc.hIconSm			= LoadIcon(GetModuleHandle(nullptr), "IDI_ICON");
 		RegisterClassEx(&wc);
 
+#if WITH_EDITOR
+		int windowStyle = WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_BORDER;
+#else
+		int windowStyle = WS_OVERLAPPEDWINDOW;
+#endif
+
 		// Create the window.
 		m_Handle = CreateWindowEx(0,                             // Optional window styles.
 								  title,						 // Window class
 								  title,						 // Window text
-								  WS_OVERLAPPEDWINDOW,           // Window style
+								  windowStyle,					 // Window style
    								  CW_USEDEFAULT, CW_USEDEFAULT,  // Position
 								  m_Width, m_Height,			 // Size
 								  NULL,							 // Parent window    
@@ -100,8 +192,10 @@ namespace Eden
 		ensure(m_Handle);
 
 		SetWindowLongPtrA(m_Handle, GWLP_USERDATA, (LONG_PTR)this);
-
-		::ShowWindow(m_Handle, SW_SHOWMAXIMIZED);
+#if WITH_EDITOR
+		::SetWindowPos(m_Handle, 0, 0, 0, m_Width, m_Height, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
+#endif
+		Maximize();
 		
 		// Setup ImGui context
 		IMGUI_CHECKVERSION();
@@ -111,9 +205,9 @@ namespace Eden
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;		 // Enable Docking
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;		 // Enable Multi Viewports
 
-		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Bold.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
-		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Regular.ttf", 24.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
-		io.FontDefault = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-SemiMedium.ttf", 15.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Bold.ttf", 19.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-Regular.ttf", 25.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+		io.FontDefault = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto/Roboto-SemiMedium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 
 		// merge in icons from Font Awesome
 		static const ImWchar iconsRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
@@ -167,9 +261,45 @@ namespace Eden
 		m_ResizeCallback = resizeCallback;
 	}
 
+	void Window::Maximize()
+	{
+		if (IsMaximized())
+			::ShowWindow(m_Handle, SW_RESTORE);
+		else
+			::ShowWindow(m_Handle, SW_SHOWMAXIMIZED);
+	}
+
+	void Window::Minimize()
+	{
+		::ShowWindow(m_Handle, SW_MINIMIZE);
+	}
+
+	bool Window::IsMaximized()
+	{
+		WINDOWPLACEMENT placement = {};
+		if (!::GetWindowPlacement(m_Handle, &placement)) {
+			return false;
+		}
+
+		return placement.showCmd == SW_MAXIMIZE;
+	}
+
+	void Window::ChangeTitle(const std::string& title)
+	{
+		m_CurrentTitle = m_DefaultTitle + " | " + title;
+		SetWindowTextA(m_Handle, m_CurrentTitle.c_str());
+	}
+
 	void Window::ResizeCallback()
 	{
-		m_ResizeCallback(m_Width, m_Height);
+		if (!Renderer::IsInitialized())
+			return;
+		Renderer::GetCurrentScene()->AddPreparation([this]() {
+			m_ResizeCallback(m_Width, m_Height);
+#if !WITH_EDITOR
+			Renderer::SetViewportSize(static_cast<float>(m_Width), static_cast<float>(m_Height));
+#endif
+		});
 	}
 
 	void Window::Resize(uint32_t width, uint32_t height)

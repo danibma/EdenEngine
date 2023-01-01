@@ -39,7 +39,11 @@ namespace Eden
 		static Application* Get();
 
 		void ChangeWindowTitle(const std::string& title);
+		const std::string& GetWindowTitle() const { return window->GetTitle(); }
 		void RequestClose();
+		void MaximizeWindow();
+		void MinimizeWindow();
+		bool IsWindowMaximized();
 
 		float GetDeltaTime() { return deltaTime; }
 		float GetTimeSinceCreation() { return creationTime; }
