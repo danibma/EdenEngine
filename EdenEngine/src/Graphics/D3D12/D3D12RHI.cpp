@@ -561,11 +561,9 @@ namespace Eden
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
 
-		if (FAILED(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error)))
-			ED_LOG_ERROR("Failed to serialize root signature: {}", (char*)error->GetBufferPointer());
+		DX_CHECK(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 
-		if (FAILED(m_Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&internal_state->rootSignature))))
-			ED_LOG_ERROR("Failed to create root signature");
+		DX_CHECK(m_Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&internal_state->rootSignature)));
 	}
 
 	GfxResult D3D12RHI::CreateBuffer(Buffer* buffer, BufferDesc* desc, const void* initial_data)
@@ -664,8 +662,7 @@ namespace Eden
 
 				auto attachmentInternal_state = ToInternal(&attachment);
 
-				if (FAILED(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&attachmentInternal_state->resource))))
-					ensureMsg(false, "Failed to get render target from swapchain!");
+				DX_CHECK(m_Swapchain->GetBuffer(i, IID_PPV_ARGS(&attachmentInternal_state->resource)));
 
 				m_Device->CreateRenderTargetView(attachmentInternal_state->resource.Get(), nullptr, rtvHandle);
 				rtvHandle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
@@ -943,8 +940,7 @@ namespace Eden
 		attachmentsIndex++;
 		psoDesc.NumRenderTargets = attachmentsIndex;
 
-		if (FAILED(m_Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&internal_state->pipelineState))))
-			ensureMsg(false, "Failed to create graphics pipeline state!");
+		DX_CHECK(m_Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&internal_state->pipelineState)));
 
 		std::wstring pipelineName;
 		Utils::StringConvert(desc->programName, pipelineName);
@@ -973,8 +969,7 @@ namespace Eden
 		D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.pRootSignature = internal_state->rootSignature.Get();
 		psoDesc.CS = { computeShader.blob->GetBufferPointer(), computeShader.blob->GetBufferSize() };
-		if (FAILED(m_Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&internal_state->pipelineState))))
-			ensureMsg(false, "Failed to create compute pipeline state!");
+		DX_CHECK(m_Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&internal_state->pipelineState)));
 
 		std::wstring pipelineName;
 		Utils::StringConvert(desc->programName, pipelineName);
@@ -989,20 +984,17 @@ namespace Eden
 		D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
 		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 		commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		if (FAILED(m_Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_CommandQueue))))
-			ensureMsg(false, "Failed to create command queue!");
+		DX_CHECK(m_Device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_CommandQueue)))
 
 		// Create graphics command allocator
 		for (int i = 0; i < s_FrameCount; ++i)
 		{
-			if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator[i]))))
-				ensureMsg(false, "Failed to create command allocator!");
+			DX_CHECK(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator[i])));
 			m_CommandAllocator[i]->SetName(L"gfxCommandAllocator");
 		}
 
 		// Create graphics command list
-		if (FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator[m_FrameIndex].Get(), nullptr, IID_PPV_ARGS(&m_CommandList))))
-			ensureMsg(false, "Failed to create command list!");
+		DX_CHECK(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator[m_FrameIndex].Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
 		m_CommandList->SetName(L"gfxCommandList");
 	}
 
@@ -1694,8 +1686,7 @@ namespace Eden
 		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
 		ED_PROFILE_GPU_FUNCTION("D3D12RHI::Render");
 
-		if (FAILED(m_CommandList->Close()))
-			ensureMsg(false, "Failed to close command list");
+		DX_CHECK(m_CommandList->Close());
 
 		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
 		m_CommandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
@@ -1722,11 +1713,12 @@ namespace Eden
 			ED_LOG_TRACE("Resizing Window to {}x{}", width, height);
 
 			WaitForGPU();
-			if (FAILED(m_CommandList->Close()))
-			{
-				ensureMsg(false, "Failed to close command list");
-				return GfxResult::kInternalError;
-			}
+			DX_CHECK(m_CommandList->Close());
+			//if (FAILED(m_CommandList->Close()))
+			//{
+			//	ensureMsg(false, "Failed to close command list");
+			//	return GfxResult::kInternalError;
+			//}
 
 			for (size_t i = 0; i < s_FrameCount; ++i)
 			{
@@ -1740,8 +1732,7 @@ namespace Eden
 			DXGI_SWAP_CHAIN_FLAG flags = {};
 			if (!m_VSyncEnabled)
 				flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-			if (FAILED(m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, flags)))
-				ensure(false);
+			DX_CHECK(m_Swapchain->ResizeBuffers(s_FrameCount, width, height, DXGI_FORMAT_UNKNOWN, flags));
 
 			m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
 
