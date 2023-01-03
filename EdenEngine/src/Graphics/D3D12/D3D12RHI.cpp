@@ -1713,12 +1713,11 @@ namespace Eden
 			ED_LOG_TRACE("Resizing Window to {}x{}", width, height);
 
 			WaitForGPU();
-			DX_CHECK(m_CommandList->Close());
-			//if (FAILED(m_CommandList->Close()))
-			//{
-			//	ensureMsg(false, "Failed to close command list");
-			//	return GfxResult::kInternalError;
-			//}
+			if (FAILED(m_CommandList->Close()))
+			{
+				ensureMsg(false, "Failed to close command list");
+				return GfxResult::kInternalError;
+			}
 
 			for (size_t i = 0; i < s_FrameCount; ++i)
 			{
