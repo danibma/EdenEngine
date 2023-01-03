@@ -77,6 +77,8 @@ namespace Eden
 			if (gltfNode.translation.size() == 3)
 			{
 				mesh->gltfMatrix = glm::translate(mesh->gltfMatrix, glm::vec3(glm::make_vec3(gltfNode.translation.data())));
+				for (auto child : gltfNode.children)
+					meshes[child]->gltfMatrix = glm::translate(meshes[child]->gltfMatrix, glm::vec3(glm::make_vec3(gltfNode.translation.data())));
 			}
 
 			if (gltfNode.rotation.size() == 4)
@@ -84,16 +86,21 @@ namespace Eden
 				glm::quat q = glm::make_quat(gltfNode.rotation.data());
 				auto rotation = glm::quat(q.w, -q.x, q.y, q.z);
 				mesh->gltfMatrix *= glm::mat4(rotation);
+				for (auto child : gltfNode.children)
+					meshes[child]->gltfMatrix *= glm::mat4(rotation);
 			}
 
 			if (gltfNode.scale.size() == 3)
 			{
 				mesh->gltfMatrix = glm::scale(mesh->gltfMatrix, glm::vec3(glm::make_vec3(gltfNode.scale.data())));
+				for (auto child : gltfNode.children)
+					meshes[child]->gltfMatrix = glm::scale(meshes[child]->gltfMatrix, glm::vec3(glm::make_vec3(gltfNode.scale.data())));
 			}
 
 			if (gltfNode.matrix.size() == 16)
 			{
 				mesh->gltfMatrix = glm::make_mat4x4(gltfNode.matrix.data());
+				// TODO: not sure how this works with childs
 			}
 
 			const auto& gltfMesh = gltfModel.meshes[gltfNode.mesh];

@@ -5,8 +5,8 @@ Entities:
       Tag: Directional Light
     TransformComponent:
       Translation: [0, 0, 0]
-      Rotation: [-0.191986218, 1.27409029, 0.052359879]
-      Scale: [1, 1, 1]
+      Rotation: [-0.191985771, 1.27409029, 0.0523602851]
+      Scale: [30, 30, 30]
     DirectionalLightComponent:
       Intensity: 0.300000012
   - Entity: 1
@@ -56,3 +56,12 @@ Entities:
     PointLightComponent:
       Color: [0.068292737, 1, 0, 1]
       Intensity: 2
+  - Entity: 6
+    TagComponent:
+      Tag: donut
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [30, 30, 30]
+    MeshComponent:
+      File Path: assets\models\donut.glb
