@@ -95,21 +95,21 @@ namespace Eden
 			ensure(error == GfxResult::kNoError);
 		}
 
-		// GBuffer
+		// Forward Pass
 		{
 			RenderPassDesc desc = {};
-			desc.debugName = "GBuffer";
+			desc.debugName = "ForwardPass";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			error = g_RHI->CreateRenderPass(&g_Data->gBuffer, &desc);
+			error = g_RHI->CreateRenderPass(&g_Data->forwardPass, &desc);
 			ensure(error == GfxResult::kNoError);
 
-			PipelineDesc phongLightingDesc = {};
-			phongLightingDesc.bEnableBlending = true;
-			phongLightingDesc.programName = "PhongLighting";
-			phongLightingDesc.renderPass = &g_Data->gBuffer;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Phong Lighting"], &phongLightingDesc);
+			PipelineDesc forwardDesc = {};
+			forwardDesc.bEnableBlending = true;
+			forwardDesc.programName = "ForwardPass";
+			forwardDesc.renderPass = &g_Data->forwardPass;
+			error = g_RHI->CreatePipeline(&g_Data->pipelines["Forward Rendering"], &forwardDesc);
 			ensure(error == GfxResult::kNoError);
 
 			PipelineDesc skyboxDesc = {};
@@ -117,7 +117,7 @@ namespace Eden
 			skyboxDesc.depthFunc = ComparisonFunc::kLessEqual;
 			skyboxDesc.minDepth = 1.0f;
 			skyboxDesc.programName = "Skybox";
-			skyboxDesc.renderPass = &g_Data->gBuffer;
+			skyboxDesc.renderPass = &g_Data->forwardPass;
 			error = g_RHI->CreatePipeline(&g_Data->pipelines["Skybox"], &skyboxDesc);
 			ensure(error == GfxResult::kNoError);
 		}
@@ -364,9 +364,9 @@ namespace Eden
 	{
 		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
-		// GBuffer
-		g_RHI->BeginRenderPass(&g_Data->gBuffer);
-		g_RHI->BindPipeline(&g_Data->pipelines["Phong Lighting"]);
+		// Forward Pass
+		g_RHI->BeginRenderPass(&g_Data->forwardPass);
+		g_RHI->BindPipeline(&g_Data->pipelines["Forward Rendering"]);
 		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, g_Data->currentScene };
@@ -403,7 +403,7 @@ namespace Eden
 			g_RHI->BindPipeline(&g_Data->pipelines["Skybox"]);
 			g_Data->skybox->Render(g_Data->projectionMatrix * glm::mat4(glm::mat3(g_Data->viewMatrix)));
 		}
-		g_RHI->EndRenderPass(&g_Data->gBuffer);
+		g_RHI->EndRenderPass(&g_Data->forwardPass);
 	}
 
 	void Renderer::SceneCompositePass()
@@ -412,8 +412,8 @@ namespace Eden
 		g_RHI->BeginRenderPass(&g_Data->sceneComposite);
 		g_RHI->BindPipeline(&g_Data->pipelines["Scene Composite"]);
 		g_RHI->BindVertexBuffer(&g_Data->quadBuffer);
-		if (g_Data->gBuffer.colorAttachments.size() > 0)
-			g_RHI->BindParameter("g_SceneTexture", &g_Data->gBuffer.colorAttachments[0]);
+		if (g_Data->forwardPass.colorAttachments.size() > 0)
+			g_RHI->BindParameter("g_SceneTexture", &g_Data->forwardPass.colorAttachments[0]);
 		GfxResult error = g_RHI->UpdateBufferData(&g_Data->sceneSettingsBuffer, &g_Data->sceneSettings);
 		ensure(error == GfxResult::kNoError);
 		g_RHI->BindParameter("SceneSettings", &g_Data->sceneSettingsBuffer);
@@ -518,8 +518,8 @@ namespace Eden
 		if (Renderer::GetViewportSize() != glm::vec2(x, y))
 		{
 			g_Data->viewportSize = { x, y };
-			g_Data->gBuffer.desc.width = (uint32_t)x;
-			g_Data->gBuffer.desc.height = (uint32_t)y;
+			g_Data->forwardPass.desc.width = (uint32_t)x;
+			g_Data->forwardPass.desc.height = (uint32_t)y;
 			g_Data->sceneComposite.desc.width = (uint32_t)x;
 			g_Data->sceneComposite.desc.height = (uint32_t)y;
 			g_Data->objectPickerPass.desc.width = (uint32_t)x;

@@ -60,7 +60,7 @@ namespace Eden
 		Scene* currentScene = nullptr;
 
 		// Rendering
-		RenderPass gBuffer;
+		RenderPass forwardPass;
 		RenderPass sceneComposite;
 		Buffer quadBuffer;
 		RenderPass objectPickerPass; // Editor Only
