@@ -78,7 +78,7 @@ namespace Eden
 		ComPtr<IDXGIFactory4> m_Factory;
 		ComPtr<IDXGIAdapter1> m_Adapter;
 		ComPtr<IDXGISwapChain3> m_Swapchain;
-		DescriptorHeap m_SRVHeap; // TODO: Move this the descriptor heap things into the renderer, when the renderer is made
+		DescriptorHeap m_SRVHeap;
 		ComPtr<ID3D12Fence> m_Fence;
 		ComPtr<ID3D12CommandQueue> m_CommandQueue;
 		ComPtr<ID3D12CommandAllocator> m_CommandAllocator[s_FrameCount];

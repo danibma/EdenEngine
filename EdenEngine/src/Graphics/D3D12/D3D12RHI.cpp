@@ -1780,6 +1780,13 @@ namespace Eden
 		m_CommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcRegion);
 		EnsureMsgResourceState(texture, ResourceState::kPixelShader);
 
+		m_CommandList->Close();
+		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
+		m_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+		m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
+		WaitForGPU();
+		SetDescriptorHeap(&m_SRVHeap);
+
 		void* pixel_data;
 		pixelReadStagingBuffer.resource->Map(0, nullptr, &pixel_data);
 		pixel = *(glm::vec4*)pixel_data;
