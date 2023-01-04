@@ -26,36 +26,12 @@ namespace Eden
 	// Globals
 	constexpr D3D_FEATURE_LEVEL s_FeatureLevel = D3D_FEATURE_LEVEL_12_1;
 
-	// Internal Helpers
-	D3D12Resource* ToInternal(const Resource* resource)
-	{
-		return static_cast<D3D12Resource*>(resource->internal_state.Get());
-	}
-
-	D3D12Buffer* ToInternal(const Buffer* buffer)
-	{
-		return static_cast<D3D12Buffer*>(buffer->internal_state.Get());
-	}
-
-	D3D12Texture* ToInternal(const Texture* texture)
-	{
-		return static_cast<D3D12Texture*>(texture->internal_state.Get());
-	}
-
-	D3D12Pipeline* ToInternal(const Pipeline* pipeline)
-	{
-		return static_cast<D3D12Pipeline*>(pipeline->internal_state.Get());
-	}
-
-	D3D12RenderPass* ToInternal(const RenderPass* renderPass)
-	{
-		return static_cast<D3D12RenderPass*>(renderPass->internal_state.Get());
-	}
-
-	D3D12GPUTimer* ToInternal(const GPUTimer* gpuTimer)
-	{
-		return static_cast<D3D12GPUTimer*>(gpuTimer->internal_state.Get());
-	}
+	TO_INTERNAL(Resource,   D3D12Resource)
+	TO_INTERNAL(Buffer,     D3D12Buffer)
+	TO_INTERNAL(Texture,    D3D12Texture)
+	TO_INTERNAL(Pipeline,   D3D12Pipeline)
+	TO_INTERNAL(RenderPass, D3D12RenderPass)
+	TO_INTERNAL(GPUTimer,   D3D12GPUTimer)
 
 	// Debug message callback
 	void DebugMessageCallback(D3D12_MESSAGE_CATEGORY Category,

@@ -13,6 +13,8 @@
  
 namespace Eden
 {
+#define TO_INTERNAL(type, rhiType) rhiType* ToInternal(const type* t) { return static_cast<rhiType*>(t->internal_state.Get()); }
+
 	constexpr uint32_t s_FrameCount = 2;
 	// TODO: Right now just use a huge number here, and refactor when bindless descriptors are added
 	constexpr uint32_t s_SRVDescriptorCount = 10000; 
