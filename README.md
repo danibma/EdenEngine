@@ -26,6 +26,8 @@ A showcase of some of these features can be found in the section below
 - Scene Serialization
 - Memory tracking
 ## **Graphics**
+- Forward Rendering
+- Deferred Rendering
 - Blinn-Phong Lighting
 - Cubemaps through HDR file format
 - HDR Pipeline with Gamma Correction and Tonemapping
