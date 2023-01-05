@@ -21,22 +21,27 @@ Vertex VSMain(float3 position : POSITION, float2 uv : TEXCOORD, float3 normal : 
 
 struct DeferredOutput
 {
-	float4 position : SV_TARGET0;
-	float4 normals : SV_TARGET1;
-	float4 albedos : SV_TARGET2;
-	float4 specular : SV_TARGET3;
+	float4 baseColor : SV_TARGET0;
+	float4 position  : SV_TARGET1;
+	float4 normal    : SV_TARGET2;
 };
+
+Texture2D g_TextureDiffuse : register(t0);
 
 //=================
 // Pixel Shader
 //=================
 DeferredOutput PSMain(Vertex vertex)
 {
+	float4 diffuseTexture = g_TextureDiffuse.Sample(LinearWrap, vertex.uv);
+	if (!all(diffuseTexture.rgb))
+		diffuseTexture.rgb = vertex.color;
+	float alpha = diffuseTexture.a;
+
 	DeferredOutput output;
-	output.position = (float4)0.3f;
-	output.normals  = (float4)0.6f;
-	output.albedos  = (float4)0.8f;
-	output.specular = (float4)1.0f;
+	output.baseColor = float4(diffuseTexture.rgb, alpha); // color + specular
+	output.position  = vertex.pixelPos;
+	output.normal    = float4(vertex.normal, 1.0f);
 
 	return output;
 }

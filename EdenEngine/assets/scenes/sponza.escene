@@ -5,8 +5,8 @@ Entities:
       Tag: Sun
     TransformComponent:
       Translation: [0, 0, 0]
-      Rotation: [0.851101577, 0.674533486, 1.48776424]
-      Scale: [1.00000012, 0.999999881, 1.00000012]
+      Rotation: [-0.271728873, 0.674534917, 1.4877671]
+      Scale: [1, 1.00000107, 0.999999881]
     DirectionalLightComponent:
       Intensity: 1
   - Entity: 1

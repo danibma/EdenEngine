@@ -880,7 +880,7 @@ namespace Eden
 		}
 
 		D3D12_RENDER_TARGET_BLEND_DESC renderTargetBlendDesc = {};
-		renderTargetBlendDesc.BlendEnable = desc->bEnableBlending;
+		renderTargetBlendDesc.BlendEnable = desc->bEnableBlending; // #todo: blending is not showing the best looking results :)
 		renderTargetBlendDesc.LogicOpEnable = false;
 		renderTargetBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		renderTargetBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;

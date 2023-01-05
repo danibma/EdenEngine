@@ -166,6 +166,7 @@ namespace Eden
 		ImGui::Separator();
 
 		ImGui::Checkbox("Enable Skybox", &Renderer::IsSkyboxEnabled());
+		ImGui::Checkbox("Deferred Rendering", &Renderer::IsDeferredRenderingEnabled());
 		ImGui::Separator();
 		UI::DrawProperty("Exposure", Renderer::GetSceneSettings().exposure, 0.1f, 0.1f, 5.0f);
 		ImGui::End();

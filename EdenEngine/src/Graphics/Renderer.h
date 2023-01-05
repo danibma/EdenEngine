@@ -61,10 +61,12 @@ namespace Eden
 
 		// Rendering
 		RenderPass forwardPass;
-		RenderPass deferredPass;
+		RenderPass deferredBasePass;
+		RenderPass deferredLightingPass;
 		RenderPass sceneComposite;
-		Buffer quadBuffer;
 		RenderPass objectPickerPass; // Editor Only
+		Buffer quadBuffer;
+		bool bIsDeferredEnabled = true;
 
 		// Timers
 		GPUTimer renderTimer; // TODO: make a vector of this timers inside the renderer class
@@ -87,7 +89,8 @@ namespace Eden
 		static void UpdatePointLights();
 		static void UpdateDirectionalLights();
 		static void ObjectPickerPass();
-		static void MainColorPass();
+		static void DeferredRenderingPass();
+		static void ForwardRenderingPass();
 		static void SceneCompositePass();
 
 	public:
@@ -113,6 +116,7 @@ namespace Eden
 		static glm::vec2 GetViewportSize();
 		static void SetCameraPosition(float x, float y); // this is only used when there's an editor
 		static bool& IsSkyboxEnabled();
+		static bool& IsDeferredRenderingEnabled();
 		static void SetNewSkybox(const char* path);
 		static RendererData::SceneSettings& GetSceneSettings();
 
