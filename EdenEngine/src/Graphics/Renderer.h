@@ -26,17 +26,6 @@ namespace Eden
 			glm::vec4 viewPosition;
 		};
 
-		//==================
-		// Compute Shader CB
-		//==================
-		struct ComputeData
-		{
-			alignas(16) glm::vec2 resolution;
-			float time;
-		} computeData;
-		Buffer computeBuffer;
-		Texture outputTexture;
-
 		// TODO: add a validation when adding directional lights on the editor
 		static constexpr int MAX_DIRECTIONAL_LIGHTS = 2;
 		Buffer directionalLightsBuffer;
@@ -65,12 +54,11 @@ namespace Eden
 		RenderPass deferredLightingPass;
 		RenderPass sceneComposite;
 		RenderPass objectPickerPass; // Editor Only
-		Buffer quadBuffer;
+		Buffer quadBuffer; // used for passes that render a texture, like scene composite
 		bool bIsDeferredEnabled = true;
 
 		// Timers
-		GPUTimer renderTimer; // TODO: make a vector of this timers inside the renderer class
-		GPUTimer computeTimer;
+		GPUTimer renderTimer;
 
 		struct SceneSettings
 		{
@@ -121,7 +109,6 @@ namespace Eden
 		static RendererData::SceneSettings& GetSceneSettings();
 
 		static GPUTimer& GetRenderTimer();
-		static GPUTimer& GetComputeTimer();
 
 		static glm::mat4 GetViewMatrix();
 		static glm::mat4 GetProjectionMatrix();

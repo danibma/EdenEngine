@@ -156,49 +156,28 @@ namespace Eden
 			ensure(error == GfxResult::kNoError);
 		}
 
-#if WITH_EDITOR
 		// Scene Composite
 		{
 			RenderPassDesc desc = {};
 			desc.debugName = "SceneComposite";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
-			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
-			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			error = g_RHI->CreateRenderPass(&g_Data->sceneComposite, &desc);
-			ensure(error == GfxResult::kNoError);
-
-			PipelineDesc sceneCompositeDesc = {};
-			sceneCompositeDesc.programName = "SceneComposite";
-			sceneCompositeDesc.renderPass = &g_Data->sceneComposite;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Scene Composite"], &sceneCompositeDesc);
-			ensure(error == GfxResult::kNoError);
-		}
-#else
-		// Scene Composite
-		{
-			RenderPassDesc desc = {};
-			desc.debugName = "SceneComposite";
-			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
+#ifndef WITH_EDITOR
 			desc.bIsSwapchainTarget = true;
+#endif
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
 			error = g_RHI->CreateRenderPass(&g_Data->sceneComposite, &desc);
 			ensure(error == GfxResult::kNoError);
+#ifndef WITH_EDITOR
 			g_RHI->SetSwapchainTarget(&g_Data->sceneComposite);
-
-			PipelineDesc sceneCompositeDesc = {};
-			sceneCompositeDesc.programName = "SceneComposite";
-			sceneCompositeDesc.renderPass = &g_Data->sceneComposite;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Scene Composite"], &sceneCompositeDesc);
-			ensure(error == GfxResult::kNoError);
-		}
 #endif
 
-		PipelineDesc cubesTestDesc = {};
-		cubesTestDesc.programName = "CubesCS";
-		cubesTestDesc.type = kPipelineType_Compute;
-		error = g_RHI->CreatePipeline(&g_Data->pipelines["Cubes Test"], &cubesTestDesc);
-		ensure(error == GfxResult::kNoError);
+			PipelineDesc sceneCompositeDesc = {};
+			sceneCompositeDesc.programName = "SceneComposite";
+			sceneCompositeDesc.renderPass = &g_Data->sceneComposite;
+			error = g_RHI->CreatePipeline(&g_Data->pipelines["Scene Composite"], &sceneCompositeDesc);
+			ensure(error == GfxResult::kNoError);
+		}
 
 		float quadVertices[] = {
 			// positions   // texCoords
@@ -224,26 +203,7 @@ namespace Eden
 		error = g_RHI->CreateBuffer(&g_Data->sceneSettingsBuffer, &sceneSettingsDesc, &g_Data->sceneSettings);
 		ensure(error == GfxResult::kNoError);
 
-		// Compute shader
-		g_Data->computeData.resolution = glm::vec2(g_Data->viewportSize.x, g_Data->viewportSize.y);
-		BufferDesc computeDataDesc = {};
-		computeDataDesc.elementCount = 1;
-		computeDataDesc.stride = sizeof(RendererData::SceneData);
-		error = g_RHI->CreateBuffer(&g_Data->computeBuffer, &computeDataDesc, &g_Data->computeData);
-		ensure(error == GfxResult::kNoError);
-
-		TextureDesc computeOutputDesc = {};
-		computeOutputDesc.data = nullptr;
-		computeOutputDesc.width = static_cast<uint32_t>(320);
-		computeOutputDesc.height = static_cast<uint32_t>(180);
-		computeOutputDesc.bIsStorage = true;
-		computeOutputDesc.bGenerateMips = false;
-		error = g_RHI->CreateTexture(&g_Data->outputTexture, &computeOutputDesc);
-		ensure(error == GfxResult::kNoError);
-
 		error = g_RHI->CreateGPUTimer(&g_Data->renderTimer);
-		ensure(error == GfxResult::kNoError);
-		error = g_RHI->CreateGPUTimer(&g_Data->computeTimer);
 		ensure(error == GfxResult::kNoError);
 
 		ED_LOG_INFO("Renderer has been initialized!");
@@ -276,18 +236,6 @@ namespace Eden
 
 		g_RHI->BeginGPUTimer(&g_Data->renderTimer);
 
-		// Compute shader test
-		g_RHI->BeginGPUTimer(&g_Data->computeTimer);
-		g_RHI->BindPipeline(&g_Data->pipelines["Cubes Test"]);
-		g_Data->computeData.resolution = glm::vec2(g_Data->outputTexture.desc.width, g_Data->outputTexture.desc.height);
-		g_Data->computeData.time = Application::Get()->GetTimeSinceCreation();
-		GfxResult error = g_RHI->UpdateBufferData(&g_Data->computeBuffer, &g_Data->computeData);
-		ensure(error == GfxResult::kNoError);
-		g_RHI->BindParameter("RenderingInfo", &g_Data->computeBuffer);
-		g_RHI->BindParameter("OutputTexture", &g_Data->outputTexture, kReadWrite);
-		//! 8 is the num of threads, changing in there requires to change in shader
-		g_RHI->Dispatch(static_cast<uint32_t>(g_Data->outputTexture.desc.width / 8), static_cast<uint32_t>(g_Data->outputTexture.desc.height / 8), 1); // TODO: abstract the num of threads in some way
-		g_RHI->EndGPUTimer(&g_Data->computeTimer);
 #if WITH_EDITOR
 		ObjectPickerPass();
 #endif
@@ -674,11 +622,6 @@ namespace Eden
 		return g_Data->renderTimer;
 	}
 
-	GPUTimer& Renderer::GetComputeTimer()
-	{
-		return g_Data->computeTimer;
-	}
-
 	glm::mat4 Renderer::GetViewMatrix()
 	{
 		return g_Data->viewMatrix;
@@ -812,11 +755,6 @@ namespace Eden
 	Texture& Renderer::GetFinalImage()
 	{
 		return g_Data->sceneComposite.colorAttachments[0];
-	}
-
-	Texture& Renderer::GetComputeTestOutputImage()
-	{
-		return g_Data->outputTexture;
 	}
 
 	std::unordered_map<const char*, Pipeline>& Renderer::GetPipelines()

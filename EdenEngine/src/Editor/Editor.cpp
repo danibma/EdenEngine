@@ -157,14 +157,6 @@ namespace Eden
 	void EdenEd::UI_SceneProperties()
 	{
 		ImGui::Begin(ICON_FA_TV " Scene Properties##sceneProperties", &m_bOpenSceneProperties, ImGuiWindowFlags_NoCollapse);
-		ImGui::Text("Compute Shader test:");
-		ImVec2 imageSize;
-		imageSize.x = static_cast<float>(Renderer::GetComputeTestOutputImage().desc.width);
-		imageSize.y = static_cast<float>(Renderer::GetComputeTestOutputImage().desc.height);
-		Renderer::EnsureMsgResourceState(&Renderer::GetComputeTestOutputImage(), ResourceState::kPixelShader);
-		ImGui::Image((ImTextureID)Renderer::GetTextureID(&Renderer::GetComputeTestOutputImage()), imageSize);
-		ImGui::Separator();
-
 		ImGui::Checkbox("Enable Skybox", &Renderer::IsSkyboxEnabled());
 		ImGui::Checkbox("Deferred Rendering", &Renderer::IsDeferredRenderingEnabled());
 		ImGui::Separator();
@@ -177,7 +169,6 @@ namespace Eden
 		ImGui::Begin(ICON_FA_CHART_PIE " Statistcs##statistics", &m_bOpenStatisticsWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::Text("CPU frame time: %.3fms(%.1fFPS)", Application::Get()->GetDeltaTime() * 1000.0f, (1000.0f / Application::Get()->GetDeltaTime()) / 1000.0f);
 		ImGui::Text("GPU frame time: %.3fms", Renderer::GetRenderTimer().elapsedTime);
-		ImGui::Text("Compute test time: %.3fms", Renderer::GetComputeTimer().elapsedTime);
 		ImGui::End();
 	}
 
