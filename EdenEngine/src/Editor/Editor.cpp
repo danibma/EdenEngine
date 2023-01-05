@@ -466,9 +466,9 @@ namespace Eden
 
 		UI_Dockspace();
 		UI_Viewport();
+		m_ContentBrowserPanel->Render();
 		if (m_bOpenOutputLog)
 			UI_OutputLog();
-		m_ContentBrowserPanel->Render();
 		m_SceneHierarchy->Render();
 		if (m_bOpenStatisticsWindow)
 			UI_StatisticsWindow();

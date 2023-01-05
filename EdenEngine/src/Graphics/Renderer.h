@@ -61,6 +61,7 @@ namespace Eden
 
 		// Rendering
 		RenderPass forwardPass;
+		RenderPass deferredPass;
 		RenderPass sceneComposite;
 		Buffer quadBuffer;
 		RenderPass objectPickerPass; // Editor Only

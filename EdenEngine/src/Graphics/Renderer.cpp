@@ -122,6 +122,24 @@ namespace Eden
 			ensure(error == GfxResult::kNoError);
 		}
 
+		// Deferred Pass
+		{
+			RenderPassDesc desc = {};
+			desc.debugName = "DeferredPass";
+			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT };
+			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
+			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
+			error = g_RHI->CreateRenderPass(&g_Data->deferredPass, &desc);
+			ensure(error == GfxResult::kNoError);
+
+			PipelineDesc deferredPass = {};
+			deferredPass.bEnableBlending = false;
+			deferredPass.programName = "DeferredPass";
+			deferredPass.renderPass = &g_Data->deferredPass;
+			error = g_RHI->CreatePipeline(&g_Data->pipelines["Deferred Rendering"], &deferredPass);
+			ensure(error == GfxResult::kNoError);
+		}
+
 #if WITH_EDITOR
 		// Scene Composite
 		{
@@ -404,6 +422,36 @@ namespace Eden
 			g_Data->skybox->Render(g_Data->projectionMatrix * glm::mat4(glm::mat3(g_Data->viewMatrix)));
 		}
 		g_RHI->EndRenderPass(&g_Data->forwardPass);
+
+		// Deferred Pass
+		g_RHI->BeginRenderPass(&g_Data->deferredPass);
+		g_RHI->BindPipeline(&g_Data->pipelines["Deferred Rendering"]);
+		for (auto entity : entitiesToRender)
+		{
+			Entity e = { entity, g_Data->currentScene };
+			MeshSource* ms = e.GetComponent<MeshComponent>().meshSource.Get();
+			if (!ms->bHasMesh)
+				continue;
+			TransformComponent tc = e.GetComponent<TransformComponent>();
+
+			g_RHI->BindVertexBuffer(&ms->meshVb);
+			g_RHI->BindIndexBuffer(&ms->meshIb);
+			for (auto& mesh : ms->meshes)
+			{
+				auto transform = tc.GetTransform();
+				if (mesh->gltfMatrix != glm::mat4(1.0f))
+					transform *= mesh->gltfMatrix;
+
+				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
+				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
+
+				for (auto& submesh : mesh->submeshes)
+				{
+					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
+				}
+			}
+		}
+		g_RHI->EndRenderPass(&g_Data->deferredPass);
 	}
 
 	void Renderer::SceneCompositePass()

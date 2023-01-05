@@ -60,9 +60,6 @@ namespace Eden
 	{
 		DescriptorHeap rtvHeap;
 		DescriptorHeap dsvHeap;
-		D3D12_RENDER_PASS_RENDER_TARGET_DESC rtvDesc;
-		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC dsvDesc;
-
 	};
 
 	struct D3D12GPUTimer : public ResourceInternal

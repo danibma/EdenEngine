@@ -663,7 +663,7 @@ namespace Eden
 				if (GetDepthFormatIndex(renderPass->desc.attachmentsFormats) > -1)
 					attachmentCount = renderPass->desc.attachmentsFormats.size() - 1;
 
-				auto createAttachmentResources = [&format, renderPass, this, &attachmentIndex, &rtvHandle](Texture* attachment, D3D12Texture* internal_state)
+				auto createAttachmentResources = [&format, renderPass, this, &attachmentIndex, &rtvHandle](Texture* attachment, D3D12Texture* textureState)
 				{
 					D3D12_RESOURCE_DESC resourceDesc = {};
 					resourceDesc.Format = Helpers::ConvertFormat(format);
@@ -685,19 +685,19 @@ namespace Eden
 
 					m_Allocator->CreateResource(&allocationDesc, &resourceDesc,
 						Helpers::ConvertResourceState(attachment->currentState),
-						&clearValue, &internal_state->allocation,
-						IID_PPV_ARGS(&internal_state->resource));
+						&clearValue, &textureState->allocation,
+						IID_PPV_ARGS(&textureState->resource));
 
-					m_Device->CreateRenderTargetView(internal_state->resource.Get(), nullptr, rtvHandle);
+					m_Device->CreateRenderTargetView(textureState->resource.Get(), nullptr, rtvHandle);
 
 					attachment->desc.width = renderPass->desc.width;
 					attachment->desc.height = renderPass->desc.height;
 					std::wstring rtName;
 					Utils::StringConvert(renderPass->desc.debugName, rtName);
 					rtName += L"_colorAttachment";
-					internal_state->resource->SetName(rtName.c_str());
-					internal_state->resource->SetName(rtName.c_str());
-					m_Device->CreateShaderResourceView(internal_state->resource.Get(), nullptr, internal_state->cpuHandle);
+					textureState->resource->SetName(rtName.c_str());
+					textureState->resource->SetName(rtName.c_str());
+					m_Device->CreateShaderResourceView(textureState->resource.Get(), nullptr, textureState->cpuHandle);
 
 					attachmentIndex++;
 				};
@@ -721,6 +721,9 @@ namespace Eden
 					renderPass->colorAttachments.emplace_back(attachment);
 					createAttachmentResources(&attachment, internal_state);
 				}
+
+				if (attachmentIndex < attachmentCount)
+					rtvHandle.Offset(1, m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 			}
 		}
 
@@ -1145,9 +1148,17 @@ namespace Eden
 		renderPass->desc = *desc;
 		renderPass->debugName = renderPass->desc.debugName;
 
-		CreateDescriptorHeap(&internal_state->rtvHeap, s_FrameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		CreateDescriptorHeap(&internal_state->rtvHeap, 8, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		CreateDescriptorHeap(&internal_state->dsvHeap, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
+		uint32_t amountOfDepthFormats = 0;
+		for (Format& format : renderPass->desc.attachmentsFormats)
+		{
+			if (IsDepthFormat(format))
+				amountOfDepthFormats++;
+		}
+
+		ensureMsg(amountOfDepthFormats < 2, "Can't create render passes with more than 1 depth target");
 		ensureMsg(desc->attachmentsFormats.size() > 0, "Can't create render pass without attachments");
 		ensureMsg(desc->attachmentsFormats.size() < 8, "Can't create a render pass with more than 8 attachments");
 
@@ -1484,15 +1495,29 @@ namespace Eden
 
 		PIXBeginEvent(m_CommandList.Get(), PIX_COLOR(0, 0, 0), renderPass->debugName.c_str());
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = {};
+		float* clearColor = (float*)&renderPass->desc.clearColor;
+		CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_R32G32B32_FLOAT, clearColor };
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE beginAccessType = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE endAccessType = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS rtvBeginAccess{ beginAccessType, { clearValue } };
+		D3D12_RENDER_PASS_ENDING_ACCESS rtvEndAccess{ endAccessType, {} };
+
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = GetCPUHandle(&internal_state->dsvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 0);
+
+		std::vector<D3D12_RENDER_PASS_RENDER_TARGET_DESC> renderTargetDescriptions;
 		if (renderPass->desc.bIsSwapchainTarget)
 		{
-			rtvHandle = GetCPUHandle(&internal_state->rtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = GetCPUHandle(&internal_state->rtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, m_FrameIndex);
+			D3D12_RENDER_PASS_RENDER_TARGET_DESC rtvDesc = { rtvHandle, rtvBeginAccess, rtvEndAccess };
+			renderTargetDescriptions.emplace_back(rtvDesc);
+			
 			EnsureMsgResourceState(&renderPass->colorAttachments[m_FrameIndex], ResourceState::kRenderTarget);
 		}
 		else
 		{
+			int attachmentIndex = 0;
 			for (auto& attachment : renderPass->colorAttachments)
 			{
 				if (renderPass->desc.width != attachment.desc.width ||
@@ -1500,31 +1525,31 @@ namespace Eden
 				{
 					CreateAttachments(renderPass);
 				}
-				rtvHandle = GetCPUHandle(&internal_state->rtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
+				D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = GetCPUHandle(&internal_state->rtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, attachmentIndex);
+				D3D12_RENDER_PASS_RENDER_TARGET_DESC rtvDesc = { rtvHandle, rtvBeginAccess, rtvEndAccess };
+				renderTargetDescriptions.emplace_back(rtvDesc);
 				EnsureMsgResourceState(&attachment, ResourceState::kRenderTarget);
+				++attachmentIndex;
 			}
 		}
 
-		float* clearColor = (float*)&renderPass->desc.clearColor;
-		CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_R32G32B32_FLOAT, clearColor };
-
-		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE beginAccessType = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE endAccessType = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-
-		// RTV
-		D3D12_RENDER_PASS_BEGINNING_ACCESS rtvBeginAccess{ beginAccessType, { clearValue } };
-		D3D12_RENDER_PASS_ENDING_ACCESS rtvEndAccess{ endAccessType, {} };
-		internal_state->rtvDesc = { rtvHandle, rtvBeginAccess, rtvEndAccess };
-
 		// DSV
-		D3D12_RENDER_PASS_BEGINNING_ACCESS_CLEAR_PARAMETERS dsvClear = {};
-		dsvClear.ClearValue.Format = Helpers::ConvertFormat(renderPass->depthStencil.imageFormat);
-		dsvClear.ClearValue.DepthStencil.Depth = 1.0f;
-		D3D12_RENDER_PASS_BEGINNING_ACCESS dsvBeginAccess{ beginAccessType, { dsvClear } };
-		D3D12_RENDER_PASS_ENDING_ACCESS dsvEndAccess{ endAccessType, {} };
-		internal_state->dsvDesc = { dsvHandle, dsvBeginAccess, dsvBeginAccess, dsvEndAccess, dsvEndAccess };
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC* dsvDesc = nullptr;
+		if (renderPass->depthStencil.IsValid())
+		{
+			D3D12_RENDER_PASS_BEGINNING_ACCESS_CLEAR_PARAMETERS dsvClear = {};
+			dsvClear.ClearValue.Format = Helpers::ConvertFormat(renderPass->depthStencil.imageFormat);
+			dsvClear.ClearValue.DepthStencil.Depth = 1.0f;
+			D3D12_RENDER_PASS_BEGINNING_ACCESS dsvBeginAccess{ beginAccessType, { dsvClear } };
+			D3D12_RENDER_PASS_ENDING_ACCESS dsvEndAccess{ endAccessType, {} };
+			D3D12_RENDER_PASS_DEPTH_STENCIL_DESC desc = { dsvHandle, dsvBeginAccess, dsvBeginAccess, dsvEndAccess, dsvEndAccess };
+			dsvDesc = &desc;
+		}
 
-		m_CommandList->BeginRenderPass(1, &internal_state->rtvDesc, &internal_state->dsvDesc, D3D12_RENDER_PASS_FLAG_NONE);
+		m_CommandList->BeginRenderPass(static_cast<uint32_t>(renderTargetDescriptions.size()),
+		                               renderTargetDescriptions.data(),
+		                               dsvDesc, D3D12_RENDER_PASS_FLAG_NONE);
+		
 	}
 
 	void D3D12RHI::SetSwapchainTarget(RenderPass* renderPass)
