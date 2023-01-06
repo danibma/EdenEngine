@@ -182,11 +182,6 @@ namespace Eden
 			// Create an event handler to use for frame synchronization
 			m_FenceEvent = CreateEvent(nullptr, false, false, nullptr);
 			ensureMsg(m_FenceEvent != nullptr, Utils::GetLastErrorMessage());
-
-			// Wait for the command list to execute; we are reusing the same command 
-			// list in our main loop but for now, we just want to wait for setup to 
-			// complete before continuing.
-			WaitForGPU();
 		}
 
 		// Associate the graphics device Resize with the window resize callback
@@ -1692,16 +1687,33 @@ namespace Eden
 		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
 		m_CommandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
+		uint64_t currentFenceValue = m_FenceValues[m_FrameIndex];
+		WaitForGPU();
+
 		ED_PROFILE_GPU_FLIP(m_Swapchain.Get());
 		if (!m_VSyncEnabled)
 			m_Swapchain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 		else
 			m_Swapchain->Present(1, 0);
 
-		MoveToNextFrame();
-
 		m_CommandAllocator[m_FrameIndex]->Reset();
 		m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
+
+		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
+		m_FenceValues[m_FrameIndex] = currentFenceValue + 1;
+	}
+
+	void D3D12RHI::WaitForGPU()
+	{
+		// Schedule a signal command in the queue
+		m_CommandQueue->Signal(m_Fence.Get(), m_FenceValues[m_FrameIndex]);
+
+		// Wait until the fence has been processed
+		m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent);
+		WaitForSingleObject(m_FenceEvent, INFINITE);
+
+		// Increment the fence value for the current frame
+		m_FenceValues[m_FrameIndex]++;
 	}
 
 	GfxResult D3D12RHI::Resize(uint32_t width, uint32_t height)
@@ -1743,7 +1755,7 @@ namespace Eden
 			
 			m_Scissor = CD3DX12_RECT(0, 0, width, height);
 
-			m_CommandAllocator->Reset();
+			m_CommandAllocator[m_FrameIndex]->Reset();
 			m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
 		}
 
@@ -1880,39 +1892,6 @@ namespace Eden
 		// Right now this is ok to use because we are not using more than one desriptor heap
 		ID3D12DescriptorHeap* heaps[] = { descriptorHeap->heap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-	}
-
-	void D3D12RHI::WaitForGPU()
-	{
-		// Schedule a signal command in the queue
-		m_CommandQueue->Signal(m_Fence.Get(), m_FenceValues[m_FrameIndex]);
-
-		// Wait until the fence has been processed
-		m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent);
-		WaitForSingleObject(m_FenceEvent, INFINITE);
-
-		// Increment the fence value for the current frame
-		m_FenceValues[m_FrameIndex]++;
-	}
-
-	void D3D12RHI::MoveToNextFrame()
-	{
-		// Schedule a Signal command in the queue.
-		const UINT64 currentFenceValue = m_FenceValues[m_FrameIndex];
-		m_CommandQueue->Signal(m_Fence.Get(), currentFenceValue);
-
-		// Update the frame index
-		m_FrameIndex = m_Swapchain->GetCurrentBackBufferIndex();
-
-		// If the next frame is not ready to be rendered yet, wait until it is ready
-		if (m_Fence->GetCompletedValue() < m_FenceValues[m_FrameIndex])
-		{
-			m_Fence->SetEventOnCompletion(m_FenceValues[m_FrameIndex], m_FenceEvent);
-			WaitForSingleObject(m_FenceEvent, INFINITE); // wait for GPU to complete
-		}
-
-		// Set the fence value for the next frame
-		m_FenceValues[m_FrameIndex] = currentFenceValue + 1;
 	}
 
 	uint32_t D3D12RHI::GetRootParameterIndex(const std::string& parameterName)

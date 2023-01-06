@@ -62,7 +62,7 @@ namespace Eden
 		}
 
 	private:
-		TextureDesc m_BlackDesc;
+		Texture m_BlackTexture;
 
 	private:
 		void LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex);

@@ -166,7 +166,6 @@ namespace Eden
 		void PrepareDraw();
 		void GetHardwareAdapter();
 		void WaitForGPU();
-		void MoveToNextFrame();
 		void CreateAttachments(RenderPass* renderPass);
 		uint32_t GetRootParameterIndex(const std::string& parameterName);
 		void CreateRootSignature(Pipeline* pipeline);

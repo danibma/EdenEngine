@@ -53,14 +53,17 @@ namespace Eden
 
 		ensureMsg(bIsGLTFModelValid, "Failed to parse GLTF Model!");
 
+
 		uint32_t blackTextureData = 0xff000000;
-		m_BlackDesc.data = &blackTextureData;
-		m_BlackDesc.width = 1;
-		m_BlackDesc.height = 1;
-		m_BlackDesc.bIsStorage = false;
-		m_BlackDesc.bGenerateMips = false;
+		TextureDesc blackDesc = {};
+		blackDesc.data = &blackTextureData;
+		blackDesc.width = 1;
+		blackDesc.height = 1;
+		blackDesc.bIsStorage = false;
+		blackDesc.bGenerateMips = false;
 
 		const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
+		Renderer::CreateTexture(&m_BlackTexture, &blackDesc);
 
 		std::vector<VertexData> vertices;
 		std::vector<uint32_t> indices;
@@ -216,7 +219,7 @@ namespace Eden
 			}
 			else
 			{
-				Renderer::CreateTexture(&submesh->diffuseTexture, &m_BlackDesc);
+				submesh->diffuseTexture = m_BlackTexture;
 			}
 	
 			if (gltfMaterial.emissiveTexture.index > -1)
@@ -228,7 +231,7 @@ namespace Eden
 			}
 			else
 			{
-				Renderer::CreateTexture(&submesh->emissiveTexture, &m_BlackDesc);
+				submesh->emissiveTexture = m_BlackTexture;
 			}
 	
 			mesh->submeshes.emplace_back(submesh);
