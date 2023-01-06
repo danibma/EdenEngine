@@ -1,0 +1,29 @@
+Scene: pbr_scene
+Entities:
+  - Entity: 0
+    TagComponent:
+      Tag: Sun
+    TransformComponent:
+      Translation: [-15.7469511, 2.10980916, 0.000219698981]
+      Rotation: [-2.63792491, 0.247718692, -1.57204795]
+      Scale: [1.00000167, 0.999988794, 0.999999285]
+    DirectionalLightComponent:
+      Intensity: 1
+  - Entity: 1
+    TagComponent:
+      Tag: MetalRoughSpheres
+    TransformComponent:
+      Translation: [5.5999999, 11.8129768, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      File Path: assets\models\MetalRoughSpheres.glb
+  - Entity: 2
+    TagComponent:
+      Tag: Cerberus
+    TransformComponent:
+      Translation: [-4.87292433, 4.97306299, -5.59021091]
+      Rotation: [0, -1.57079637, 0]
+      Scale: [0.099992156, 0.100000001, 0.099992156]
+    MeshComponent:
+      File Path: assets\models\Cerberus.glb
