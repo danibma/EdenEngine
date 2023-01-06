@@ -241,7 +241,7 @@ namespace Eden
 	{
 		std::string programName;
 		bool bEnableBlending = false;
-		bool bIsFrontCounterClockwise = true;
+		bool bIsFrontCounterClockwise = false;
 		float minDepth = 0.0f;
 		CullMode cull_mode = CullMode::kBack;
 		ComparisonFunc depthFunc = ComparisonFunc::kLess;

@@ -41,7 +41,7 @@ namespace Eden
 			};
 
 			std::vector<SharedPtr<SubMesh>> submeshes;
-			glm::mat4 gltfMatrix = glm::mat4(1.0f);
+			glm::mat4 modelMatrix = glm::mat4(1.0f);
 		};
 
 		uint32_t vertexCount;
@@ -62,7 +62,12 @@ namespace Eden
 		}
 
 	private:
+		TextureDesc m_BlackDesc;
+
+	private:
 		void LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex);
+		void LoadNode(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, const glm::mat4* parentMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices);
+		void LoadMesh(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, glm::mat4& modelMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices);
 	};
 }
 
@@ -71,6 +76,6 @@ template<> struct std::hash<Eden::VertexData> {
 	{
 		return (hash<glm::vec3>()(vertex.position) ^
 				hash<glm::vec2>()(vertex.uv) << 1) >> 1 ^
-			hash<glm::vec3>()(vertex.normal) << 1;
+				hash<glm::vec3>()(vertex.normal) << 1;
 	}
 };

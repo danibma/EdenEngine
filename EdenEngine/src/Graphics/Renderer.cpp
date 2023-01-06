@@ -149,6 +149,7 @@ namespace Eden
 			error = g_RHI->CreateRenderPass(&g_Data->deferredLightingPass, &desc);
 
 			PipelineDesc deferredLightingPass = {};
+			deferredLightingPass.cull_mode = CullMode::kNone;
 			deferredLightingPass.bEnableBlending = false;
 			deferredLightingPass.programName = "DeferredLightingPass";
 			deferredLightingPass.renderPass = &g_Data->deferredLightingPass;
@@ -173,6 +174,7 @@ namespace Eden
 #endif
 
 			PipelineDesc sceneCompositeDesc = {};
+			sceneCompositeDesc.cull_mode = CullMode::kNone;
 			sceneCompositeDesc.programName = "SceneComposite";
 			sceneCompositeDesc.renderPass = &g_Data->sceneComposite;
 			error = g_RHI->CreatePipeline(&g_Data->pipelines["Scene Composite"], &sceneCompositeDesc);
@@ -331,8 +333,7 @@ namespace Eden
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
-				if (mesh->gltfMatrix != glm::mat4(1.0f))
-					transform *= mesh->gltfMatrix;
+				transform *= mesh->modelMatrix;
 
 				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
 				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
@@ -364,9 +365,8 @@ namespace Eden
 			g_RHI->BindIndexBuffer(&ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
-				auto transform = tc.GetTransform();
-				if (mesh->gltfMatrix != glm::mat4(1.0f))
-					transform *= mesh->gltfMatrix;
+				glm::mat4 transform = tc.GetTransform();
+				transform *= mesh->modelMatrix;
 
 				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
 				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
@@ -422,8 +422,7 @@ namespace Eden
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
-				if (mesh->gltfMatrix != glm::mat4(1.0f))
-					transform *= mesh->gltfMatrix;
+				transform *= mesh->modelMatrix;
 
 				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
 				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
