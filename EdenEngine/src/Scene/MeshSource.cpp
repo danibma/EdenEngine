@@ -233,10 +233,23 @@ namespace Eden
 			material.albedoMap = m_BlackTexture;
 		}
 
-		// Normal
-		if (gltfMaterial.values.find("normalTexture") != gltfMaterial.values.end())
+		// Metallic = r, Roughness = g
+		if (gltfMaterial.values.find("metallicRoughnessTexture") != gltfMaterial.values.end())
 		{
-			auto material_index = gltfMaterial.values["normalTexture"].TextureIndex();
+			auto material_index = gltfMaterial.values["metallicRoughnessTexture"].TextureIndex();
+			auto textureIndex = gltfModel.textures[material_index].source;
+
+			LoadImage(&material.metallicRoughnessMap, gltfModel, textureIndex);
+		}
+		else
+		{
+			material.metallicRoughnessMap = m_BlackTexture;
+		}
+
+		// Normal
+		if (gltfMaterial.normalTexture.index > -1)
+		{
+			auto material_index = gltfMaterial.normalTexture.index;
 			auto textureIndex = gltfModel.textures[material_index].source;
 			
 			LoadImage(&material.normalMap, gltfModel, textureIndex);
@@ -247,9 +260,9 @@ namespace Eden
 		}
 
 		// AO
-		if (gltfMaterial.values.find("occlusionTexture") != gltfMaterial.values.end())
+		if (gltfMaterial.occlusionTexture.index > -1)
 		{
-			auto material_index = gltfMaterial.values["occlusionTexture"].TextureIndex();
+			auto material_index = gltfMaterial.occlusionTexture.index;
 			auto textureIndex = gltfModel.textures[material_index].source;
 			
 			LoadImage(&material.AOMap, gltfModel, textureIndex);
@@ -270,19 +283,6 @@ namespace Eden
 		else
 		{
 			material.emissiveMap = m_BlackTexture;
-		}
-
-		// Metallic = r, Roughness = g
-		if (gltfMaterial.values.find("metallicRoughnessTexture") != gltfMaterial.values.end())
-		{
-			auto material_index = gltfMaterial.values["metallicRoughnessTexture"].TextureIndex();
-			auto textureIndex = gltfModel.textures[material_index].source;
-
-			LoadImage(&material.metallicRoughnessMap, gltfModel, textureIndex);
-		}
-		else
-		{
-			material.metallicRoughnessMap = m_BlackTexture;
 		}
 	}
 

@@ -27,3 +27,13 @@ Entities:
       Scale: [0.099992156, 0.100000001, 0.099992156]
     MeshComponent:
       File Path: assets\models\Cerberus.glb
+  - Entity: 3
+    TagComponent:
+      Tag: Light
+    TransformComponent:
+      Translation: [4.61201859, 10.9052677, -10.150157]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    PointLightComponent:
+      Color: [1, 1, 1, 1]
+      Intensity: 248

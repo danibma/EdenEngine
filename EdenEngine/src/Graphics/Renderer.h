@@ -55,7 +55,7 @@ namespace Eden
 		RenderPass sceneComposite;
 		RenderPass objectPickerPass; // Editor Only
 		Buffer quadBuffer; // used for passes that render a texture, like scene composite
-		bool bIsDeferredEnabled = true;
+		bool bIsDeferredEnabled = false;
 
 		// Timers
 		GPUTimer renderTimer;
