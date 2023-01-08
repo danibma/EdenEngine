@@ -532,7 +532,8 @@ namespace Eden
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
 
-		DX_CHECK(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
+		if (FAILED(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error)))
+			ED_LOG_ERROR("Failed to serialize root signature: {}", (char*)error->GetBufferPointer());
 
 		DX_CHECK(m_Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&internal_state->rootSignature)));
 	}
@@ -1418,6 +1419,11 @@ namespace Eden
 		ensure(data);
 
 		uint32_t rootParameterIndex = GetRootParameterIndex(parameterName);
+		if (rootParameterIndex == -1)
+		{
+			//ED_LOG_WARN("Parameter {} was not found, skiping it!", parameterName);
+			return;
+		}
 		uint32_t num_values = static_cast<uint32_t>(size / sizeof(uint32_t));
 		if (m_BoundPipeline->desc.type == kPipelineType_Graphics)
 			m_CommandList->SetGraphicsRoot32BitConstants(rootParameterIndex, num_values, data, 0);
@@ -1428,6 +1434,11 @@ namespace Eden
 	void D3D12RHI::BindRootParameter(const std::string& parameterName, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle)
 	{
 		uint32_t rootParameterIndex = GetRootParameterIndex(parameterName);
+		if (rootParameterIndex == -1)
+		{
+			//ED_LOG_WARN("Parameter {} was not found, skiping it!", parameterName);
+			return;
+		}
 		if (m_BoundPipeline->desc.type == kPipelineType_Graphics)
 			m_CommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuHandle);
 		else if (m_BoundPipeline->desc.type == kPipelineType_Compute)
@@ -1899,7 +1910,8 @@ namespace Eden
 		auto rootParameterIndex = m_BoundPipeline->rootParameterIndices.find(parameterName.data());
 
 		bool bWasRootParameterFound = rootParameterIndex != m_BoundPipeline->rootParameterIndices.end();
-		ensureMsg(bWasRootParameterFound, "Failed to find root parameter!");
+		if (!bWasRootParameterFound)
+			return -1;
 
 		return rootParameterIndex->second;
 	}

@@ -209,35 +209,81 @@ namespace Eden
 			}
 	
 			// Load materials
-			auto& gltfMaterial = gltfModel.materials[gltfPrimitive.material];
-			if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end())
-			{
-				auto material_index = gltfMaterial.values["baseColorTexture"].TextureIndex();
-				auto textureIndex = gltfModel.textures[material_index].source;
-			
-				LoadImage(&submesh->diffuseTexture, gltfModel, textureIndex);
-			}
-			else
-			{
-				submesh->diffuseTexture = m_BlackTexture;
-			}
-	
-			if (gltfMaterial.emissiveTexture.index > -1)
-			{
-				auto material_index = gltfMaterial.emissiveTexture.index;
-				auto textureIndex = gltfModel.textures[material_index].source;
-			
-				LoadImage(&submesh->emissiveTexture, gltfModel, textureIndex);
-			}
-			else
-			{
-				submesh->emissiveTexture = m_BlackTexture;
-			}
+			LoadMaterial(gltfModel, gltfPrimitive, submesh->material);
 	
 			mesh->submeshes.emplace_back(submesh);
 		}
 	
 		meshes.emplace_back(mesh);
+	}
+
+	void MeshSource::LoadMaterial(tinygltf::Model& gltfModel, const tinygltf::Primitive& gltfPrimitive, PBRMaterial& material)
+	{
+		auto& gltfMaterial = gltfModel.materials[gltfPrimitive.material];
+		// Albedo
+		if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end())
+		{
+			auto material_index = gltfMaterial.values["baseColorTexture"].TextureIndex();
+			auto textureIndex = gltfModel.textures[material_index].source;
+			
+			LoadImage(&material.albedoMap, gltfModel, textureIndex);
+		}
+		else
+		{
+			material.albedoMap = m_BlackTexture;
+		}
+
+		// Normal
+		if (gltfMaterial.values.find("normalTexture") != gltfMaterial.values.end())
+		{
+			auto material_index = gltfMaterial.values["normalTexture"].TextureIndex();
+			auto textureIndex = gltfModel.textures[material_index].source;
+			
+			LoadImage(&material.normalMap, gltfModel, textureIndex);
+		}
+		else
+		{
+			material.normalMap = m_BlackTexture;
+		}
+
+		// AO
+		if (gltfMaterial.values.find("occlusionTexture") != gltfMaterial.values.end())
+		{
+			auto material_index = gltfMaterial.values["occlusionTexture"].TextureIndex();
+			auto textureIndex = gltfModel.textures[material_index].source;
+			
+			LoadImage(&material.AOMap, gltfModel, textureIndex);
+		}
+		else
+		{
+			material.AOMap = m_BlackTexture;
+		}
+	
+		// Emissive
+		if (gltfMaterial.emissiveTexture.index > -1)
+		{
+			auto material_index = gltfMaterial.emissiveTexture.index;
+			auto textureIndex = gltfModel.textures[material_index].source;
+			
+			LoadImage(&material.emissiveMap, gltfModel, textureIndex);
+		}
+		else
+		{
+			material.emissiveMap = m_BlackTexture;
+		}
+
+		// Metallic = r, Roughness = g
+		if (gltfMaterial.values.find("metallicRoughnessTexture") != gltfMaterial.values.end())
+		{
+			auto material_index = gltfMaterial.values["metallicRoughnessTexture"].TextureIndex();
+			auto textureIndex = gltfModel.textures[material_index].source;
+
+			LoadImage(&material.metallicRoughnessMap, gltfModel, textureIndex);
+		}
+		else
+		{
+			material.metallicRoughnessMap = m_BlackTexture;
+		}
 	}
 
 	void MeshSource::LoadNode(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, const glm::mat4* parentMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices)

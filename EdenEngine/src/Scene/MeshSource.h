@@ -27,14 +27,22 @@ namespace Eden
 		}
 	};
 
+	struct PBRMaterial
+	{
+		Texture albedoMap;
+		Texture normalMap;
+		Texture AOMap;
+		Texture emissiveMap;
+		Texture metallicRoughnessMap; // r = metallic, g = roughness
+	};
+
 	struct MeshSource
 	{
 		struct Mesh
 		{
 			struct SubMesh
 			{
-				Texture diffuseTexture;
-				Texture emissiveTexture;
+				PBRMaterial material;
 				uint32_t vertexStart;
 				uint32_t indexStart;
 				uint32_t indexCount;
@@ -65,6 +73,7 @@ namespace Eden
 		Texture m_BlackTexture;
 
 	private:
+		void LoadMaterial(tinygltf::Model& gltfModel, const tinygltf::Primitive& gltfPrimitive, PBRMaterial& material);
 		void LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex);
 		void LoadNode(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, const glm::mat4* parentMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices);
 		void LoadMesh(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, glm::mat4& modelMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices);

@@ -373,7 +373,11 @@ namespace Eden
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					g_RHI->BindParameter("g_TextureDiffuse", &submesh->diffuseTexture);
+					g_RHI->BindParameter("g_AlbedoMap", &submesh->material.albedoMap);
+					g_RHI->BindParameter("g_NormalMap", &submesh->material.normalMap);
+					g_RHI->BindParameter("g_AOMap", &submesh->material.AOMap);
+					g_RHI->BindParameter("g_EmissiveMap", &submesh->material.emissiveMap);
+					g_RHI->BindParameter("g_MetallicRoughnessMap", &submesh->material.metallicRoughnessMap);
 					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}
@@ -431,8 +435,11 @@ namespace Eden
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					g_RHI->BindParameter("g_TextureDiffuse", &submesh->diffuseTexture);
-					g_RHI->BindParameter("g_TextureEmissive", &submesh->emissiveTexture);
+					g_RHI->BindParameter("g_AlbedoMap", &submesh->material.albedoMap);
+					g_RHI->BindParameter("g_NormalMap", &submesh->material.normalMap);
+					g_RHI->BindParameter("g_AOMap", &submesh->material.AOMap);
+					g_RHI->BindParameter("g_EmissiveMap", &submesh->material.emissiveMap);
+					g_RHI->BindParameter("g_MetallicRoughnessMap", &submesh->material.metallicRoughnessMap);
 					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}

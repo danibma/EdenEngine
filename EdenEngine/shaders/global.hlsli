@@ -1,5 +1,7 @@
 #pragma once
 
+#define ENABLE_PBR
+
 // Samplers
 SamplerState LinearClamp : register(s0);
 SamplerState LinearWrap : register(s1);
@@ -12,6 +14,15 @@ struct Vertex
     float3 normal : NORMAL;
     float3 color : COLOR;
     float3 viewDir : VIEW_DIR;
+};
+
+cbuffer Material
+{
+	Texture2D g_AlbedoMap 	         : register(t0);
+	Texture2D g_NormalMap 	         : register(t1);
+	Texture2D g_AOMap 		         : register(t2);
+	Texture2D g_EmissiveMap          : register(t3);
+    Texture2D g_MetallicRoughnessMap : register(t4);
 };
 
 cbuffer SceneData
