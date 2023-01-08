@@ -2,9 +2,9 @@
 
 // trick from https://learnopengl.com/code_viewer_gh.php?code=src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
 // todo: learn more about it
-float3 GetNormalFromMap(Vertex vertex, Texture2D normalMap)
+float3 GetNormalFromMap(Vertex vertex, float3 normalMap)
 {
-	float3 tangentNormal = normalMap.Sample(LinearWrap, vertex.uv).xyz * 2.0 - 1.0;
+	float3 tangentNormal = normalMap * 2.0 - 1.0;
 
 	float3 Q1  = ddx(vertex.position).rgb;
 	float3 Q2  = ddy(vertex.position).rgb;
@@ -19,7 +19,7 @@ float3 GetNormalFromMap(Vertex vertex, Texture2D normalMap)
 	return normalize(mul(TBN, tangentNormal));
 }
 
-float4 PBR(Vertex vertex, float3 albedo, Texture2D normalMap, float metallic, float roughness, float ao)
+float4 PBR(Vertex vertex, float3 albedo, float3 normalMap, float metallic, float roughness, float ao)
 {
 	float3 normal = GetNormalFromMap(vertex, normalMap);
 

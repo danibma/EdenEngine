@@ -127,7 +127,7 @@ namespace Eden
 		{
 			RenderPassDesc desc = {};
 			desc.debugName = "DeferredBasePass";
-			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::Depth };
+			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
 			desc.clearColor = { 0.0f };
@@ -150,7 +150,7 @@ namespace Eden
 
 			PipelineDesc deferredLightingPass = {};
 			deferredLightingPass.cull_mode = CullMode::kNone;
-			deferredLightingPass.bEnableBlending = false;
+			deferredLightingPass.bEnableBlending = true;
 			deferredLightingPass.programName = "DeferredLightingPass";
 			deferredLightingPass.renderPass = &g_Data->deferredLightingPass;
 			error = g_RHI->CreatePipeline(&g_Data->pipelines["Deferred Lighting Pass"], &deferredLightingPass);
@@ -175,6 +175,7 @@ namespace Eden
 
 			PipelineDesc sceneCompositeDesc = {};
 			sceneCompositeDesc.cull_mode = CullMode::kNone;
+			sceneCompositeDesc.bEnableBlending = false;
 			sceneCompositeDesc.programName = "SceneComposite";
 			sceneCompositeDesc.renderPass = &g_Data->sceneComposite;
 			error = g_RHI->CreatePipeline(&g_Data->pipelines["Scene Composite"], &sceneCompositeDesc);
@@ -394,6 +395,8 @@ namespace Eden
 		g_RHI->BindParameter("g_TextureBaseColor", &g_Data->deferredBasePass.colorAttachments[0]);
 		g_RHI->BindParameter("g_TexturePosition", &g_Data->deferredBasePass.colorAttachments[1]);
 		g_RHI->BindParameter("g_TextureNormal", &g_Data->deferredBasePass.colorAttachments[2]);
+		g_RHI->BindParameter("g_TextureMetallicRoughnessAO", &g_Data->deferredBasePass.colorAttachments[3]);
+		g_RHI->BindParameter("g_TextureNormalMap", &g_Data->deferredBasePass.colorAttachments[4]);
 		g_RHI->Draw(6);
 
 		// Skybox

@@ -46,11 +46,12 @@ float4 PSMain(Vertex vertex) : SV_TARGET
 	// Note that the albedo textures that come from artists are generally 
 	// authored in sRGB space which is why we first convert them to 
 	// linear space before using albedo in our lighting calculations.
-	float3 albedo   = pow(g_AlbedoMap.Sample(LinearWrap, vertex.uv).rgb, 2.2);
-	float ao 		= g_AOMap.Sample(LinearWrap, vertex.uv).r;
-    float metallic  = g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).r;
-    float roughness = g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).g;
+	float3 albedo    = pow(g_AlbedoMap.Sample(LinearWrap, vertex.uv).rgb, 2.2);
+	float ao 		 = g_AOMap.Sample(LinearWrap, vertex.uv).r;
+    float metallic   = g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).r;
+    float roughness  = g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).g;
+    float3 normalMap = g_NormalMap.Sample(LinearWrap, vertex.uv).rgb;
 
-	return PBR(vertex, albedo, g_NormalMap, metallic, roughness, ao);
+	return PBR(vertex, albedo, normalMap, metallic, roughness, ao);
 #endif
 }
