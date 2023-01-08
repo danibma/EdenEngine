@@ -34,21 +34,23 @@ struct DeferredOutput
 //=================
 DeferredOutput PSMain(Vertex vertex)
 {
-	float4 diffuseTexture = g_AlbedoMap.Sample(LinearWrap, vertex.uv);
-	if (!all(diffuseTexture.rgb))
-		diffuseTexture.rgb = vertex.color;
-	float alpha = diffuseTexture.a;
+	float4 albedoTexture = g_AlbedoMap.Sample(LinearWrap, vertex.uv);
+	// if there isn't any component that isn't 0, all the components are 0, 
+	// so it means that it is rendering the _black texture_ from MeshSource, so set it to the own vertex color
+	if (!any(albedoTexture.rgba))
+		albedoTexture = float4(vertex.color, 1.0f);
+	//float alpha = albedoTexture.a;
 
-	float metallic = g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).r;
+	float metallic 	= g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).r;
 	float roughness = g_MetallicRoughnessMap.Sample(LinearWrap, vertex.uv).g;
-	float ao = g_AOMap.Sample(LinearWrap, vertex.uv).r;
+	float ao 		= g_AOMap.Sample(LinearWrap, vertex.uv).r;
 
 	DeferredOutput output;
-	output.baseColor = float4(diffuseTexture.rgb, alpha);
-	output.position  = vertex.pixelPos;
-	output.normal    = float4(vertex.normal, 1.0f);
+	output.baseColor 		   = float4(albedoTexture.rgb, 1.0f);
+	output.position  		   = vertex.pixelPos;
+	output.normal    		   = float4(vertex.normal, 1.0f);
 	output.metallicRoughnessAO = float4(metallic, roughness, ao, 1.0f);
-	output.normalMap = float4(g_NormalMap.Sample(LinearWrap, vertex.uv).rgb, 1.0f);
+	output.normalMap 		   = float4(g_NormalMap.Sample(LinearWrap, vertex.uv).rgb, 1.0f);
 
 	return output;
 }

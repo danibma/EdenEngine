@@ -26,10 +26,12 @@ float4 PSMain(Vertex vertex) : SV_TARGET
 	float3 position  = g_TexturePosition.Sample(LinearWrap, vertex.uv).rgb;
 	float3 normal    = g_TextureNormal.Sample(LinearWrap, vertex.uv).rgb;
 
+	// don't render the pixel if it is the black part of the texture, 
+	// that way it renders the skybox
 	if (alpha == 0.0f)
 		discard;
 
-	vertex.color 	= baseColor;
+	vertex.color 	= baseColor.rgb;
 	vertex.pixelPos = float4(position, 1.0f);
 	vertex.normal   = normal;
 	vertex.viewDir  = normalize(viewPosition.xyz - vertex.pixelPos.xyz);

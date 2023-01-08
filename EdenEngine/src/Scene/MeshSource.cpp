@@ -54,7 +54,7 @@ namespace Eden
 		ensureMsg(bIsGLTFModelValid, "Failed to parse GLTF Model!");
 
 
-		uint32_t blackTextureData = 0xff000000;
+		uint32_t blackTextureData = 0x00000000;
 		TextureDesc blackDesc = {};
 		blackDesc.data = &blackTextureData;
 		blackDesc.width = 1;

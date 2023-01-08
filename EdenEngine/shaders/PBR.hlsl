@@ -6,14 +6,17 @@
 // trick from https://learnopengl.com/code_viewer_gh.php?code=src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
 float3 GetNormalFromMap(Vertex vertex, float3 normalMap)
 {
-	float3 tangentNormal = normalMap * 2.0 - 1.0;
+	if (!all(normalMap))
+		return normalize(vertex.normal);
+
+	float3 tangentNormal = normalMap * 2.0f - 1.0f;
 
 	float3 Q1  = ddx(vertex.pixelPos).rgb;
 	float3 Q2  = ddy(vertex.pixelPos).rgb;
 	float2 st1 = ddx(vertex.uv);
 	float2 st2 = ddy(vertex.uv);
 
-	float3 N     = vertex.normal;
+	float3 N     = normalize(vertex.normal);
 	float3 T     = normalize(Q1 * st2.g - Q2 * st1.g);
 	float3 B   	 = -normalize(cross(N, T));
 	// Tangent, bitangent, normal matrix
@@ -80,8 +83,7 @@ float4 PBR(Vertex vertex, float3 albedo, float3 normalMap, float metallic, float
 	//metallic = 1.0f;
 	//roughness = 1.0f;
 
-	//float3 N = GetNormalFromMap(vertex, normalMap);
-	float3 N = normalize(vertex.normal);
+	float3 N = GetNormalFromMap(vertex, normalMap);
 	float3 V = vertex.viewDir;
 
 	float3 F0 = (float3)0.04f; 
@@ -123,5 +125,4 @@ float4 PBR(Vertex vertex, float3 albedo, float3 normalMap, float metallic, float
 	float3 color = ambient + Lo;
 
 	return float4(color, 1.0f);
-	//return float4(metallic, roughness, 1.0f, 1.0f);
 }

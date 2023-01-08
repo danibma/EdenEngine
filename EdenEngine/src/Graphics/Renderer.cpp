@@ -150,7 +150,7 @@ namespace Eden
 
 			PipelineDesc deferredLightingPass = {};
 			deferredLightingPass.cull_mode = CullMode::kNone;
-			deferredLightingPass.bEnableBlending = true;
+			deferredLightingPass.bEnableBlending = false;
 			deferredLightingPass.programName = "DeferredLightingPass";
 			deferredLightingPass.renderPass = &g_Data->deferredLightingPass;
 			error = g_RHI->CreatePipeline(&g_Data->pipelines["Deferred Lighting Pass"], &deferredLightingPass);
