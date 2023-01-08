@@ -1,7 +1,9 @@
 #include "Global.hlsli"
 
+// Convert tangent-normals to world space
+// Normal vectors in a normal map are expressed in tangent space where normals always point 
+// roughly in the positive z direction. Tangent space is a space that's local to the surface of a triangle
 // trick from https://learnopengl.com/code_viewer_gh.php?code=src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
-// todo: learn more about it
 float3 GetNormalFromMap(Vertex vertex, float3 normalMap)
 {
 	float3 tangentNormal = normalMap * 2.0 - 1.0;

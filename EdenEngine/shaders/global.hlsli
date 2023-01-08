@@ -2,6 +2,9 @@
 
 #define ENABLE_PBR
 
+#define PI          3.14159265358979323846
+#define TWO_PI      6.28318530717958647693
+
 // Samplers
 SamplerState LinearClamp : register(s0);
 SamplerState LinearWrap : register(s1);
