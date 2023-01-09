@@ -14,7 +14,7 @@ Entities:
       Tag: Helmet
     TransformComponent:
       Translation: [-4.39425182, 0.264706016, 0]
-      Rotation: [0, -0, 0]
+      Rotation: [3.14159274, -8.74227766e-08, 3.14159274]
       Scale: [1, 1, 1]
     MeshComponent:
       File Path: E:\EdenEngine\EdenEngine\assets\models\DamagedHelmet\DamagedHelmet.glb
@@ -61,7 +61,7 @@ Entities:
       Tag: donut
     TransformComponent:
       Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
+      Rotation: [0, 4.71238899, 0]
       Scale: [30, 30, 30]
     MeshComponent:
       File Path: assets\models\donut.glb

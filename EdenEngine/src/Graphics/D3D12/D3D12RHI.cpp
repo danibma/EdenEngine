@@ -1886,6 +1886,8 @@ namespace Eden
 		bool bWasRootParameterFound = rootParameterIndex != m_BoundPipeline->rootParameterIndices.end();
 		if (!bWasRootParameterFound)
 			return -1;
+			
+		ensureMsg(bWasRootParameterFound, "Failed to find root parameter!");
 
 		return rootParameterIndex->second;
 	}
