@@ -4,9 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "RHI.h"
+#include "RHI/RHI.h"
 #include "Core/Camera.h"
-#include "Graphics/Skybox.h"
+#include "Renderer/Skybox.h"
 #include "Scene/SceneSerializer.h"
 
 namespace Eden

@@ -4,6 +4,8 @@
 #include <xtr1common>
 #include <type_traits>
 
+#include "Core/Memory/Memory.h"
+
 #define NOT_DERIVED_ERROR() static_assert(std::is_base_of<T, T2>::value, "T2 is not derived from T");
 
 namespace Eden

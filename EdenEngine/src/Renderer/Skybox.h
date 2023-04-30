@@ -4,7 +4,7 @@
 #include <string>
 #include <glm/glm.hpp>
 
-#include "Graphics/RHI.h"
+#include "RHI/RHI.h"
 
 namespace Eden
 {

@@ -9,7 +9,7 @@
 #include "Core/Memory/Memory.h"
 #include "Panels/ContentBrowserPanel.h"
 #include "Panels/SceneHierarchy.h"
-#include "Graphics/Renderer.h"
+#include "Renderer/Renderer.h"
 
 namespace Eden
 {

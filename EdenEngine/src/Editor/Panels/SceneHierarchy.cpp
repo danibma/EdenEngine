@@ -9,7 +9,7 @@
 #include "Scene/Components.h"
 #include "Core/Input.h"
 #include "Core/Application.h"
-#include "Graphics/Renderer.h"
+#include "Renderer/Renderer.h"
 
 namespace Eden
 {

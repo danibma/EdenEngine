@@ -15,8 +15,8 @@
 #include "Core/Log.h"
 #include "Core/Base.h"
 #include "Core/Assertions.h"
-#include "Graphics/RHI.h"
-#include "Graphics/Renderer.h"
+#include "RHI/RHI.h"
+#include "Renderer/Renderer.h"
 
 namespace Eden
 {

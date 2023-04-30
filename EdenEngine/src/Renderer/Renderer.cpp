@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-#include "D3D12/D3D12RHI.h"
+#include "RHI/D3D12/D3D12RHI.h"
 #include "Scene/Components.h"
 #include "Scene/Entity.h"
 #include "Core/Application.h"

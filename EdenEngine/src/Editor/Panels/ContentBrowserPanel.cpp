@@ -5,8 +5,8 @@
 
 #include "Editor/Icons/IconsFontAwesome6.h"
 #include "Scene/SceneSerializer.h"
-#include "Graphics/RHI.h"
-#include "Graphics/Renderer.h"
+#include "RHI/RHI.h"
+#include "Renderer/Renderer.h"
 #include "Editor/Editor.h"
 
 namespace Eden

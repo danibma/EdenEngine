@@ -1,7 +1,7 @@
 #include "Application.h"
 #include "Log.h"
 #include "Window.h"
-#include "Graphics/Renderer.h"
+#include "Renderer/Renderer.h"
 #include "Memory.h"
 #include "Utilities/Utils.h"
 

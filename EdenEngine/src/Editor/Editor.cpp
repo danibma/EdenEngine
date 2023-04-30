@@ -9,10 +9,10 @@
 #include "Utilities/Utils.h"
 #include "Scene/SceneSerializer.h"
 #include "Scene/Components.h"
-#include "Graphics/Renderer.h"
+#include "Renderer/Renderer.h"
 #include "Scene/Entity.h"
 #include "stdio.h"
-#include "Graphics/RHI.h"
+#include "RHI/RHI.h"
 
 namespace Eden
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Graphics/RHI.h"
+#include "RHI/RHI.h"
 
 #include <functional>
 #include <vector>

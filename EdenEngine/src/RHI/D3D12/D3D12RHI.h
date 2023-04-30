@@ -3,7 +3,7 @@
 #include "Core/Base.h"
 #include "Core/Assertions.h"
 #include "Core/Window.h"
-#include "Graphics/RHI.h"
+#include "RHI/RHI.h"
 #include "d3dx12.h"
 #include "D3D12Helper.h"
 
