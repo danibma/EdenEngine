@@ -6,9 +6,11 @@ namespace Eden
 {
 #define TO_INTERNAL(type, rhiType) rhiType* ToInternal(const type* t) { return static_cast<rhiType*>(t->internal_state.Get()); }
 
-	constexpr uint32_t s_FrameCount = 2;
+	constexpr uint32_t GFrameCount = 2;
 	// TODO: Right now just use a huge number here, and refactor when bindless descriptors are added
-	constexpr uint32_t s_SRVDescriptorCount = 10000;
+	constexpr uint32_t GSRVDescriptorCount = 1024;
+	constexpr uint32_t GRTVDescriptorCount = 256;
+	constexpr uint32_t GDSVDescriptorCount = 256;
 
 	enum class GfxResult
 	{
