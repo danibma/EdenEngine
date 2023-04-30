@@ -1,6 +1,6 @@
 #pragma once
 
-#define ENABLE_PBR
+//#define ENABLE_PBR
 
 #define PI          3.14159265358979323846
 #define TWO_PI      6.28318530717958647693

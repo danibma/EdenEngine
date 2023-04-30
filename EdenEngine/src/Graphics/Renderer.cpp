@@ -48,7 +48,7 @@ namespace Eden
 		ensure(error == GfxResult::kNoError);
 
 		g_Data->currentScene = enew Scene();
-		std::string defaultScene = "assets/scenes/pbr_scene.escene";
+		std::string defaultScene = "assets/scenes/demo.escene";
 		OpenScene(defaultScene);
 
 		g_Data->skybox = MakeShared<Skybox>("assets/skyboxes/studio_garden.hdr");
