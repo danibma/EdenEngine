@@ -1,11 +1,9 @@
 #include "Renderer.h"
 
 #include "D3D12/D3D12RHI.h"
-#include "Vulkan/VulkanRHI.h"
 #include "Scene/Components.h"
 #include "Scene/Entity.h"
 #include "Core/Application.h"
-#include "Profiling/Profiler.h"
 #include "Core/CommandLine.h"
 
 namespace Eden
@@ -21,11 +19,7 @@ namespace Eden
 		g_Data = enew RendererData();
 		g_Data->viewportSize = { static_cast<float>(window->GetWidth()), static_cast<float>(window->GetHeight()) };
 
-		if (CommandLine::HasArg("vulkan"))
-		{
-			g_RHI = enew VulkanRHI();
-		}
-		else if (CommandLine::HasArg("d3d12"))
+		if (CommandLine::HasArg("d3d12"))
 		{
 			g_RHI = enew D3D12RHI();
 		}
@@ -130,7 +124,7 @@ namespace Eden
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			desc.clearColor = { 0.0f };
+			desc.clearColor = { 0, 0, 0, 0 };
 			error = g_RHI->CreateRenderPass(&g_Data->deferredBasePass, &desc);
 			ensure(error == GfxResult::kNoError);
 
@@ -235,8 +229,6 @@ namespace Eden
 
 	void Renderer::Render()
 	{
-		ED_PROFILE_FUNCTION();
-
 		g_RHI->BeginGPUTimer(&g_Data->renderTimer);
 
 #if WITH_EDITOR

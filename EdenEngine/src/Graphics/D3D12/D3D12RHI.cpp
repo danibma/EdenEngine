@@ -14,7 +14,6 @@
 #include <dxgi1_6.h>
 
 #include "Utilities/Utils.h"
-#include "Profiling/Profiler.h"
 #include <WinPixEventRuntime/pix3.h>
 
 // From Guillaume Boisse "gfx" https://github.com/gboisse/gfx/blob/b83878e562c2c205000b19c99cf24b13973dedb2/gfx_core.h#L77
@@ -191,11 +190,6 @@ namespace Eden
 			ensure(error == GfxResult::kNoError);
 		});
 
-		// Setup profiler
-		ID3D12Device* pDevice = m_Device.Get();
-		ID3D12CommandQueue* pCommandQueue = m_CommandQueue.Get();
-		ED_PROFILE_GPU_INIT(pDevice, &pCommandQueue, 1);
-
 		// Create mips pipeline
 		PipelineDesc mipsDesc = {};
 		mipsDesc.programName = "GenerateMips";
@@ -217,14 +211,10 @@ namespace Eden
 		}
 
 		CloseHandle(m_FenceEvent);
-
-		ED_PROFILER_SHUTDOWN();
 	}
 
 	D3D12RHI::ShaderResult D3D12RHI::CompileShader(std::filesystem::path filePath, ShaderStage stage)
 	{
-		ED_PROFILE_FUNCTION();
-
 		std::wstring entryPoint = L"";
 		std::wstring stageStr = L"";
 
@@ -989,8 +979,6 @@ namespace Eden
 		if (pipeline == nullptr) return GfxResult::kInvalidParameter;
 		if (desc     == nullptr) return GfxResult::kInvalidParameter;
 
-		ED_PROFILE_FUNCTION();
-
 		auto internal_state = MakeShared<D3D12Pipeline>();
 		pipeline->rootParameterIndices.clear();
 		pipeline->internal_state = internal_state;
@@ -1017,8 +1005,6 @@ namespace Eden
 
 	GfxResult D3D12RHI::CreateTexture(Texture* texture, std::string filePath, bool bGenerateMips)
 	{
-		ED_PROFILE_FUNCTION();
-
 		TextureDesc desc = {};
 		desc.bGenerateMips = bGenerateMips;
 
@@ -1058,8 +1044,6 @@ namespace Eden
 
 	GfxResult D3D12RHI::CreateTexture(Texture* texture, TextureDesc* desc)
 	{
-		ED_PROFILE_FUNCTION();
-
 		ensureMsg(desc->type == TextureDesc::Texture2D, "Only texture2d is implemented!");
 
 		auto internal_state = MakeShared<D3D12Texture>();
@@ -1610,11 +1594,6 @@ namespace Eden
 		ensureMsg(internal_state->pipelineState != nullptr, "Can't Draw without a valid pipeline bound!");
 		ensureMsg(internal_state->rootSignature != nullptr, "Can't Draw without a valid pipeline bound!");
 
-		ED_PROFILE_FUNCTION();
-
-		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("D3D12RHI::PrepareDraw");
-
 		D3D12_VIEWPORT viewport;
 		viewport.Width = static_cast<float>(m_BoundPipeline->desc.renderPass->desc.width);
 		viewport.Height = static_cast<float>(m_BoundPipeline->desc.renderPass->desc.height);
@@ -1689,10 +1668,6 @@ namespace Eden
 
 	void D3D12RHI::Render()
 	{
-		ED_PROFILE_FUNCTION();
-		ED_PROFILE_GPU_CONTEXT(m_CommandList.Get());
-		ED_PROFILE_GPU_FUNCTION("D3D12RHI::Render");
-
 		DX_CHECK(m_CommandList->Close());
 
 		ID3D12CommandList* commandLists[] = { m_CommandList.Get() };
@@ -1701,7 +1676,6 @@ namespace Eden
 		uint64_t currentFenceValue = m_FenceValues[m_FrameIndex];
 		WaitForGPU();
 
-		ED_PROFILE_GPU_FLIP(m_Swapchain.Get());
 		if (!m_VSyncEnabled)
 			m_Swapchain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 		else

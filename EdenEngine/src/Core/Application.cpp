@@ -3,7 +3,6 @@
 #include "Window.h"
 #include "Graphics/Renderer.h"
 #include "Memory.h"
-#include "Profiling/Profiler.h"
 #include "Utilities/Utils.h"
 
 namespace Eden
@@ -51,8 +50,6 @@ namespace Eden
 	{
 		while (!window->IsCloseRequested())
 		{
-			ED_PROFILE_FRAME("MainThread");
-
 			window->UpdateEvents();
 
 			// Update timers
