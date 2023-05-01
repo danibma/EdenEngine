@@ -12,7 +12,7 @@
 
 namespace Eden
 {
-	struct D3D12Resource : public ResourceInternal
+	struct D3D12Resource
 	{
 		ComPtr<ID3D12Resource> resource;
 		ComPtr<D3D12MA::Allocation> allocation;
@@ -20,19 +20,19 @@ namespace Eden
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
 	};
 
-	struct D3D12Buffer : public D3D12Resource
+	struct D3D12Buffer : public D3D12Resource, Buffer
 	{
 		//! Created in case we need things for the buffer
 	};
 
-	struct D3D12Texture : public D3D12Resource
+	struct D3D12Texture : public D3D12Resource, Texture
 	{
 		ComPtr<ID3D12Resource> uploadHeap;
 		ComPtr<D3D12MA::Allocation> uploadAllocation;
 		std::vector<D3D12_SUBRESOURCE_DATA> data;
 	};
 
-	struct D3D12Pipeline : public ResourceInternal
+	struct D3D12Pipeline : public Pipeline
 	{
 		ComPtr<ID3D12RootSignature> rootSignature;
 		ComPtr<ID3D12PipelineState> pipelineState;
@@ -41,18 +41,18 @@ namespace Eden
 		ComPtr<ID3D12ShaderReflection> computeReflection;
 	};
 
-	struct D3D12RenderPass : public ResourceInternal
+	struct D3D12RenderPass : public RenderPass
 	{
 		std::vector<uint32_t> rtvDescriptorsIndices;
 		uint32_t dsvDescriptorIndex;
 	};
 
-	struct D3D12GPUTimer : public ResourceInternal
+	struct D3D12GPUTimer : public GPUTimer
 	{
 		ComPtr<ID3D12QueryHeap> queryHeap;
 	};
 
-	class D3D12RHI final : public IRHI
+	class D3D12DynamicRHI final : public DynamicRHI
 	{
 		D3D12Device* m_Device;
 		ComPtr<IDXGISwapChain3> m_Swapchain;
@@ -76,7 +76,7 @@ namespace Eden
 
 		D3D12_VERTEX_BUFFER_VIEW m_BoundVertexBuffer;
 		D3D12_INDEX_BUFFER_VIEW m_BoundIndexBuffer;
-		Pipeline* m_BoundPipeline;
+		PipelineRef m_BoundPipeline;
 
 		struct ShaderResult
 		{
@@ -84,51 +84,49 @@ namespace Eden
 			ComPtr<ID3D12ShaderReflection> reflection;
 		};
 
-		RenderPass* m_SwapchainTarget;
+		RenderPassRef m_SwapchainTarget;
 
 		// temp until I found another solution
-		Pipeline m_MipsPipeline;
+		PipelineRef m_MipsPipeline;
 
 	public:
 		virtual GfxResult Init(Window* window) override;
 		virtual void Shutdown() override;
 
-		virtual GfxResult CreateBuffer(Buffer* buffer, BufferDesc* desc, const void* initial_data) override;
-		virtual GfxResult CreatePipeline(Pipeline* pipeline, PipelineDesc* desc) override;
-		virtual GfxResult CreateTexture(Texture* texture, std::string path, bool bGenerateMips) override;
-		virtual GfxResult CreateTexture(Texture* texture, TextureDesc* desc) override;
-		virtual GfxResult CreateRenderPass(RenderPass* renderPass, RenderPassDesc* desc) override;
-		virtual GfxResult CreateGPUTimer(GPUTimer* timer) override;
+		virtual BufferRef     CreateBuffer(BufferDesc* desc, const void* initial_data) override;
+		virtual PipelineRef   CreatePipeline(PipelineDesc* desc) override;
+		virtual TextureRef    CreateTexture(std::string path, bool bGenerateMips) override;
+		virtual TextureRef    CreateTexture(TextureDesc* desc) override;
+		virtual RenderPassRef CreateRenderPass(RenderPassDesc* desc) override;
+		virtual GPUTimerRef   CreateGPUTimer() override;
 
-		virtual void SetName(Resource* child, std::string& name) override;
+		virtual void BeginGPUTimer(GPUTimerRef timer) override;
+		virtual void EndGPUTimer(GPUTimerRef timer) override;
 
-		virtual void BeginGPUTimer(GPUTimer* timer) override;
-		virtual void EndGPUTimer(GPUTimer* timer) override;
+		virtual GfxResult UpdateBufferData(BufferRef buffer, const void* data, uint32_t count = 0) override;
+		virtual void GenerateMips(TextureRef texture) override;
 
-		virtual GfxResult UpdateBufferData(Buffer* buffer, const void* data, uint32_t count = 0) override;
-		virtual void GenerateMips(Texture* texture) override;
+		virtual void ChangeResourceState(TextureRef resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) override;
+		virtual void EnsureMsgResourceState(TextureRef resource, ResourceState destResourceState) override;
 
-		virtual void ChangeResourceState(Texture* resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) override;
-		virtual void EnsureMsgResourceState(Texture* resource, ResourceState destResourceState) override;
+		virtual uint64_t GetTextureID(TextureRef texture) override;
 
-		virtual uint64_t GetTextureID(Texture* texture) override;
-
-		virtual GfxResult ReloadPipeline(Pipeline* pipeline) override;
+		virtual GfxResult ReloadPipeline(PipelineRef pipeline) override;
 
 		virtual void EnableImGui() override;
 		virtual void ImGuiNewFrame() override;
 
-		virtual void BindPipeline(Pipeline* pipeline) override;
-		virtual void BindVertexBuffer(Buffer* vertexBuffer) override;
-		virtual void BindIndexBuffer(Buffer* indexBuffer) override;
-		virtual void BindParameter(const std::string& parameterName, Buffer* buffer) override;
-		virtual void BindParameter(const std::string& parameterName, Texture* texture, TextureUsage usage = kReadOnly) override;
+		virtual void BindPipeline(PipelineRef pipeline) override;
+		virtual void BindVertexBuffer(BufferRef vertexBuffer) override;
+		virtual void BindIndexBuffer(BufferRef indexBuffer) override;
+		virtual void BindParameter(const std::string& parameterName, BufferRef buffer) override;
+		virtual void BindParameter(const std::string& parameterName, TextureRef texture, TextureUsage usage = kReadOnly) override;
 		virtual void BindParameter(const std::string& parameterName, void* data, size_t size) override; // Use only for constants
 
 		virtual void BeginRender() override;
-		virtual void BeginRenderPass(RenderPass* renderPass) override;
-		virtual void SetSwapchainTarget(RenderPass* renderPass) override;
-		virtual void EndRenderPass(RenderPass* renderPass) override;
+		virtual void BeginRenderPass(RenderPassRef renderPass) override;
+		virtual void SetSwapchainTarget(RenderPassRef renderPass) override;
+		virtual void EndRenderPass(RenderPassRef renderPass) override;
 		virtual void EndRender() override;
 
 		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) override;
@@ -138,25 +136,25 @@ namespace Eden
 		virtual void Render() override;
 		virtual GfxResult Resize(uint32_t width, uint32_t height) override;
 
-		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, Texture* texture, glm::vec4& pixel) override;
+		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel) override;
 
 	private:
 		void PrepareDraw();
 		void WaitForGPU();
-		void CreateAttachments(RenderPass* renderPass);
+		void CreateAttachments(RenderPassRef renderPass);
 		uint32_t GetRootParameterIndex(const std::string& parameterName);
-		void CreateRootSignature(Pipeline* pipeline);
+		void CreateRootSignature(PipelineRef pipeline);
 		ShaderResult CompileShader(std::filesystem::path filePath, ShaderStage stage);
 		D3D12_STATIC_SAMPLER_DESC CreateSamplerDesc(uint32_t shaderRegister, uint32_t registerSpace, D3D12_SHADER_VISIBILITY shaderVisibility, D3D12_TEXTURE_ADDRESS_MODE addressMode);
 
-		void CreateGraphicsPipeline(Pipeline* pipeline, PipelineDesc* desc);
-		void CreateComputePipeline(Pipeline* pipeline, PipelineDesc* desc);
+		void CreateGraphicsPipeline(PipelineRef pipeline, PipelineDesc* desc);
+		void CreateComputePipeline(PipelineRef pipeline, PipelineDesc* desc);
 
 		void CreateCommands();
 
 		void BindRootParameter(const std::string& parameterName, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
 
-		void SetTextureData(Texture* texture);
+		void SetTextureData(TextureRef texture);
 
 		void BindSRVDescriptorHeap();
 	};

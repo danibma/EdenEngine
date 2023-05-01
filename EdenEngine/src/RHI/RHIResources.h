@@ -10,31 +10,9 @@
 
 namespace Eden
 {
-	struct ResourceInternal
-	{
-		virtual ~ResourceInternal()
-		{
-			// empty destructor so that the derived class destructor is called
-		}
-	};
-
-	struct GraphicsChild
-	{
-		std::string debugName;
-		SharedPtr<ResourceInternal> internal_state;
-		bool IsValid() { return internal_state != nullptr; }
-		operator bool()
-		{
-			return IsValid();
-		}
-	};
-
-	struct Resource : GraphicsChild
-	{
-		bool bIsInitialized = false;
-		ResourceState currentState;
-	};
-
+	//
+	// Buffer
+	//
 	struct BufferDesc
 	{
 		enum BufferUsage
@@ -45,18 +23,25 @@ namespace Eden
 			Readback
 		};
 
-		uint32_t stride;
-		uint32_t elementCount;
-		BufferUsage usage = Uniform;
+		uint32_t		stride;
+		uint32_t		elementCount;
+		BufferUsage		usage = Uniform;
+		std::string		debugName;
 	};
 
-	struct Buffer : public Resource
+	struct Buffer
 	{
-		void* mappedData;
-		uint32_t size;
-		BufferDesc desc;
+		bool			bIsInitialized = false;
+		ResourceState	currentState;
+		void*			mappedData;
+		uint32_t		size;
+		BufferDesc		desc;
 	};
+	typedef SharedPtr<Buffer> BufferRef;
 
+	//
+	// Texture
+	//
 	struct TextureDesc
 	{
 		enum TextureType
@@ -66,52 +51,64 @@ namespace Eden
 			TextureCube	// Not implemented
 		};
 
-		void* data;
-		uint32_t width;
-		uint32_t height;
-		bool bIsSrgb = false;
-		bool bIsStorage = false;
-		bool bGenerateMips = true;
+		void*		data;
+		uint32_t	width;
+		uint32_t	height;
+		bool		bIsSrgb = false;
+		bool		bIsStorage = false;
+		bool		bGenerateMips = true;
 		TextureType type = Texture2D;
+		std::string debugName;
 	};
 
-	struct Texture : public Resource
+	struct Texture
 	{
-		Format imageFormat;
-		uint32_t mipCount;
-		TextureDesc desc;
+		bool			bIsInitialized = false;
+		ResourceState	currentState;
+		Format			imageFormat;
+		uint32_t		mipCount;
+		TextureDesc		desc;
 	};
+	typedef SharedPtr<Texture> TextureRef;
 
+	//
+	// Render Pass
+	//
 	struct RenderPassDesc
 	{
-		std::string debugName;
-		bool bIsImguiPass = false;
-		bool bIsSwapchainTarget = false;
+		std::string			debugName;
+		bool				bIsImguiPass = false;
+		bool				bIsSwapchainTarget = false;
 		std::vector<Format> attachmentsFormats;
-		uint32_t width = 0, height = 0;
-		glm::vec4 clearColor = glm::vec4(0, 0, 0, 1);
+		uint32_t			width = 0, height = 0;
+		glm::vec4			clearColor = glm::vec4(0, 0, 0, 1);
 	};
 
-	struct RenderPass : GraphicsChild
+	struct RenderPass
 	{
-		std::vector<Texture> colorAttachments;
-		Texture depthStencil;
-		RenderPassDesc desc;
+		std::vector<TextureRef> colorAttachments;
+		TextureRef				depthStencil;
+		RenderPassDesc			desc;
 	};
+	typedef SharedPtr<RenderPass> RenderPassRef;
 
+	//
+	// Pipeline
+	//
 	struct PipelineDesc
 	{
-		std::string programName;
-		bool bEnableBlending = false;
-		bool bIsFrontCounterClockwise = false;
-		float minDepth = 0.0f;
-		CullMode cull_mode = CullMode::kBack;
-		ComparisonFunc depthFunc = ComparisonFunc::kLess;
-		PipelineType type = kPipelineType_Graphics;
-		RenderPass* renderPass;
+		std::string		debugName;
+		std::string		programName;
+		bool			bEnableBlending = false;
+		bool			bIsFrontCounterClockwise = false;
+		float			minDepth = 0.0f;
+		CullMode		cull_mode = CullMode::kBack;
+		ComparisonFunc	depthFunc = ComparisonFunc::kLess;
+		PipelineType	type = kPipelineType_Graphics;
+		RenderPassRef		renderPass;
 	};
 
-	struct Pipeline : GraphicsChild
+	struct Pipeline
 	{
 		PipelineDesc desc;
 
@@ -119,11 +116,16 @@ namespace Eden
 		// name, rootParameterIndex
 		std::unordered_map<std::string, uint32_t> rootParameterIndices;
 	};
+	typedef SharedPtr<Pipeline> PipelineRef;
 
-	struct GPUTimer : GraphicsChild
+	//
+	// GPU Timer
+	//
+	struct GPUTimer
 	{
 		double elapsedTime = 0.0f;
 
-		Buffer readbackBuffer;
+		BufferRef readbackBuffer;
 	};
+	typedef SharedPtr<GPUTimer> GPUTimerRef;
 }

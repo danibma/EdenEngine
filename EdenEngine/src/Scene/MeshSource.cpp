@@ -63,7 +63,7 @@ namespace Eden
 		blackDesc.bGenerateMips = false;
 
 		const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
-		Renderer::CreateTexture(&m_BlackTexture, &blackDesc);
+		m_BlackTexture = Renderer::CreateTexture(&blackDesc);
 
 		std::vector<VertexData> vertices;
 		std::vector<uint32_t> indices;
@@ -80,13 +80,13 @@ namespace Eden
 		vbDesc.elementCount = vertexCount;
 		vbDesc.stride = sizeof(VertexData);
 		vbDesc.usage = BufferDesc::Vertex_Index;
-		Renderer::CreateBuffer(&meshVb, &vbDesc, vertices.data());
+		meshVb = Renderer::CreateBuffer(&vbDesc, vertices.data());
 
 		BufferDesc ibDesc;
 		ibDesc.elementCount = indexCount;
 		ibDesc.stride = sizeof(uint32_t);
 		ibDesc.usage = BufferDesc::Vertex_Index;
-		Renderer::CreateBuffer(&meshIb, &ibDesc, indices.data());
+		meshIb = Renderer::CreateBuffer(&ibDesc, indices.data());
 		bHasMesh = true;
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());
@@ -226,7 +226,7 @@ namespace Eden
 			auto material_index = gltfMaterial.values["baseColorTexture"].TextureIndex();
 			auto textureIndex = gltfModel.textures[material_index].source;
 			
-			LoadImage(&material.albedoMap, gltfModel, textureIndex);
+			material.albedoMap = LoadImage(gltfModel, textureIndex);
 		}
 		else
 		{
@@ -239,7 +239,7 @@ namespace Eden
 			auto material_index = gltfMaterial.values["metallicRoughnessTexture"].TextureIndex();
 			auto textureIndex = gltfModel.textures[material_index].source;
 
-			LoadImage(&material.metallicRoughnessMap, gltfModel, textureIndex);
+			material.metallicRoughnessMap = LoadImage(gltfModel, textureIndex);
 		}
 		else
 		{
@@ -252,7 +252,7 @@ namespace Eden
 			auto material_index = gltfMaterial.normalTexture.index;
 			auto textureIndex = gltfModel.textures[material_index].source;
 			
-			LoadImage(&material.normalMap, gltfModel, textureIndex);
+			material.normalMap = LoadImage(gltfModel, textureIndex);
 		}
 		else
 		{
@@ -265,7 +265,7 @@ namespace Eden
 			auto material_index = gltfMaterial.occlusionTexture.index;
 			auto textureIndex = gltfModel.textures[material_index].source;
 			
-			LoadImage(&material.AOMap, gltfModel, textureIndex);
+			material.AOMap = LoadImage(gltfModel, textureIndex);
 		}
 		else
 		{
@@ -278,7 +278,7 @@ namespace Eden
 			auto material_index = gltfMaterial.emissiveTexture.index;
 			auto textureIndex = gltfModel.textures[material_index].source;
 			
-			LoadImage(&material.emissiveMap, gltfModel, textureIndex);
+			material.emissiveMap = LoadImage(gltfModel, textureIndex);
 		}
 		else
 		{
@@ -326,7 +326,7 @@ namespace Eden
 			LoadNode(gltfModel, gltfModel.nodes[gltfNode.children[childIndex]], &modelMatrix, vertices, indices);
 	}
 
-	void MeshSource::LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex)
+	TextureRef MeshSource::LoadImage(tinygltf::Model& gltfModel, int32_t imageIndex)
 	{
 		tinygltf::Image& gltfImage = gltfModel.images[imageIndex];
 
@@ -360,10 +360,12 @@ namespace Eden
 		desc.width = gltfImage.width;
 		desc.height = gltfImage.height;
 		desc.bIsStorage = false;
-		Renderer::CreateTexture(texture, &desc);
-		Renderer::SetName(texture, gltfImage.name);
+		desc.debugName = gltfImage.name;
+		TextureRef texture = Renderer::CreateTexture(&desc);
 
 		if (bDeleteBuffer)
 			edelete buffer;
+
+		return texture;
 	}
 }

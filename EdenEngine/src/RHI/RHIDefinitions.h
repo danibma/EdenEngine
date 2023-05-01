@@ -8,7 +8,7 @@ namespace Eden
 
 	constexpr uint32_t GFrameCount = 2;
 	// TODO: Right now just use a huge number here, and refactor when bindless descriptors are added
-	constexpr uint32_t GSRVDescriptorCount = 1024;
+	constexpr uint32_t GSRVDescriptorCount = 8129;
 	constexpr uint32_t GRTVDescriptorCount = 256;
 	constexpr uint32_t GDSVDescriptorCount = 256;
 

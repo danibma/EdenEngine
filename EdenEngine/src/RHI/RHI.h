@@ -9,7 +9,7 @@
  
 namespace Eden
 {
-	class IRHI
+	class DynamicRHI
 	{
 	protected:
 		bool m_VSyncEnabled = false;
@@ -18,8 +18,8 @@ namespace Eden
 		API m_CurrentAPI;
 
 	public:
-		IRHI() = default;
-		virtual ~IRHI()
+		DynamicRHI() = default;
+		virtual ~DynamicRHI()
 		{
 		}
 
@@ -29,42 +29,40 @@ namespace Eden
 		virtual GfxResult Init(Window* window) = 0;
 		virtual void Shutdown() = 0;
 
-		virtual GfxResult CreateBuffer(Buffer* buffer, BufferDesc* desc, const void* initial_data) = 0;
-		virtual GfxResult CreatePipeline(Pipeline* pipeline, PipelineDesc* desc) = 0;
-		virtual GfxResult CreateTexture(Texture* texture, std::string path, bool bGenerateMips) = 0;
-		virtual GfxResult CreateTexture(Texture* texture, TextureDesc* desc) = 0;
-		virtual GfxResult CreateRenderPass(RenderPass* renderPass, RenderPassDesc* desc) = 0;
-		virtual GfxResult CreateGPUTimer(GPUTimer* timer) = 0;
+		virtual BufferRef     CreateBuffer(BufferDesc* desc, const void* initial_data) = 0;
+		virtual PipelineRef   CreatePipeline(PipelineDesc* desc) = 0;
+		virtual TextureRef    CreateTexture(std::string path, bool bGenerateMips) = 0;
+		virtual TextureRef    CreateTexture(TextureDesc* desc) = 0;
+		virtual RenderPassRef CreateRenderPass(RenderPassDesc* desc) = 0;
+		virtual GPUTimerRef   CreateGPUTimer() = 0;
 
-		virtual void SetName(Resource* child, std::string& name) = 0;
+		virtual void BeginGPUTimer(GPUTimerRef timer) = 0;
+		virtual void EndGPUTimer(GPUTimerRef timer) = 0;
 
-		virtual void BeginGPUTimer(GPUTimer* timer) = 0;
-		virtual void EndGPUTimer(GPUTimer* timer) = 0;
+		virtual GfxResult UpdateBufferData(BufferRef buffer, const void* data, uint32_t count = 0) = 0;
+		virtual void GenerateMips(TextureRef texture) = 0;
 
-		virtual GfxResult UpdateBufferData(Buffer* buffer, const void* data, uint32_t count = 0) = 0;
-		virtual void GenerateMips(Texture* texture) = 0;
+		virtual void ChangeResourceState(TextureRef resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) = 0;
+		virtual void EnsureMsgResourceState(TextureRef resource, ResourceState destResourceState) = 0;
 
-		virtual void ChangeResourceState(Texture* resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) = 0;
-		virtual void EnsureMsgResourceState(Texture* resource, ResourceState destResourceState) = 0;
+		virtual uint64_t GetTextureID(TextureRef texture) = 0;
 
-		virtual uint64_t GetTextureID(Texture* texture) = 0;
-
-		virtual GfxResult ReloadPipeline(Pipeline* pipeline) = 0;
+		virtual GfxResult ReloadPipeline(PipelineRef pipeline) = 0;
 
 		virtual void EnableImGui() = 0;
 		virtual void ImGuiNewFrame() = 0;
 
-		virtual void BindPipeline(Pipeline* pipeline) = 0;
-		virtual void BindVertexBuffer(Buffer* vertexBuffer) = 0;
-		virtual void BindIndexBuffer(Buffer* indexBuffer) = 0;
-		virtual void BindParameter(const std::string& parameterName, Buffer* buffer) = 0;
-		virtual void BindParameter(const std::string& parameterName, Texture* texture, TextureUsage usage = kReadOnly) = 0;
+		virtual void BindPipeline(PipelineRef pipeline) = 0;
+		virtual void BindVertexBuffer(BufferRef vertexBuffer) = 0;
+		virtual void BindIndexBuffer(BufferRef indexBuffer) = 0;
+		virtual void BindParameter(const std::string& parameterName, BufferRef buffer) = 0;
+		virtual void BindParameter(const std::string& parameterName, TextureRef texture, TextureUsage usage = kReadOnly) = 0;
 		virtual void BindParameter(const std::string& parameterName, void* data, size_t size) = 0; // Use only for constants
 
 		virtual void BeginRender() = 0;
-		virtual void BeginRenderPass(RenderPass* renderPass) = 0;
-		virtual void SetSwapchainTarget(RenderPass* renderPass) = 0;
-		virtual void EndRenderPass(RenderPass* renderPass) = 0;
+		virtual void BeginRenderPass(RenderPassRef renderPass) = 0;
+		virtual void SetSwapchainTarget(RenderPassRef renderPass) = 0;
+		virtual void EndRenderPass(RenderPassRef renderPass) = 0;
 		virtual void EndRender() = 0;
 
 		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0) = 0;
@@ -74,7 +72,7 @@ namespace Eden
 		virtual void Render() = 0;
 		virtual GfxResult Resize(uint32_t width, uint32_t height) = 0;
 
-		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, Texture* texture, glm::vec4& pixel) = 0;
+		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel) = 0;
 
 	protected:
 		int GetDepthFormatIndex(std::vector<Format>& formats)

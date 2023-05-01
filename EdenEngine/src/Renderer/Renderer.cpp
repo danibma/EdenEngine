@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-#include "RHI/D3D12/D3D12RHI.h"
+#include "RHI/D3D12/D3D12DynamicRHI.h"
 #include "Scene/Components.h"
 #include "Scene/Entity.h"
 #include "Core/Application.h"
@@ -9,7 +9,7 @@
 namespace Eden
 {
 	// RHI
-	IRHI* g_RHI = nullptr;
+	DynamicRHI* g_RHI = nullptr;
 	// Renderer Data
 	RendererData* g_Data = nullptr;
 	bool g_IsRendererInitialized = false;
@@ -21,11 +21,11 @@ namespace Eden
 
 		if (CommandLine::HasArg("d3d12"))
 		{
-			g_RHI = enew D3D12RHI();
+			g_RHI = enew D3D12DynamicRHI();
 		}
 		else
 		{
-			g_RHI = enew D3D12RHI();
+			g_RHI = enew D3D12DynamicRHI();
 			ED_LOG_INFO("No Rendering was set through the command line arguments, choosing D3D12 by default!");
 		}
 
@@ -44,8 +44,7 @@ namespace Eden
 		BufferDesc sceneDataDesc = {};
 		sceneDataDesc.elementCount = 1;
 		sceneDataDesc.stride = sizeof(RendererData::SceneData);
-		error = g_RHI->CreateBuffer(&g_Data->sceneDataCB, &sceneDataDesc, &g_Data->sceneData);
-		ensure(error == GfxResult::kNoError);
+		g_Data->sceneDataCB = g_RHI->CreateBuffer(&sceneDataDesc, &g_Data->sceneData);
 
 		g_Data->currentScene = enew Scene();
 		std::string defaultScene = "assets/scenes/demo.escene";
@@ -58,15 +57,13 @@ namespace Eden
 		dl_desc.elementCount = g_Data->MAX_DIRECTIONAL_LIGHTS;
 		dl_desc.stride = sizeof(DirectionalLightComponent);
 		dl_desc.usage = BufferDesc::Storage;
-		error = g_RHI->CreateBuffer(&g_Data->directionalLightsBuffer, &dl_desc, nullptr);
-		ensure(error == GfxResult::kNoError);
+		g_Data->directionalLightsBuffer = g_RHI->CreateBuffer(&dl_desc, nullptr);
 
 		BufferDesc pl_desc = {};
 		pl_desc.elementCount = g_Data->MAX_POINT_LIGHTS;
 		pl_desc.stride = sizeof(PointLightComponent);
 		pl_desc.usage = BufferDesc::Storage;
-		error = g_RHI->CreateBuffer(&g_Data->pointLightsBuffer, &pl_desc, nullptr);
-		ensure(error == GfxResult::kNoError);
+		g_Data->pointLightsBuffer = g_RHI->CreateBuffer(&pl_desc, nullptr);
 
 		UpdateDirectionalLights();
 		UpdatePointLights();
@@ -79,13 +76,12 @@ namespace Eden
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
 			desc.clearColor = glm::vec4(-1);
-			error = g_RHI->CreateRenderPass(&g_Data->objectPickerPass, &desc);
-			ensure(error == GfxResult::kNoError);
+			g_Data->objectPickerPass = g_RHI->CreateRenderPass(&desc);
 
 			PipelineDesc pipelineDesc = {};
-			pipelineDesc.programName = "ObjectPicker";
-			pipelineDesc.renderPass = &g_Data->objectPickerPass;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Object Picker"], &pipelineDesc);
+			pipelineDesc.programName  = "ObjectPicker";
+			pipelineDesc.renderPass   = g_Data->objectPickerPass;
+			g_Data->pipelines["Object Picker"] = g_RHI->CreatePipeline(&pipelineDesc);
 			ensure(error == GfxResult::kNoError);
 		}
 
@@ -96,25 +92,21 @@ namespace Eden
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			error = g_RHI->CreateRenderPass(&g_Data->forwardPass, &desc);
-			ensure(error == GfxResult::kNoError);
+			g_Data->forwardPass = g_RHI->CreateRenderPass(&desc);
 
-			PipelineDesc forwardDesc = {};
+			PipelineDesc forwardDesc    = {};
 			forwardDesc.bEnableBlending = true;
-			forwardDesc.programName = "ForwardPass";
-			forwardDesc.renderPass = &g_Data->forwardPass;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Forward Rendering"], &forwardDesc);
-			ensure(error == GfxResult::kNoError);
+			forwardDesc.programName     = "ForwardPass";
+			forwardDesc.renderPass      = g_Data->forwardPass;
+			g_Data->pipelines["Forward Rendering"] = g_RHI->CreatePipeline(&forwardDesc);
 
 			PipelineDesc skyboxDesc = {};
-			skyboxDesc.cull_mode = CullMode::kNone;
-			skyboxDesc.depthFunc = ComparisonFunc::kLessEqual;
-			skyboxDesc.minDepth = 1.0f;
-			skyboxDesc.programName = "Skybox";
-			skyboxDesc.renderPass = &g_Data->forwardPass;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Skybox"], &skyboxDesc);
-			ensure(error == GfxResult::kNoError);
-
+			skyboxDesc.cull_mode    = CullMode::kNone;
+			skyboxDesc.depthFunc    = ComparisonFunc::kLessEqual;
+			skyboxDesc.minDepth     = 1.0f;
+			skyboxDesc.programName  = "Skybox";
+			skyboxDesc.renderPass   = g_Data->forwardPass;
+			g_Data->pipelines["Skybox"] = g_RHI->CreatePipeline(&skyboxDesc);
 		}
 
 		// Deferred Pass
@@ -125,30 +117,27 @@ namespace Eden
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
 			desc.clearColor = { 0, 0, 0, 0 };
-			error = g_RHI->CreateRenderPass(&g_Data->deferredBasePass, &desc);
-			ensure(error == GfxResult::kNoError);
+			g_Data->deferredBasePass = g_RHI->CreateRenderPass(&desc);
 
 			PipelineDesc deferredBaseDesc = {};
 			deferredBaseDesc.bEnableBlending = true;
 			deferredBaseDesc.programName = "DeferredBasePass";
-			deferredBaseDesc.renderPass = &g_Data->deferredBasePass;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Deferred Base Pass"], &deferredBaseDesc);
-			ensure(error == GfxResult::kNoError);
+			deferredBaseDesc.renderPass = g_Data->deferredBasePass;
+			g_Data->pipelines["Deferred Base Pass"] = g_RHI->CreatePipeline(&deferredBaseDesc);
 
 			RenderPassDesc lightingDesc = {};
 			desc.debugName = "DeferredLightingPass";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			error = g_RHI->CreateRenderPass(&g_Data->deferredLightingPass, &desc);
+			g_Data->deferredLightingPass = g_RHI->CreateRenderPass(&desc);
 
 			PipelineDesc deferredLightingPass = {};
 			deferredLightingPass.cull_mode = CullMode::kNone;
 			deferredLightingPass.bEnableBlending = false;
 			deferredLightingPass.programName = "DeferredLightingPass";
-			deferredLightingPass.renderPass = &g_Data->deferredLightingPass;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Deferred Lighting Pass"], &deferredLightingPass);
-			ensure(error == GfxResult::kNoError);
+			deferredLightingPass.renderPass = g_Data->deferredLightingPass;
+			g_Data->pipelines["Deferred Lighting Pass"] = g_RHI->CreatePipeline(&deferredLightingPass);
 		}
 
 		// Scene Composite
@@ -161,19 +150,17 @@ namespace Eden
 #endif
 			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
 			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			error = g_RHI->CreateRenderPass(&g_Data->sceneComposite, &desc);
-			ensure(error == GfxResult::kNoError);
+			g_Data->sceneComposite = g_RHI->CreateRenderPass(&desc);
 #ifndef WITH_EDITOR
-			g_RHI->SetSwapchainTarget(&g_Data->sceneComposite);
+			g_RHI->SetSwapchainTarget(g_Data->sceneComposite);
 #endif
 
 			PipelineDesc sceneCompositeDesc = {};
 			sceneCompositeDesc.cull_mode = CullMode::kNone;
 			sceneCompositeDesc.bEnableBlending = false;
 			sceneCompositeDesc.programName = "SceneComposite";
-			sceneCompositeDesc.renderPass = &g_Data->sceneComposite;
-			error = g_RHI->CreatePipeline(&g_Data->pipelines["Scene Composite"], &sceneCompositeDesc);
-			ensure(error == GfxResult::kNoError);
+			sceneCompositeDesc.renderPass = g_Data->sceneComposite;
+			g_Data->pipelines["Scene Composite"] = g_RHI->CreatePipeline(&sceneCompositeDesc);
 		}
 
 		float quadVertices[] = {
@@ -190,18 +177,15 @@ namespace Eden
 		quadDesc.stride = sizeof(float) * 4;
 		quadDesc.elementCount = 6;
 		quadDesc.usage = BufferDesc::Vertex_Index;
-		error = g_RHI->CreateBuffer(&g_Data->quadBuffer, &quadDesc, quadVertices);
-		ensure(error == GfxResult::kNoError);
+		g_Data->quadBuffer = g_RHI->CreateBuffer(&quadDesc, quadVertices);
 
 		BufferDesc sceneSettingsDesc = {};
 		sceneSettingsDesc.elementCount = 1;
 		sceneSettingsDesc.stride = sizeof(RendererData::SceneSettings);
 		sceneSettingsDesc.usage = BufferDesc::Uniform;
-		error = g_RHI->CreateBuffer(&g_Data->sceneSettingsBuffer, &sceneSettingsDesc, &g_Data->sceneSettings);
-		ensure(error == GfxResult::kNoError);
+		g_Data->sceneSettingsBuffer = g_RHI->CreateBuffer(&sceneSettingsDesc, &g_Data->sceneSettings);
 
-		error = g_RHI->CreateGPUTimer(&g_Data->renderTimer);
-		ensure(error == GfxResult::kNoError);
+		g_Data->renderTimer = g_RHI->CreateGPUTimer();
 
 		ED_LOG_INFO("Renderer has been initialized!");
 		g_IsRendererInitialized = true;
@@ -218,7 +202,7 @@ namespace Eden
 		g_Data->sceneData.view = g_Data->viewMatrix;
 		g_Data->sceneData.viewProjection = g_Data->projectionMatrix * g_Data->viewMatrix;
 		g_Data->sceneData.viewPosition = glm::vec4(g_Data->camera.position, 1.0f);
-		GfxResult error = g_RHI->UpdateBufferData(&g_Data->sceneDataCB, &g_Data->sceneData);
+		GfxResult error = g_RHI->UpdateBufferData(g_Data->sceneDataCB, &g_Data->sceneData);
 		ensure(error == GfxResult::kNoError);
 
 		UpdateDirectionalLights();
@@ -229,7 +213,7 @@ namespace Eden
 
 	void Renderer::Render()
 	{
-		g_RHI->BeginGPUTimer(&g_Data->renderTimer);
+		g_RHI->BeginGPUTimer(g_Data->renderTimer);
 
 #if WITH_EDITOR
 		ObjectPickerPass();
@@ -243,7 +227,7 @@ namespace Eden
 
 	void Renderer::EndRender()
 	{
-		g_RHI->EndGPUTimer(&g_Data->renderTimer);
+		g_RHI->EndGPUTimer(g_Data->renderTimer);
 		g_RHI->EndRender();
 		g_RHI->Render();
 	}
@@ -279,7 +263,7 @@ namespace Eden
 		}
 
 		const void* data = pointLightComponents.data();
-		GfxResult error = g_RHI->UpdateBufferData(&g_Data->pointLightsBuffer, data);
+		GfxResult error = g_RHI->UpdateBufferData(g_Data->pointLightsBuffer, data);
 		ensure(error == GfxResult::kNoError);
 	}
 
@@ -303,7 +287,7 @@ namespace Eden
 		//	m_DirectionalLight = { directional_lights[0], m_CurrentScene };
 
 		const void* data = directional_lightComponents.data();
-		GfxResult error = g_RHI->UpdateBufferData(&g_Data->directionalLightsBuffer, data);
+		GfxResult error = g_RHI->UpdateBufferData(g_Data->directionalLightsBuffer, data);
 		ensure(error == GfxResult::kNoError);
 	}
 	
@@ -311,8 +295,8 @@ namespace Eden
 	{
 		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
-		g_RHI->BeginRenderPass(&g_Data->objectPickerPass);
-		g_RHI->BindPipeline(&g_Data->pipelines["Object Picker"]);
+		g_RHI->BeginRenderPass(g_Data->objectPickerPass);
+		g_RHI->BindPipeline(g_Data->pipelines["Object Picker"]);
 		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, g_Data->currentScene };
@@ -321,14 +305,14 @@ namespace Eden
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			g_RHI->BindVertexBuffer(&ms->meshVb);
-			g_RHI->BindIndexBuffer(&ms->meshIb);
+			g_RHI->BindVertexBuffer(ms->meshVb);
+			g_RHI->BindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
 				transform *= mesh->modelMatrix;
 
-				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
+				g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
 				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
 				g_RHI->BindParameter("ObjectID", &entity, sizeof(uint32_t));
 
@@ -336,7 +320,7 @@ namespace Eden
 					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 			}
 		}
-		g_RHI->EndRenderPass(&g_Data->objectPickerPass);
+		g_RHI->EndRenderPass(g_Data->objectPickerPass);
 	}
 
 	void Renderer::DeferredRenderingPass()
@@ -344,8 +328,8 @@ namespace Eden
 		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
 		// Deferred Base Pass
-		g_RHI->BeginRenderPass(&g_Data->deferredBasePass);
-		g_RHI->BindPipeline(&g_Data->pipelines["Deferred Base Pass"]);
+		g_RHI->BeginRenderPass(g_Data->deferredBasePass);
+		g_RHI->BindPipeline(g_Data->pipelines["Deferred Base Pass"]);
 		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, g_Data->currentScene };
@@ -354,51 +338,51 @@ namespace Eden
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			g_RHI->BindVertexBuffer(&ms->meshVb);
-			g_RHI->BindIndexBuffer(&ms->meshIb);
+			g_RHI->BindVertexBuffer(ms->meshVb);
+			g_RHI->BindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				glm::mat4 transform = tc.GetTransform();
 				transform *= mesh->modelMatrix;
 
-				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
+				g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
 				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					g_RHI->BindParameter("g_AlbedoMap", &submesh->material.albedoMap);
-					g_RHI->BindParameter("g_NormalMap", &submesh->material.normalMap);
-					g_RHI->BindParameter("g_AOMap", &submesh->material.AOMap);
-					g_RHI->BindParameter("g_EmissiveMap", &submesh->material.emissiveMap);
-					g_RHI->BindParameter("g_MetallicRoughnessMap", &submesh->material.metallicRoughnessMap);
+					g_RHI->BindParameter("g_AlbedoMap", submesh->material.albedoMap);
+					g_RHI->BindParameter("g_NormalMap", submesh->material.normalMap);
+					g_RHI->BindParameter("g_AOMap", submesh->material.AOMap);
+					g_RHI->BindParameter("g_EmissiveMap", submesh->material.emissiveMap);
+					g_RHI->BindParameter("g_MetallicRoughnessMap", submesh->material.metallicRoughnessMap);
 					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}
 		}
 
-		g_RHI->EndRenderPass(&g_Data->deferredBasePass);
+		g_RHI->EndRenderPass(g_Data->deferredBasePass);
 
-		g_RHI->BeginRenderPass(&g_Data->deferredLightingPass);
-		g_RHI->BindPipeline(&g_Data->pipelines["Deferred Lighting Pass"]);
-		g_RHI->BindVertexBuffer(&g_Data->quadBuffer);
-		g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
-		g_RHI->BindParameter("DirectionalLights", &g_Data->directionalLightsBuffer);
-		g_RHI->BindParameter("PointLights", &g_Data->pointLightsBuffer);
-		g_RHI->BindParameter("g_TextureBaseColor", &g_Data->deferredBasePass.colorAttachments[0]);
-		g_RHI->BindParameter("g_TexturePosition", &g_Data->deferredBasePass.colorAttachments[1]);
-		g_RHI->BindParameter("g_TextureNormal", &g_Data->deferredBasePass.colorAttachments[2]);
-		g_RHI->BindParameter("g_TextureMetallicRoughnessAO", &g_Data->deferredBasePass.colorAttachments[3]);
-		g_RHI->BindParameter("g_TextureNormalMap", &g_Data->deferredBasePass.colorAttachments[4]);
+		g_RHI->BeginRenderPass(g_Data->deferredLightingPass);
+		g_RHI->BindPipeline(g_Data->pipelines["Deferred Lighting Pass"]);
+		g_RHI->BindVertexBuffer(g_Data->quadBuffer);
+		g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
+		g_RHI->BindParameter("DirectionalLights", g_Data->directionalLightsBuffer);
+		g_RHI->BindParameter("PointLights", g_Data->pointLightsBuffer);
+		g_RHI->BindParameter("g_TextureBaseColor", g_Data->deferredBasePass->colorAttachments[0]);
+		g_RHI->BindParameter("g_TexturePosition", g_Data->deferredBasePass->colorAttachments[1]);
+		g_RHI->BindParameter("g_TextureNormal", g_Data->deferredBasePass->colorAttachments[2]);
+		g_RHI->BindParameter("g_TextureMetallicRoughnessAO", g_Data->deferredBasePass->colorAttachments[3]);
+		g_RHI->BindParameter("g_TextureNormalMap", g_Data->deferredBasePass->colorAttachments[4]);
 		g_RHI->Draw(6);
 
 		// Skybox
 		if (g_Data->bIsSkyboxEnabled)
 		{
-			g_RHI->BindPipeline(&g_Data->pipelines["Skybox"]);
+			g_RHI->BindPipeline(g_Data->pipelines["Skybox"]);
 			g_Data->skybox->Render(g_Data->projectionMatrix * glm::mat4(glm::mat3(g_Data->viewMatrix)));
 		}
 
-		g_RHI->EndRenderPass(&g_Data->deferredLightingPass);
+		g_RHI->EndRenderPass(g_Data->deferredLightingPass);
 	}
 
 	void Renderer::ForwardRenderingPass()
@@ -406,8 +390,8 @@ namespace Eden
 		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
 		// Forward Pass
-		g_RHI->BeginRenderPass(&g_Data->forwardPass);
-		g_RHI->BindPipeline(&g_Data->pipelines["Forward Rendering"]);
+		g_RHI->BeginRenderPass(g_Data->forwardPass);
+		g_RHI->BindPipeline(g_Data->pipelines["Forward Rendering"]);
 		for (auto entity : entitiesToRender)
 		{
 			Entity e = { entity, g_Data->currentScene };
@@ -416,25 +400,25 @@ namespace Eden
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			g_RHI->BindVertexBuffer(&ms->meshVb);
-			g_RHI->BindIndexBuffer(&ms->meshIb);
+			g_RHI->BindVertexBuffer(ms->meshVb);
+			g_RHI->BindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
 				transform *= mesh->modelMatrix;
 
-				g_RHI->BindParameter("SceneData", &g_Data->sceneDataCB);
+				g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
 				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
-				g_RHI->BindParameter("DirectionalLights", &g_Data->directionalLightsBuffer);
-				g_RHI->BindParameter("PointLights", &g_Data->pointLightsBuffer);
+				g_RHI->BindParameter("DirectionalLights", g_Data->directionalLightsBuffer);
+				g_RHI->BindParameter("PointLights", g_Data->pointLightsBuffer);
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					g_RHI->BindParameter("g_AlbedoMap", &submesh->material.albedoMap);
-					g_RHI->BindParameter("g_NormalMap", &submesh->material.normalMap);
-					g_RHI->BindParameter("g_AOMap", &submesh->material.AOMap);
-					g_RHI->BindParameter("g_EmissiveMap", &submesh->material.emissiveMap);
-					g_RHI->BindParameter("g_MetallicRoughnessMap", &submesh->material.metallicRoughnessMap);
+					g_RHI->BindParameter("g_AlbedoMap", submesh->material.albedoMap);
+					g_RHI->BindParameter("g_NormalMap", submesh->material.normalMap);
+					g_RHI->BindParameter("g_AOMap", submesh->material.AOMap);
+					g_RHI->BindParameter("g_EmissiveMap", submesh->material.emissiveMap);
+					g_RHI->BindParameter("g_MetallicRoughnessMap", submesh->material.metallicRoughnessMap);
 					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}
@@ -443,33 +427,33 @@ namespace Eden
 		// Skybox
 		if (g_Data->bIsSkyboxEnabled)
 		{
-			g_RHI->BindPipeline(&g_Data->pipelines["Skybox"]);
+			g_RHI->BindPipeline(g_Data->pipelines["Skybox"]);
 			g_Data->skybox->Render(g_Data->projectionMatrix * glm::mat4(glm::mat3(g_Data->viewMatrix)));
 		}
-		g_RHI->EndRenderPass(&g_Data->forwardPass);
+		g_RHI->EndRenderPass(g_Data->forwardPass);
 	}
 
 	void Renderer::SceneCompositePass()
 	{
 		// Scene Composite
-		g_RHI->BeginRenderPass(&g_Data->sceneComposite);
-		g_RHI->BindPipeline(&g_Data->pipelines["Scene Composite"]);
-		g_RHI->BindVertexBuffer(&g_Data->quadBuffer);
+		g_RHI->BeginRenderPass(g_Data->sceneComposite);
+		g_RHI->BindPipeline(g_Data->pipelines["Scene Composite"]);
+		g_RHI->BindVertexBuffer(g_Data->quadBuffer);
 		if (g_Data->bIsDeferredEnabled)
 		{
-			if (g_Data->deferredLightingPass.colorAttachments.size() > 0)
-				g_RHI->BindParameter("g_SceneTexture", &g_Data->deferredLightingPass.colorAttachments[0]);
+			if (g_Data->deferredLightingPass->colorAttachments.size() > 0)
+				g_RHI->BindParameter("g_SceneTexture", g_Data->deferredLightingPass->colorAttachments[0]);
 		}
 		else
 		{
-			if (g_Data->forwardPass.colorAttachments.size() > 0)
-				g_RHI->BindParameter("g_SceneTexture", &g_Data->forwardPass.colorAttachments[0]);
+			if (g_Data->forwardPass->colorAttachments.size() > 0)
+				g_RHI->BindParameter("g_SceneTexture", g_Data->forwardPass->colorAttachments[0]);
 		}
-		GfxResult error = g_RHI->UpdateBufferData(&g_Data->sceneSettingsBuffer, &g_Data->sceneSettings);
+		GfxResult error = g_RHI->UpdateBufferData(g_Data->sceneSettingsBuffer, &g_Data->sceneSettings);
 		ensure(error == GfxResult::kNoError);
-		g_RHI->BindParameter("SceneSettings", &g_Data->sceneSettingsBuffer);
+		g_RHI->BindParameter("SceneSettings", g_Data->sceneSettingsBuffer);
 		g_RHI->Draw(6);
-		g_RHI->EndRenderPass(&g_Data->sceneComposite);
+		g_RHI->EndRenderPass(g_Data->sceneComposite);
 	}
 
 	API Renderer::GetCurrentAPI()
@@ -569,16 +553,16 @@ namespace Eden
 		if (Renderer::GetViewportSize() != glm::vec2(x, y))
 		{
 			g_Data->viewportSize = { x, y };
-			g_Data->forwardPass.desc.width = (uint32_t)x;
-			g_Data->forwardPass.desc.height = (uint32_t)y;
-			g_Data->sceneComposite.desc.width = (uint32_t)x;
-			g_Data->sceneComposite.desc.height = (uint32_t)y;
-			g_Data->objectPickerPass.desc.width = (uint32_t)x;
-			g_Data->objectPickerPass.desc.height = (uint32_t)y;
-			g_Data->deferredBasePass.desc.width = (uint32_t)x;
-			g_Data->deferredBasePass.desc.height = (uint32_t)y;
-			g_Data->deferredLightingPass.desc.width = (uint32_t)x;
-			g_Data->deferredLightingPass.desc.height = (uint32_t)y;
+			g_Data->forwardPass->desc.width = (uint32_t)x;
+			g_Data->forwardPass->desc.height = (uint32_t)y;
+			g_Data->sceneComposite->desc.width = (uint32_t)x;
+			g_Data->sceneComposite->desc.height = (uint32_t)y;
+			g_Data->objectPickerPass->desc.width = (uint32_t)x;
+			g_Data->objectPickerPass->desc.height = (uint32_t)y;
+			g_Data->deferredBasePass->desc.width = (uint32_t)x;
+			g_Data->deferredBasePass->desc.height = (uint32_t)y;
+			g_Data->deferredLightingPass->desc.width = (uint32_t)x;
+			g_Data->deferredLightingPass->desc.height = (uint32_t)y;
 			g_Data->camera.SetViewportSize(g_Data->viewportSize);
 		}
 	}
@@ -618,7 +602,7 @@ namespace Eden
 		return g_Data->sceneSettings;
 	}
 
-	GPUTimer& Renderer::GetRenderTimer()
+	GPUTimerRef Renderer::GetRenderTimer()
 	{
 		return g_Data->renderTimer;
 	}
@@ -633,23 +617,22 @@ namespace Eden
 		return g_Data->projectionMatrix;
 	}
 
-	void Renderer::CreateRenderpass(RenderPass* renderPass, RenderPassDesc* desc)
+	RenderPassRef Renderer::CreateRenderpass(RenderPassDesc* desc)
 	{
-		GfxResult error = g_RHI->CreateRenderPass(renderPass, desc);
-		ensure(error == GfxResult::kNoError);
+		return g_RHI->CreateRenderPass(desc);
 	}
 
-	void Renderer::BeginRenderPass(RenderPass* renderPass)
+	void Renderer::BeginRenderPass(RenderPassRef renderPass)
 	{
 		g_RHI->BeginRenderPass(renderPass);
 	}
 
-	void Renderer::EndRenderPass(RenderPass* renderPass)
+	void Renderer::EndRenderPass(RenderPassRef renderPass)
 	{
 		g_RHI->EndRenderPass(renderPass);
 	}
 
-	void Renderer::SetSwapchainTarget(RenderPass* renderPass)
+	void Renderer::SetSwapchainTarget(RenderPassRef renderPass)
 	{
 		g_RHI->SetSwapchainTarget(renderPass);
 	}
@@ -659,71 +642,63 @@ namespace Eden
 		g_RHI->EnableImGui();
 	}
 
-	void Renderer::ReadPixelFromTexture(uint32_t x, uint32_t y, Texture* texture, glm::vec4& pixel)
+	void Renderer::ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel)
 	{
 		g_RHI->ReadPixelFromTexture(x, y, texture, pixel);
 	}
 
-	uint64_t Renderer::GetTextureID(Texture* texture)
+	uint64_t Renderer::GetTextureID(TextureRef texture)
 	{
 		return g_RHI->GetTextureID(texture);
 	}
 
-	void Renderer::ReloadPipeline(Pipeline* pipeline)
+	void Renderer::ReloadPipeline(PipelineRef pipeline)
 	{
 		GfxResult error = g_RHI->ReloadPipeline(pipeline); 
 		ensure(error == GfxResult::kNoError);
 	}
 
-	void Renderer::EnsureMsgResourceState(Texture* resource, ResourceState destResourceState)
+	void Renderer::EnsureMsgResourceState(TextureRef resource, ResourceState destResourceState)
 	{
 		g_RHI->EnsureMsgResourceState(resource, destResourceState);
 	}
 
-	void Renderer::CreateTexture(Texture* texture, std::string path, bool bGenerateMips)
+	TextureRef Renderer::CreateTexture(std::string path, bool bGenerateMips)
 	{
-		GfxResult error = g_RHI->CreateTexture(texture, path, bGenerateMips);
-		ensure(error == GfxResult::kNoError);
+		return g_RHI->CreateTexture(path, bGenerateMips);
 	}
 
-	void Renderer::CreateTexture(Texture* texture, TextureDesc* desc)
+	TextureRef Renderer::CreateTexture(TextureDesc* desc)
 	{
-		GfxResult error = g_RHI->CreateTexture(texture, desc);
-		ensure(error == GfxResult::kNoError);
+		return g_RHI->CreateTexture(desc);
 	}
 
-	void Renderer::CreateBuffer(Buffer* buffer, BufferDesc* desc, const void* initial_data)
+	BufferRef Renderer::CreateBuffer(BufferDesc* desc, const void* initial_data)
 	{
-		GfxResult error = g_RHI->CreateBuffer(buffer, desc, initial_data);
-		ensure(error == GfxResult::kNoError);
+		return g_RHI->CreateBuffer(desc, initial_data);
 	}
 
-	void Renderer::SetName(Resource* child, std::string& name)
-	{
-		g_RHI->SetName(child, name);
-	}
-
-	void Renderer::BindPipeline(Pipeline* pipeline)
+	void Renderer::BindPipeline(PipelineRef pipeline)
 	{
 		g_RHI->BindPipeline(pipeline);
 	}
 
-	void Renderer::BindVertexBuffer(Buffer* vertexBuffer)
+	void Renderer::BindVertexBuffer(BufferRef vertexBuffer)
 	{
 		g_RHI->BindVertexBuffer(vertexBuffer);
 	}
 
-	void Renderer::BindIndexBuffer(Buffer* indexBuffer)
+	void Renderer::BindIndexBuffer(BufferRef indexBuffer)
 	{
 		g_RHI->BindIndexBuffer(indexBuffer);
 	}
 
-	void Renderer::BindParameter(const std::string& parameterName, Buffer* buffer)
+	void Renderer::BindParameter(const std::string& parameterName, BufferRef buffer)
 	{
 		g_RHI->BindParameter(parameterName, buffer);
 	}
 
-	void Renderer::BindParameter(const std::string& parameterName, Texture* texture, TextureUsage usage /*= kReadOnly*/)
+	void Renderer::BindParameter(const std::string& parameterName, TextureRef texture, TextureUsage usage /*= kReadOnly*/)
 	{
 		g_RHI->BindParameter(parameterName, texture, usage);
 	}
@@ -750,15 +725,15 @@ namespace Eden
 
 	void Renderer::GetPixel(uint32_t x, uint32_t y, glm::vec4& pixel)
 	{
-		g_RHI->ReadPixelFromTexture(x, y, &g_Data->objectPickerPass.colorAttachments[0], pixel);
+		g_RHI->ReadPixelFromTexture(x, y, g_Data->objectPickerPass->colorAttachments[0], pixel);
 	}
 
-	Texture& Renderer::GetFinalImage()
+	TextureRef Renderer::GetFinalImage()
 	{
-		return g_Data->sceneComposite.colorAttachments[0];
+		return g_Data->sceneComposite->colorAttachments[0];
 	}
 
-	std::unordered_map<const char*, Pipeline>& Renderer::GetPipelines()
+	std::unordered_map<const char*, PipelineRef>& Renderer::GetPipelines()
 	{
 		return g_Data->pipelines;
 	}

@@ -12,7 +12,7 @@ namespace Eden
 	class Skybox
 	{
 		std::unique_ptr<MeshSource> m_SkyboxCube;
-		Texture m_SkyboxTexture;
+		TextureRef m_SkyboxTexture;
 		glm::mat4 m_ViewProjection;
 		std::string m_SkyboxTexturePath;
 		bool m_bTextureNeedsReload = false;

@@ -27,7 +27,7 @@ namespace Eden
 		bool m_bIsViewportHovered = false;
 		std::unique_ptr<ContentBrowserPanel> m_ContentBrowserPanel;
 		std::unique_ptr<SceneHierarchy> m_SceneHierarchy;
-		RenderPass m_ImGuiPass;
+		RenderPassRef m_ImGuiPass;
 
 		size_t m_AmountOfLogMsgs = 0;
 
@@ -50,7 +50,7 @@ namespace Eden
 		void Update();
 		void Shutdown();
 
-		static Texture GetEditorIcon(const char* iconName);
+		static TextureRef GetEditorIcon(const char* iconName);
 		static bool IsTitleBarHovered() { return s_bIsTitleBarHovered; }
 	};
 }

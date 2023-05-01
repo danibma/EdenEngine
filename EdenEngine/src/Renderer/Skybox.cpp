@@ -12,7 +12,7 @@ namespace Eden
 
 		m_SkyboxCube = std::make_unique<MeshSource>();
 		m_SkyboxCube->LoadGLTF("assets/models/basic/cube.glb");
-		Renderer::CreateTexture(&m_SkyboxTexture, texturePath, false);
+		m_SkyboxTexture = Renderer::CreateTexture(texturePath, false);
 	}
 
 	Skybox::~Skybox()
@@ -23,15 +23,15 @@ namespace Eden
 	{
 		if (m_bTextureNeedsReload)
 		{
-			Renderer::CreateTexture(&m_SkyboxTexture, m_SkyboxTexturePath, false);
+			m_SkyboxTexture = Renderer::CreateTexture(m_SkyboxTexturePath, false);
 			m_bTextureNeedsReload = false;
 		}
 	}
 
 	void Skybox::Render(glm::mat4 viewProjectMatrix)
 	{
-		Renderer::BindVertexBuffer(&m_SkyboxCube->meshVb);
-		Renderer::BindIndexBuffer(&m_SkyboxCube->meshIb);
+		Renderer::BindVertexBuffer(m_SkyboxCube->meshVb);
+		Renderer::BindIndexBuffer(m_SkyboxCube->meshIb);
 		for (auto& mesh : m_SkyboxCube->meshes)
 		{
 			m_ViewProjection = viewProjectMatrix;
@@ -39,7 +39,7 @@ namespace Eden
 			Renderer::BindParameter("SkyboxData", &m_ViewProjection, sizeof(glm::mat4));
 			for (auto& submesh : mesh->submeshes)
 			{
-				Renderer::BindParameter("g_CubemapTexture", &m_SkyboxTexture);
+				Renderer::BindParameter("g_CubemapTexture", m_SkyboxTexture);
 				Renderer::DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 			}
 		}

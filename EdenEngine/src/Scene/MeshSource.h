@@ -29,11 +29,11 @@ namespace Eden
 
 	struct PBRMaterial
 	{
-		Texture albedoMap;
-		Texture normalMap;
-		Texture AOMap;
-		Texture emissiveMap;
-		Texture metallicRoughnessMap; // r = metallic, g = roughness
+		TextureRef albedoMap;
+		TextureRef normalMap;
+		TextureRef AOMap;
+		TextureRef emissiveMap;
+		TextureRef metallicRoughnessMap; // r = metallic, g = roughness
 	};
 
 	struct MeshSource
@@ -54,8 +54,8 @@ namespace Eden
 
 		uint32_t vertexCount;
 		uint32_t indexCount;
-		Buffer meshVb;
-		Buffer meshIb;
+		BufferRef meshVb;
+		BufferRef meshIb;
 		std::vector<SharedPtr<Mesh>> meshes;
 		bool bHasMesh = false;
 		bool bIsTextured = false;
@@ -70,11 +70,11 @@ namespace Eden
 		}
 
 	private:
-		Texture m_BlackTexture;
+		TextureRef m_BlackTexture;
 
 	private:
 		void LoadMaterial(tinygltf::Model& gltfModel, const tinygltf::Primitive& gltfPrimitive, PBRMaterial& material);
-		void LoadImage(Texture* texture, tinygltf::Model& gltfModel, int32_t imageIndex);
+		TextureRef LoadImage(tinygltf::Model& gltfModel, int32_t imageIndex);
 		void LoadNode(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, const glm::mat4* parentMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices);
 		void LoadMesh(tinygltf::Model& gltfModel, const tinygltf::Node& gltfNode, glm::mat4& modelMatrix, std::vector<VertexData>& vertices, std::vector<uint32_t>& indices);
 	};
