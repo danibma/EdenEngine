@@ -18,11 +18,15 @@ namespace Eden
 		ComPtr<D3D12MA::Allocation> allocation;
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
+
+		virtual ~D3D12Resource() {}
 	};
 
 	struct D3D12Buffer : public D3D12Resource, Buffer
 	{
 		//! Created in case we need things for the buffer
+		
+		~D3D12Buffer() {}
 	};
 
 	struct D3D12Texture : public D3D12Resource, Texture
@@ -30,6 +34,8 @@ namespace Eden
 		ComPtr<ID3D12Resource> uploadHeap;
 		ComPtr<D3D12MA::Allocation> uploadAllocation;
 		std::vector<D3D12_SUBRESOURCE_DATA> data;
+
+		~D3D12Texture() {}
 	};
 
 	struct D3D12Pipeline : public Pipeline
@@ -39,17 +45,23 @@ namespace Eden
 		ComPtr<ID3D12ShaderReflection> pixel_reflection;
 		ComPtr<ID3D12ShaderReflection> vertexReflection;
 		ComPtr<ID3D12ShaderReflection> computeReflection;
+
+		~D3D12Pipeline() {}
 	};
 
 	struct D3D12RenderPass : public RenderPass
 	{
 		std::vector<uint32_t> rtvDescriptorsIndices;
 		uint32_t dsvDescriptorIndex;
+
+		~D3D12RenderPass() {}
 	};
 
 	struct D3D12GPUTimer : public GPUTimer
 	{
 		ComPtr<ID3D12QueryHeap> queryHeap;
+
+		~D3D12GPUTimer() {}
 	};
 
 	class D3D12DynamicRHI final : public DynamicRHI

@@ -57,10 +57,7 @@ namespace Eden::Memory
 
 	void MemoryManager::Free(void* memory)
 	{
-		bool bFoundMemory = s_Data->AllocationsMap.find(memory) != s_Data->AllocationsMap.end();
-		ensureMsg(bFoundMemory, "This block of memory wasn't found!");
-		if (!bFoundMemory)
-			return;
+		ensureMsg(s_Data->AllocationsMap.find(memory) != s_Data->AllocationsMap.end(), "This block of memory wasn't found!");
 
 		if (s_Data)
 		{

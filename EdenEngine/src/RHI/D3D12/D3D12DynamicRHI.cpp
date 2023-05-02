@@ -94,8 +94,6 @@ namespace Eden
 	{
 		WaitForGPU();
 
-		edelete m_Device;
-
 		if (m_bIsImguiInitialized)
 		{
 			ImGui_ImplDX12_Shutdown();
@@ -104,6 +102,8 @@ namespace Eden
 		}
 
 		CloseHandle(m_FenceEvent);
+
+		edelete m_Device;
 	}
 
 	D3D12DynamicRHI::ShaderResult D3D12DynamicRHI::CompileShader(std::filesystem::path filePath, ShaderStage stage)

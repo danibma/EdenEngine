@@ -36,6 +36,8 @@ namespace Eden
 		void*			mappedData;
 		uint32_t		size;
 		BufferDesc		desc;
+
+		virtual ~Buffer() {}
 	};
 	typedef SharedPtr<Buffer> BufferRef;
 
@@ -68,6 +70,8 @@ namespace Eden
 		Format			imageFormat;
 		uint32_t		mipCount;
 		TextureDesc		desc;
+
+		virtual ~Texture() { }
 	};
 	typedef SharedPtr<Texture> TextureRef;
 
@@ -89,6 +93,8 @@ namespace Eden
 		std::vector<TextureRef> colorAttachments;
 		TextureRef				depthStencil;
 		RenderPassDesc			desc;
+
+		virtual ~RenderPass() { }
 	};
 	typedef SharedPtr<RenderPass> RenderPassRef;
 
@@ -115,6 +121,8 @@ namespace Eden
 		// Shader Reflection data
 		// name, rootParameterIndex
 		std::unordered_map<std::string, uint32_t> rootParameterIndices;
+
+		virtual ~Pipeline() {}
 	};
 	typedef SharedPtr<Pipeline> PipelineRef;
 
@@ -126,6 +134,8 @@ namespace Eden
 		double elapsedTime = 0.0f;
 
 		BufferRef readbackBuffer;
+
+		virtual ~GPUTimer() {}
 	};
 	typedef SharedPtr<GPUTimer> GPUTimerRef;
 }
