@@ -15,7 +15,7 @@
 #include "Core/Log.h"
 #include "Core/Base.h"
 #include "Core/Assertions.h"
-#include "RHI/RHI.h"
+#include "RHI/DynamicRHI.h"
 #include "Renderer/Renderer.h"
 
 namespace Eden
@@ -63,7 +63,7 @@ namespace Eden
 		blackDesc.bGenerateMips = false;
 
 		const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
-		m_BlackTexture = Renderer::CreateTexture(&blackDesc);
+		m_BlackTexture = RHICreateTexture(&blackDesc);
 
 		std::vector<VertexData> vertices;
 		std::vector<uint32_t> indices;
@@ -80,13 +80,13 @@ namespace Eden
 		vbDesc.elementCount = vertexCount;
 		vbDesc.stride = sizeof(VertexData);
 		vbDesc.usage = BufferDesc::Vertex_Index;
-		meshVb = Renderer::CreateBuffer(&vbDesc, vertices.data());
+		meshVb = RHICreateBuffer(&vbDesc, vertices.data());
 
 		BufferDesc ibDesc;
 		ibDesc.elementCount = indexCount;
 		ibDesc.stride = sizeof(uint32_t);
 		ibDesc.usage = BufferDesc::Vertex_Index;
-		meshIb = Renderer::CreateBuffer(&ibDesc, indices.data());
+		meshIb = RHICreateBuffer(&ibDesc, indices.data());
 		bHasMesh = true;
 
 		ED_LOG_INFO("	{} nodes were loaded!", gltfModel.nodes.size());
@@ -361,7 +361,7 @@ namespace Eden
 		desc.height = gltfImage.height;
 		desc.bIsStorage = false;
 		desc.debugName = gltfImage.name;
-		TextureRef texture = Renderer::CreateTexture(&desc);
+		TextureRef texture = RHICreateTexture(&desc);
 
 		if (bDeleteBuffer)
 			edelete buffer;

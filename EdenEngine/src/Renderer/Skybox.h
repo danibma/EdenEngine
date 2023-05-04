@@ -4,7 +4,7 @@
 #include <string>
 #include <glm/glm.hpp>
 
-#include "RHI/RHI.h"
+#include "RHI/DynamicRHI.h"
 
 namespace Eden
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RHI/RHI.h"
+#include "RHI/DynamicRHI.h"
 
 #include <functional>
 #include <vector>

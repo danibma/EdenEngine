@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "RHI/RHI.h"
+#include "RHI/DynamicRHI.h"
 #include "Core/Camera.h"
 #include "Renderer/Skybox.h"
 #include "Scene/SceneSerializer.h"
@@ -74,6 +74,11 @@ namespace Eden
 	class Renderer
 	{
 	private:
+		// Renderer Data
+		static RendererData* m_Data;
+		static bool m_IsRendererInitialized;
+
+	private:
 		static void UpdatePointLights();
 		static void UpdateDirectionalLights();
 		static void ObjectPickerPass();
@@ -88,8 +93,6 @@ namespace Eden
 		static void EndRender();
 		static void Shutdown();
 		static bool IsInitialized();
-
-		static API GetCurrentAPI();
 
 		// Scene
 		static void PrepareScene();
@@ -112,29 +115,6 @@ namespace Eden
 
 		static glm::mat4 GetViewMatrix();
 		static glm::mat4 GetProjectionMatrix();
-
-		// Renderer API
-		static RenderPassRef CreateRenderpass(RenderPassDesc* desc);
-		static void BeginRenderPass(RenderPassRef renderPass);
-		static void EndRenderPass(RenderPassRef renderPass);
-		static void SetSwapchainTarget(RenderPassRef renderPass);
-		static void EnableImGui();
-		static void ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel);
-		static uint64_t GetTextureID(TextureRef texture);
-		static void ReloadPipeline(PipelineRef pipeline);
-		static void EnsureMsgResourceState(TextureRef resource, ResourceState destResourceState);
-		static TextureRef CreateTexture(std::string path, bool bGenerateMips);
-		static TextureRef CreateTexture(TextureDesc* desc);
-		static BufferRef CreateBuffer(BufferDesc* desc, const void* initial_data);
-		static void BindPipeline(PipelineRef pipeline);
-		static void BindVertexBuffer(BufferRef vertexBuffer);
-		static void BindIndexBuffer(BufferRef indexBuffer);
-		static void BindParameter(const std::string& parameterName, BufferRef buffer);
-		static void BindParameter(const std::string& parameterName, TextureRef texture, TextureUsage usage = kReadOnly);
-		static void BindParameter(const std::string& parameterName, void* data, size_t size); // Use only for constants
-		static void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertexLocation = 0, uint32_t startInstanceLocation = 0);
-		static void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndexLocation = 0, uint32_t baseVertexLocation = 0, uint32_t startInstanceLocation = 0);
-		static void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 
 		// This is used for the object picking, don't use it for anything else, use ReadPixelFromTexture
 		static void GetPixel(uint32_t x, uint32_t y, glm::vec4& pixel);

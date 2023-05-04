@@ -12,7 +12,7 @@
 #include "Renderer/Renderer.h"
 #include "Scene/Entity.h"
 #include "stdio.h"
-#include "RHI/RHI.h"
+#include "RHI/DynamicRHI.h"
 
 namespace Eden
 {
@@ -108,7 +108,7 @@ namespace Eden
 			const std::string title = Application::Get()->GetWindowTitle();
 			ImGui::SetCursorPosX(ImGui::GetWindowSize().x * 0.5f - (ImGui::CalcTextSize(title.c_str()).x / 2.0f));
 			ImGui::SetCursorPosY(5.0f);
-			ImGui::Image((ImTextureID)Renderer::GetTextureID(GEditorIcons["EdenIcon"]), ImVec2(22, 22));
+			ImGui::Image((ImTextureID)RHIGetTextureID(GEditorIcons["EdenIcon"]), ImVec2(22, 22));
 			ImGui::Text(title.c_str());
 
 			const float buttonSize = 12.0f;
@@ -118,13 +118,13 @@ namespace Eden
 				(1000.0f / Application::Get()->GetDeltaTime()) / 1000.0f, 
 				Application::Get()->GetDeltaTime() * 1000.0f, 
 				Renderer::GetRenderTimer()->elapsedTime, 
-				Utils::APIToString(Renderer::GetCurrentAPI()));
+				Utils::APIToString(RHIGetCurrentAPI()));
 			ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 400.0f));
 			ImGui::Text(fpsText);
-			ImTextureID closeID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(GEditorIcons["Close"]));
-			ImTextureID minimizeID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(GEditorIcons["Minimize"]));
-			ImTextureID maximizeID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(GEditorIcons["Maximize"]));
-			ImTextureID restoreID = reinterpret_cast<ImTextureID>(Renderer::GetTextureID(GEditorIcons["Restore"]));
+			ImTextureID closeID = reinterpret_cast<ImTextureID>(RHIGetTextureID(GEditorIcons["Close"]));
+			ImTextureID minimizeID = reinterpret_cast<ImTextureID>(RHIGetTextureID(GEditorIcons["Minimize"]));
+			ImTextureID maximizeID = reinterpret_cast<ImTextureID>(RHIGetTextureID(GEditorIcons["Maximize"]));
+			ImTextureID restoreID = reinterpret_cast<ImTextureID>(RHIGetTextureID(GEditorIcons["Restore"]));
 			if (!Application::Get()->IsWindowMaximized())
 				restoreID = maximizeID;
 
@@ -206,7 +206,7 @@ namespace Eden
 		if (ImGui::Button("Reload all pipelines"))
 		{
 			for (auto& pipeline : Renderer::GetPipelines())
-				Renderer::GetCurrentScene()->AddPreparation([&]() { Renderer::ReloadPipeline(pipeline.second); });
+				Renderer::GetCurrentScene()->AddPreparation([&]() { RHIReloadPipeline(pipeline.second); });
 		}
 		ImGui::Columns(1);
 		for (auto& pipeline : Renderer::GetPipelines())
@@ -216,7 +216,7 @@ namespace Eden
 			ImGui::Text(pipeline.first);
 			ImGui::NextColumn();
 			if (ImGui::Button("Reload pipeline"))
-				Renderer::GetCurrentScene()->AddPreparation([&]() { Renderer::ReloadPipeline(pipeline.second); });
+				Renderer::GetCurrentScene()->AddPreparation([&]() { RHIReloadPipeline(pipeline.second); });
 			ImGui::Columns(1);
 			ImGui::PopID();
 		}
@@ -246,7 +246,7 @@ namespace Eden
 		m_bIsViewportFocused = ImGui::IsWindowFocused();
 		m_bIsViewportHovered = ImGui::IsWindowHovered();
 
-		ImGui::Image((ImTextureID)Renderer::GetTextureID(Renderer::GetFinalImage()), viewportSize);
+		ImGui::Image((ImTextureID)RHIGetTextureID(Renderer::GetFinalImage()), viewportSize);
 
 		// Drag and drop
 		if (ImGui::BeginDragDropTarget())
@@ -431,19 +431,19 @@ namespace Eden
 			desc.bIsImguiPass = true;
 			desc.width = static_cast<uint32_t>(Renderer::GetViewportSize().x);
 			desc.height = static_cast<uint32_t>(Renderer::GetViewportSize().y);
-			m_ImGuiPass = Renderer::CreateRenderpass(&desc);
-			Renderer::SetSwapchainTarget(m_ImGuiPass);
-			Renderer::EnableImGui();
+			m_ImGuiPass = RHICreateRenderPass(&desc);
+			RHISetSwapchainTarget(m_ImGuiPass);
+			RHIEnableImGui();
 		}
 
-		GEditorIcons["File"]     = Renderer::CreateTexture("assets/editor/file.png", false);
-		GEditorIcons["Folder"]   = Renderer::CreateTexture("assets/editor/folder.png", false);
-		GEditorIcons["Back"]     = Renderer::CreateTexture("assets/editor/icon_back.png", false);
-		GEditorIcons["Close"]    = Renderer::CreateTexture("assets/editor/window_close.png", false);
-		GEditorIcons["Minimize"] = Renderer::CreateTexture("assets/editor/window_minimize.png", false);
-		GEditorIcons["Maximize"] = Renderer::CreateTexture("assets/editor/window_maximize.png", false);
-		GEditorIcons["Restore"]  = Renderer::CreateTexture("assets/editor/window_restore.png", false);
-		GEditorIcons["EdenIcon"] = Renderer::CreateTexture("assets/editor/icon.png", false);
+		GEditorIcons["File"]     = RHICreateTexture("assets/editor/file.png", false);
+		GEditorIcons["Folder"]   = RHICreateTexture("assets/editor/folder.png", false);
+		GEditorIcons["Back"]     = RHICreateTexture("assets/editor/icon_back.png", false);
+		GEditorIcons["Close"]    = RHICreateTexture("assets/editor/window_close.png", false);
+		GEditorIcons["Minimize"] = RHICreateTexture("assets/editor/window_minimize.png", false);
+		GEditorIcons["Maximize"] = RHICreateTexture("assets/editor/window_maximize.png", false);
+		GEditorIcons["Restore"]  = RHICreateTexture("assets/editor/window_restore.png", false);
+		GEditorIcons["EdenIcon"] = RHICreateTexture("assets/editor/icon.png", false);
 
 		m_ContentBrowserPanel = std::make_unique<ContentBrowserPanel>();
 		m_SceneHierarchy = std::make_unique<SceneHierarchy>();
@@ -453,7 +453,7 @@ namespace Eden
 	{
 		EditorInput();
 
-		Renderer::BeginRenderPass(m_ImGuiPass);
+		RHIBeginRenderPass(m_ImGuiPass);
 		//ImGui::ShowDemoWindow(nullptr);
 
 		UI_Dockspace();
@@ -473,7 +473,7 @@ namespace Eden
 		if (m_bOpenMemoryPanel)
 			UI_MemoryPanel();
 
-		Renderer::EndRenderPass(m_ImGuiPass);
+		RHIEndRenderPass(m_ImGuiPass);
 	}
 
 	void EdenEd::Shutdown()

@@ -3,7 +3,7 @@
 #include "Core/Base.h"
 #include "Core/Assertions.h"
 #include "Core/Window.h"
-#include "RHI/RHI.h"
+#include "RHI/DynamicRHI.h"
 
 #include "D3D12Definitions.h"
 #include "D3D12Device.h"
@@ -102,7 +102,7 @@ namespace Eden
 		PipelineRef m_MipsPipeline;
 
 	public:
-		virtual GfxResult Init(Window* window) override;
+		virtual void Init(Window* window) override;
 		virtual void Shutdown() override;
 
 		virtual BufferRef     CreateBuffer(BufferDesc* desc, const void* initial_data) override;
@@ -115,7 +115,7 @@ namespace Eden
 		virtual void BeginGPUTimer(GPUTimerRef timer) override;
 		virtual void EndGPUTimer(GPUTimerRef timer) override;
 
-		virtual GfxResult UpdateBufferData(BufferRef buffer, const void* data, uint32_t count = 0) override;
+		virtual void UpdateBufferData(BufferRef buffer, const void* data, uint32_t count = 0) override;
 		virtual void GenerateMips(TextureRef texture) override;
 
 		virtual void ChangeResourceState(TextureRef resource, ResourceState currentState, ResourceState desiredState, int subresource = -1) override;
@@ -123,7 +123,7 @@ namespace Eden
 
 		virtual uint64_t GetTextureID(TextureRef texture) override;
 
-		virtual GfxResult ReloadPipeline(PipelineRef pipeline) override;
+		virtual void ReloadPipeline(PipelineRef pipeline) override;
 
 		virtual void EnableImGui() override;
 		virtual void ImGuiNewFrame() override;
@@ -146,7 +146,7 @@ namespace Eden
 		virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) override;
 
 		virtual void Render() override;
-		virtual GfxResult Resize(uint32_t width, uint32_t height) override;
+		virtual void Resize(uint32_t width, uint32_t height) override;
 
 		virtual void ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel) override;
 

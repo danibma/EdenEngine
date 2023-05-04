@@ -24,7 +24,7 @@
 
 namespace Eden
 {
-	GfxResult D3D12DynamicRHI::Init(Window* window)
+	void D3D12DynamicRHI::Init(Window* window)
 	{
 		m_Scissor = CD3DX12_RECT(0, 0, window->GetWidth(), window->GetHeight());
 		m_CurrentAPI = kApi_D3D12;
@@ -51,7 +51,7 @@ namespace Eden
 		if (FAILED(m_Device->GetFactory()->CreateSwapChainForHwnd(m_CommandQueue.Get(), window->GetHandle(), &swapchainDesc, nullptr, nullptr, &swapchain))) 
 		{
 			ensureMsg(false, "Failed to create swapchain!");
-			return GfxResult::kInternalError;
+			return;
 		}
 
 		// NOTE(Daniel): Disable fullscreen
@@ -65,7 +65,7 @@ namespace Eden
 			if (FAILED(m_Device->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence))))
 			{
 				ensureMsg(false, "Failed to create fence!");
-				return GfxResult::kInternalError;
+				return;
 			}
 			m_FenceValues[m_FrameIndex]++;
 
@@ -77,8 +77,7 @@ namespace Eden
 		// Associate the graphics device Resize with the window resize callback
 		window->SetResizeCallback([&](uint32_t x, uint32_t y) 
 		{ 
-			GfxResult error = Resize(x, y); 
-			ensure(error == GfxResult::kNoError);
+			Resize(x, y); 
 		});
 
 		// Create mips pipeline
@@ -86,8 +85,6 @@ namespace Eden
 		mipsDesc.programName = "GenerateMips";
 		mipsDesc.type = kPipelineType_Compute;
 		m_MipsPipeline = CreatePipeline(&mipsDesc);
-
-		return GfxResult::kNoError;
 	}
 
 	void D3D12DynamicRHI::Shutdown()
@@ -1129,10 +1126,10 @@ namespace Eden
 		}
 	}
 
-	GfxResult D3D12DynamicRHI::UpdateBufferData(BufferRef buffer, const void* data, uint32_t count)
+	void D3D12DynamicRHI::UpdateBufferData(BufferRef buffer, const void* data, uint32_t count)
 	{
-		if (buffer == nullptr) return GfxResult::kInvalidParameter;
-		if (data == nullptr)   return GfxResult::kInvalidParameter;
+		ensure(buffer);
+		ensure(data);
 
 		if (count > 0)
 		{
@@ -1140,8 +1137,6 @@ namespace Eden
 			buffer->size = buffer->desc.elementCount * buffer->desc.stride;
 		}
 		memcpy(buffer->mappedData, data, buffer->size);
-
-		return GfxResult::kNoError;
 	}
 
 	void D3D12DynamicRHI::GenerateMips(TextureRef texture)
@@ -1212,13 +1207,11 @@ namespace Eden
 		return dxTexture->gpuHandle.ptr;
 	}
 
-	GfxResult D3D12DynamicRHI::ReloadPipeline(PipelineRef pipeline)
+	void D3D12DynamicRHI::ReloadPipeline(PipelineRef pipeline)
 	{
-		if (pipeline == nullptr) return GfxResult::kInvalidParameter;
+		ensure(pipeline);
 
 		pipeline = CreatePipeline(&pipeline->desc);
-
-		return GfxResult::kNoError;
 	}
 
 	void D3D12DynamicRHI::EnableImGui()
@@ -1575,7 +1568,7 @@ namespace Eden
 		m_FenceValues[m_FrameIndex]++;
 	}
 
-	GfxResult D3D12DynamicRHI::Resize(uint32_t width, uint32_t height)
+	void D3D12DynamicRHI::Resize(uint32_t width, uint32_t height)
 	{
 		ensureMsg(m_SwapchainTarget, "Failed to resize, no Render Target Render Pass assigned");
 
@@ -1587,7 +1580,7 @@ namespace Eden
 			if (FAILED(m_CommandList->Close()))
 			{
 				ensureMsg(false, "Failed to close command list");
-				return GfxResult::kInternalError;
+				return;
 			}
 
 			for (size_t i = 0; i < GFrameCount; ++i)
@@ -1616,8 +1609,6 @@ namespace Eden
 			m_CommandAllocator[m_FrameIndex]->Reset();
 			m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
 		}
-
-		return GfxResult::kNoError;
 	}
 
 	void D3D12DynamicRHI::ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel)

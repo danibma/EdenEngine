@@ -8,62 +8,49 @@
 
 namespace Eden
 {
-	// RHI
-	DynamicRHI* g_RHI = nullptr;
 	// Renderer Data
-	RendererData* g_Data = nullptr;
-	bool g_IsRendererInitialized = false;
+	RendererData* Renderer::m_Data		   = nullptr;
+	bool Renderer::m_IsRendererInitialized = false;
 
 	void Renderer::Init(Window* window)
 	{
-		g_Data = enew RendererData();
-		g_Data->viewportSize = { static_cast<float>(window->GetWidth()), static_cast<float>(window->GetHeight()) };
+		RHICreate(window);
 
-		if (CommandLine::HasArg("d3d12"))
-		{
-			g_RHI = enew D3D12DynamicRHI();
-		}
-		else
-		{
-			g_RHI = enew D3D12DynamicRHI();
-			ED_LOG_INFO("No Rendering was set through the command line arguments, choosing D3D12 by default!");
-		}
+		m_Data = enew RendererData();
+		m_Data->viewportSize = { static_cast<float>(window->GetWidth()), static_cast<float>(window->GetHeight()) };
 
-		GfxResult error = g_RHI->Init(window);
-		ensureMsgf(error == GfxResult::kNoError, "Failed to initialize RHI \"%s\"", Utils::APIToString(g_RHI->GetCurrentAPI()));
+		m_Data->window = window;
+		m_Data->camera = Camera(window->GetWidth(), window->GetHeight());
 
-		g_Data->window = window;
-		g_Data->camera = Camera(window->GetWidth(), window->GetHeight());
-
-		g_Data->viewMatrix = glm::lookAtLH(g_Data->camera.position, g_Data->camera.position + g_Data->camera.front, g_Data->camera.up);
-		g_Data->projectionMatrix = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
-		g_Data->sceneData.view = g_Data->viewMatrix;
-		g_Data->sceneData.viewProjection = g_Data->projectionMatrix * g_Data->viewMatrix;
-		g_Data->sceneData.viewPosition = glm::vec4(g_Data->camera.position, 1.0f);
+		m_Data->viewMatrix = glm::lookAtLH(m_Data->camera.position, m_Data->camera.position + m_Data->camera.front, m_Data->camera.up);
+		m_Data->projectionMatrix = glm::perspectiveFovLH_ZO(glm::radians(70.0f), (float)window->GetWidth(), (float)window->GetHeight(), 0.1f, 200.0f);
+		m_Data->sceneData.view = m_Data->viewMatrix;
+		m_Data->sceneData.viewProjection = m_Data->projectionMatrix * m_Data->viewMatrix;
+		m_Data->sceneData.viewPosition = glm::vec4(m_Data->camera.position, 1.0f);
 
 		BufferDesc sceneDataDesc = {};
 		sceneDataDesc.elementCount = 1;
 		sceneDataDesc.stride = sizeof(RendererData::SceneData);
-		g_Data->sceneDataCB = g_RHI->CreateBuffer(&sceneDataDesc, &g_Data->sceneData);
+		m_Data->sceneDataCB = RHICreateBuffer(&sceneDataDesc, &m_Data->sceneData);
 
-		g_Data->currentScene = enew Scene();
+		m_Data->currentScene = enew Scene();
 		std::string defaultScene = "assets/scenes/demo.escene";
 		OpenScene(defaultScene);
 
-		g_Data->skybox = MakeShared<Skybox>("assets/skyboxes/studio_garden.hdr");
+		m_Data->skybox = MakeShared<Skybox>("assets/skyboxes/studio_garden.hdr");
 
 		// Lights
 		BufferDesc dl_desc = {};
-		dl_desc.elementCount = g_Data->MAX_DIRECTIONAL_LIGHTS;
+		dl_desc.elementCount = m_Data->MAX_DIRECTIONAL_LIGHTS;
 		dl_desc.stride = sizeof(DirectionalLightComponent);
 		dl_desc.usage = BufferDesc::Storage;
-		g_Data->directionalLightsBuffer = g_RHI->CreateBuffer(&dl_desc, nullptr);
+		m_Data->directionalLightsBuffer = RHICreateBuffer(&dl_desc, nullptr);
 
 		BufferDesc pl_desc = {};
-		pl_desc.elementCount = g_Data->MAX_POINT_LIGHTS;
+		pl_desc.elementCount = m_Data->MAX_POINT_LIGHTS;
 		pl_desc.stride = sizeof(PointLightComponent);
 		pl_desc.usage = BufferDesc::Storage;
-		g_Data->pointLightsBuffer = g_RHI->CreateBuffer(&pl_desc, nullptr);
+		m_Data->pointLightsBuffer = RHICreateBuffer(&pl_desc, nullptr);
 
 		UpdateDirectionalLights();
 		UpdatePointLights();
@@ -73,16 +60,15 @@ namespace Eden
 			RenderPassDesc desc = {};
 			desc.debugName = "ObjectPicker";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
-			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
-			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
+			desc.width = static_cast<uint32_t>(m_Data->viewportSize.x);
+			desc.height = static_cast<uint32_t>(m_Data->viewportSize.y);
 			desc.clearColor = glm::vec4(-1);
-			g_Data->objectPickerPass = g_RHI->CreateRenderPass(&desc);
+			m_Data->objectPickerPass = RHICreateRenderPass(&desc);
 
 			PipelineDesc pipelineDesc = {};
 			pipelineDesc.programName  = "ObjectPicker";
-			pipelineDesc.renderPass   = g_Data->objectPickerPass;
-			g_Data->pipelines["Object Picker"] = g_RHI->CreatePipeline(&pipelineDesc);
-			ensure(error == GfxResult::kNoError);
+			pipelineDesc.renderPass   = m_Data->objectPickerPass;
+			m_Data->pipelines["Object Picker"] = RHICreatePipeline(&pipelineDesc);
 		}
 
 		// Forward Pass
@@ -90,23 +76,23 @@ namespace Eden
 			RenderPassDesc desc = {};
 			desc.debugName = "ForwardPass";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
-			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
-			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			g_Data->forwardPass = g_RHI->CreateRenderPass(&desc);
+			desc.width = static_cast<uint32_t>(m_Data->viewportSize.x);
+			desc.height = static_cast<uint32_t>(m_Data->viewportSize.y);
+			m_Data->forwardPass = RHICreateRenderPass(&desc);
 
 			PipelineDesc forwardDesc    = {};
 			forwardDesc.bEnableBlending = true;
 			forwardDesc.programName     = "ForwardPass";
-			forwardDesc.renderPass      = g_Data->forwardPass;
-			g_Data->pipelines["Forward Rendering"] = g_RHI->CreatePipeline(&forwardDesc);
+			forwardDesc.renderPass      = m_Data->forwardPass;
+			m_Data->pipelines["Forward Rendering"] = RHICreatePipeline(&forwardDesc);
 
 			PipelineDesc skyboxDesc = {};
 			skyboxDesc.cull_mode    = CullMode::kNone;
 			skyboxDesc.depthFunc    = ComparisonFunc::kLessEqual;
 			skyboxDesc.minDepth     = 1.0f;
 			skyboxDesc.programName  = "Skybox";
-			skyboxDesc.renderPass   = g_Data->forwardPass;
-			g_Data->pipelines["Skybox"] = g_RHI->CreatePipeline(&skyboxDesc);
+			skyboxDesc.renderPass   = m_Data->forwardPass;
+			m_Data->pipelines["Skybox"] = RHICreatePipeline(&skyboxDesc);
 		}
 
 		// Deferred Pass
@@ -114,30 +100,30 @@ namespace Eden
 			RenderPassDesc desc = {};
 			desc.debugName = "DeferredBasePass";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::kRGBA32_FLOAT, Format::Depth };
-			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
-			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
+			desc.width = static_cast<uint32_t>(m_Data->viewportSize.x);
+			desc.height = static_cast<uint32_t>(m_Data->viewportSize.y);
 			desc.clearColor = { 0, 0, 0, 0 };
-			g_Data->deferredBasePass = g_RHI->CreateRenderPass(&desc);
+			m_Data->deferredBasePass = RHICreateRenderPass(&desc);
 
 			PipelineDesc deferredBaseDesc = {};
 			deferredBaseDesc.bEnableBlending = true;
 			deferredBaseDesc.programName = "DeferredBasePass";
-			deferredBaseDesc.renderPass = g_Data->deferredBasePass;
-			g_Data->pipelines["Deferred Base Pass"] = g_RHI->CreatePipeline(&deferredBaseDesc);
+			deferredBaseDesc.renderPass = m_Data->deferredBasePass;
+			m_Data->pipelines["Deferred Base Pass"] = RHICreatePipeline(&deferredBaseDesc);
 
 			RenderPassDesc lightingDesc = {};
 			desc.debugName = "DeferredLightingPass";
 			desc.attachmentsFormats = { Format::kRGBA32_FLOAT, Format::Depth };
-			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
-			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			g_Data->deferredLightingPass = g_RHI->CreateRenderPass(&desc);
+			desc.width = static_cast<uint32_t>(m_Data->viewportSize.x);
+			desc.height = static_cast<uint32_t>(m_Data->viewportSize.y);
+			m_Data->deferredLightingPass = RHICreateRenderPass(&desc);
 
 			PipelineDesc deferredLightingPass = {};
 			deferredLightingPass.cull_mode = CullMode::kNone;
 			deferredLightingPass.bEnableBlending = false;
 			deferredLightingPass.programName = "DeferredLightingPass";
-			deferredLightingPass.renderPass = g_Data->deferredLightingPass;
-			g_Data->pipelines["Deferred Lighting Pass"] = g_RHI->CreatePipeline(&deferredLightingPass);
+			deferredLightingPass.renderPass = m_Data->deferredLightingPass;
+			m_Data->pipelines["Deferred Lighting Pass"] = RHICreatePipeline(&deferredLightingPass);
 		}
 
 		// Scene Composite
@@ -148,19 +134,19 @@ namespace Eden
 #ifndef WITH_EDITOR
 			desc.bIsSwapchainTarget = true;
 #endif
-			desc.width = static_cast<uint32_t>(g_Data->viewportSize.x);
-			desc.height = static_cast<uint32_t>(g_Data->viewportSize.y);
-			g_Data->sceneComposite = g_RHI->CreateRenderPass(&desc);
+			desc.width = static_cast<uint32_t>(m_Data->viewportSize.x);
+			desc.height = static_cast<uint32_t>(m_Data->viewportSize.y);
+			m_Data->sceneComposite = RHICreateRenderPass(&desc);
 #ifndef WITH_EDITOR
-			g_RHI->SetSwapchainTarget(g_Data->sceneComposite);
+			RHISetSwapchainTarget(m_Data->sceneComposite);
 #endif
 
 			PipelineDesc sceneCompositeDesc = {};
 			sceneCompositeDesc.cull_mode = CullMode::kNone;
 			sceneCompositeDesc.bEnableBlending = false;
 			sceneCompositeDesc.programName = "SceneComposite";
-			sceneCompositeDesc.renderPass = g_Data->sceneComposite;
-			g_Data->pipelines["Scene Composite"] = g_RHI->CreatePipeline(&sceneCompositeDesc);
+			sceneCompositeDesc.renderPass = m_Data->sceneComposite;
+			m_Data->pipelines["Scene Composite"] = RHICreatePipeline(&sceneCompositeDesc);
 		}
 
 		float quadVertices[] = {
@@ -177,18 +163,18 @@ namespace Eden
 		quadDesc.stride = sizeof(float) * 4;
 		quadDesc.elementCount = 6;
 		quadDesc.usage = BufferDesc::Vertex_Index;
-		g_Data->quadBuffer = g_RHI->CreateBuffer(&quadDesc, quadVertices);
+		m_Data->quadBuffer = RHICreateBuffer(&quadDesc, quadVertices);
 
 		BufferDesc sceneSettingsDesc = {};
 		sceneSettingsDesc.elementCount = 1;
 		sceneSettingsDesc.stride = sizeof(RendererData::SceneSettings);
 		sceneSettingsDesc.usage = BufferDesc::Uniform;
-		g_Data->sceneSettingsBuffer = g_RHI->CreateBuffer(&sceneSettingsDesc, &g_Data->sceneSettings);
+		m_Data->sceneSettingsBuffer = RHICreateBuffer(&sceneSettingsDesc, &m_Data->sceneSettings);
 
-		g_Data->renderTimer = g_RHI->CreateGPUTimer();
+		m_Data->renderTimer = RHICreateGPUTimer();
 
 		ED_LOG_INFO("Renderer has been initialized!");
-		g_IsRendererInitialized = true;
+		m_IsRendererInitialized = true;
 	}
 
 	void Renderer::BeginRender()
@@ -196,29 +182,28 @@ namespace Eden
 		PrepareScene();
 
 		// Update camera and scene data
-		g_Data->camera.Update(Application::Get()->GetDeltaTime());
-		g_Data->viewMatrix = glm::lookAtLH(g_Data->camera.position, g_Data->camera.position + g_Data->camera.front, g_Data->camera.up);
-		g_Data->projectionMatrix = glm::perspectiveFovLH(glm::radians(70.0f), g_Data->viewportSize.x, g_Data->viewportSize.y, 0.1f, 200.0f);
-		g_Data->sceneData.view = g_Data->viewMatrix;
-		g_Data->sceneData.viewProjection = g_Data->projectionMatrix * g_Data->viewMatrix;
-		g_Data->sceneData.viewPosition = glm::vec4(g_Data->camera.position, 1.0f);
-		GfxResult error = g_RHI->UpdateBufferData(g_Data->sceneDataCB, &g_Data->sceneData);
-		ensure(error == GfxResult::kNoError);
+		m_Data->camera.Update(Application::Get()->GetDeltaTime());
+		m_Data->viewMatrix = glm::lookAtLH(m_Data->camera.position, m_Data->camera.position + m_Data->camera.front, m_Data->camera.up);
+		m_Data->projectionMatrix = glm::perspectiveFovLH(glm::radians(70.0f), m_Data->viewportSize.x, m_Data->viewportSize.y, 0.1f, 200.0f);
+		m_Data->sceneData.view = m_Data->viewMatrix;
+		m_Data->sceneData.viewProjection = m_Data->projectionMatrix * m_Data->viewMatrix;
+		m_Data->sceneData.viewPosition = glm::vec4(m_Data->camera.position, 1.0f);
+		RHIUpdateBufferData(m_Data->sceneDataCB, &m_Data->sceneData);
 
 		UpdateDirectionalLights();
 		UpdatePointLights();
 
-		g_RHI->BeginRender();
+		RHIBeginRender();
 	}
 
 	void Renderer::Render()
 	{
-		g_RHI->BeginGPUTimer(g_Data->renderTimer);
+		RHIBeginGPUTimer(m_Data->renderTimer);
 
 #if WITH_EDITOR
 		ObjectPickerPass();
 #endif
-		if (g_Data->bIsDeferredEnabled)
+		if (m_Data->bIsDeferredEnabled)
 			DeferredRenderingPass();
 		else
 			ForwardRenderingPass();
@@ -227,23 +212,22 @@ namespace Eden
 
 	void Renderer::EndRender()
 	{
-		g_RHI->EndGPUTimer(g_Data->renderTimer);
-		g_RHI->EndRender();
-		g_RHI->Render();
+		RHIEndGPUTimer(m_Data->renderTimer);
+		RHIEndRender();
+		RHIRender();
 	}
 
 	void Renderer::Shutdown()
 	{
-		edelete g_Data->currentScene;
-		edelete g_Data;
+		edelete m_Data->currentScene;
+		edelete m_Data;
 
-		g_RHI->Shutdown();
-		edelete g_RHI;
+		RHIShutdown();
 	}
 
 	bool Renderer::IsInitialized()
 	{
-		return g_IsRendererInitialized;
+		return m_IsRendererInitialized;
 	}
 
 	void Renderer::UpdatePointLights()
@@ -251,20 +235,19 @@ namespace Eden
 		PointLightComponent emptyPl;
 		emptyPl.color = glm::vec4(0);
 
-		std::array<PointLightComponent, g_Data->MAX_POINT_LIGHTS> pointLightComponents;
+		std::array<PointLightComponent, m_Data->MAX_POINT_LIGHTS> pointLightComponents;
 		pointLightComponents.fill(emptyPl);
 
-		auto pointLights = g_Data->currentScene->GetAllEntitiesWith<PointLightComponent>();
+		auto pointLights = m_Data->currentScene->GetAllEntitiesWith<PointLightComponent>();
 		for (int i = 0; i < pointLights.size(); ++i)
 		{
-			Entity e = { pointLights[i], g_Data->currentScene };
+			Entity e = { pointLights[i], m_Data->currentScene };
 			PointLightComponent& pl = e.GetComponent<PointLightComponent>();
 			pointLightComponents[i] = pl;
 		}
 
 		const void* data = pointLightComponents.data();
-		GfxResult error = g_RHI->UpdateBufferData(g_Data->pointLightsBuffer, data);
-		ensure(error == GfxResult::kNoError);
+		RHIUpdateBufferData(m_Data->pointLightsBuffer, data);
 	}
 
 	void Renderer::UpdateDirectionalLights()
@@ -272,13 +255,13 @@ namespace Eden
 		DirectionalLightComponent emptyDl;
 		emptyDl.intensity = 0;
 
-		std::array<DirectionalLightComponent, g_Data->MAX_DIRECTIONAL_LIGHTS> directional_lightComponents;
+		std::array<DirectionalLightComponent, m_Data->MAX_DIRECTIONAL_LIGHTS> directional_lightComponents;
 		directional_lightComponents.fill(emptyDl);
 
-		auto directional_lights = g_Data->currentScene->GetAllEntitiesWith<DirectionalLightComponent>();
+		auto directional_lights = m_Data->currentScene->GetAllEntitiesWith<DirectionalLightComponent>();
 		for (int i = 0; i < directional_lights.size(); ++i)
 		{
-			Entity e = { directional_lights[i], g_Data->currentScene };
+			Entity e = { directional_lights[i], m_Data->currentScene };
 			DirectionalLightComponent& pl = e.GetComponent<DirectionalLightComponent>();
 			directional_lightComponents[i] = pl;
 		}
@@ -287,225 +270,218 @@ namespace Eden
 		//	m_DirectionalLight = { directional_lights[0], m_CurrentScene };
 
 		const void* data = directional_lightComponents.data();
-		GfxResult error = g_RHI->UpdateBufferData(g_Data->directionalLightsBuffer, data);
-		ensure(error == GfxResult::kNoError);
+		RHIUpdateBufferData(m_Data->directionalLightsBuffer, data);
 	}
 	
 	void Renderer::ObjectPickerPass()
 	{
-		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
+		auto entitiesToRender = m_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
-		g_RHI->BeginRenderPass(g_Data->objectPickerPass);
-		g_RHI->BindPipeline(g_Data->pipelines["Object Picker"]);
+		RHIBeginRenderPass(m_Data->objectPickerPass);
+		RHIBindPipeline(m_Data->pipelines["Object Picker"]);
 		for (auto entity : entitiesToRender)
 		{
-			Entity e = { entity, g_Data->currentScene };
+			Entity e = { entity, m_Data->currentScene };
 			MeshSource* ms = e.GetComponent<MeshComponent>().meshSource.Get();
 			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			g_RHI->BindVertexBuffer(ms->meshVb);
-			g_RHI->BindIndexBuffer(ms->meshIb);
+			RHIBindVertexBuffer(ms->meshVb);
+			RHIBindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
 				transform *= mesh->modelMatrix;
 
-				g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
-				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
-				g_RHI->BindParameter("ObjectID", &entity, sizeof(uint32_t));
+				RHIBindParameter("SceneData", m_Data->sceneDataCB);
+				RHIBindParameter("Transform", &transform, sizeof(glm::mat4));
+				RHIBindParameter("ObjectID", &entity, sizeof(uint32_t));
 
 				for (auto& submesh : mesh->submeshes)
-					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
+					RHIDrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 			}
 		}
-		g_RHI->EndRenderPass(g_Data->objectPickerPass);
+		RHIEndRenderPass(m_Data->objectPickerPass);
 	}
 
 	void Renderer::DeferredRenderingPass()
 	{
-		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
+		auto entitiesToRender = m_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
 		// Deferred Base Pass
-		g_RHI->BeginRenderPass(g_Data->deferredBasePass);
-		g_RHI->BindPipeline(g_Data->pipelines["Deferred Base Pass"]);
+		RHIBeginRenderPass(m_Data->deferredBasePass);
+		RHIBindPipeline(m_Data->pipelines["Deferred Base Pass"]);
 		for (auto entity : entitiesToRender)
 		{
-			Entity e = { entity, g_Data->currentScene };
+			Entity e = { entity, m_Data->currentScene };
 			MeshSource* ms = e.GetComponent<MeshComponent>().meshSource.Get();
 			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			g_RHI->BindVertexBuffer(ms->meshVb);
-			g_RHI->BindIndexBuffer(ms->meshIb);
+			RHIBindVertexBuffer(ms->meshVb);
+			RHIBindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				glm::mat4 transform = tc.GetTransform();
 				transform *= mesh->modelMatrix;
 
-				g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
-				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
+				RHIBindParameter("SceneData", m_Data->sceneDataCB);
+				RHIBindParameter("Transform", &transform, sizeof(glm::mat4));
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					g_RHI->BindParameter("g_AlbedoMap", submesh->material.albedoMap);
-					g_RHI->BindParameter("g_NormalMap", submesh->material.normalMap);
-					g_RHI->BindParameter("g_AOMap", submesh->material.AOMap);
-					g_RHI->BindParameter("g_EmissiveMap", submesh->material.emissiveMap);
-					g_RHI->BindParameter("g_MetallicRoughnessMap", submesh->material.metallicRoughnessMap);
-					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
+					RHIBindParameter("g_AlbedoMap", submesh->material.albedoMap);
+					RHIBindParameter("g_NormalMap", submesh->material.normalMap);
+					RHIBindParameter("g_AOMap", submesh->material.AOMap);
+					RHIBindParameter("g_EmissiveMap", submesh->material.emissiveMap);
+					RHIBindParameter("g_MetallicRoughnessMap", submesh->material.metallicRoughnessMap);
+					RHIDrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}
 		}
 
-		g_RHI->EndRenderPass(g_Data->deferredBasePass);
+		RHIEndRenderPass(m_Data->deferredBasePass);
 
-		g_RHI->BeginRenderPass(g_Data->deferredLightingPass);
-		g_RHI->BindPipeline(g_Data->pipelines["Deferred Lighting Pass"]);
-		g_RHI->BindVertexBuffer(g_Data->quadBuffer);
-		g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
-		g_RHI->BindParameter("DirectionalLights", g_Data->directionalLightsBuffer);
-		g_RHI->BindParameter("PointLights", g_Data->pointLightsBuffer);
-		g_RHI->BindParameter("g_TextureBaseColor", g_Data->deferredBasePass->colorAttachments[0]);
-		g_RHI->BindParameter("g_TexturePosition", g_Data->deferredBasePass->colorAttachments[1]);
-		g_RHI->BindParameter("g_TextureNormal", g_Data->deferredBasePass->colorAttachments[2]);
-		g_RHI->BindParameter("g_TextureMetallicRoughnessAO", g_Data->deferredBasePass->colorAttachments[3]);
-		g_RHI->BindParameter("g_TextureNormalMap", g_Data->deferredBasePass->colorAttachments[4]);
-		g_RHI->Draw(6);
+		RHIBeginRenderPass(m_Data->deferredLightingPass);
+		RHIBindPipeline(m_Data->pipelines["Deferred Lighting Pass"]);
+		RHIBindVertexBuffer(m_Data->quadBuffer);
+		RHIBindParameter("SceneData", m_Data->sceneDataCB);
+		RHIBindParameter("DirectionalLights", m_Data->directionalLightsBuffer);
+		RHIBindParameter("PointLights", m_Data->pointLightsBuffer);
+		RHIBindParameter("g_TextureBaseColor", m_Data->deferredBasePass->colorAttachments[0]);
+		RHIBindParameter("g_TexturePosition", m_Data->deferredBasePass->colorAttachments[1]);
+		RHIBindParameter("g_TextureNormal", m_Data->deferredBasePass->colorAttachments[2]);
+		RHIBindParameter("g_TextureMetallicRoughnessAO", m_Data->deferredBasePass->colorAttachments[3]);
+		RHIBindParameter("g_TextureNormalMap", m_Data->deferredBasePass->colorAttachments[4]);
+		RHIDraw(6);
 
 		// Skybox
-		if (g_Data->bIsSkyboxEnabled)
+		if (m_Data->bIsSkyboxEnabled)
 		{
-			g_RHI->BindPipeline(g_Data->pipelines["Skybox"]);
-			g_Data->skybox->Render(g_Data->projectionMatrix * glm::mat4(glm::mat3(g_Data->viewMatrix)));
+			RHIBindPipeline(m_Data->pipelines["Skybox"]);
+			m_Data->skybox->Render(m_Data->projectionMatrix * glm::mat4(glm::mat3(m_Data->viewMatrix)));
 		}
 
-		g_RHI->EndRenderPass(g_Data->deferredLightingPass);
+		RHIEndRenderPass(m_Data->deferredLightingPass);
 	}
 
 	void Renderer::ForwardRenderingPass()
 	{
-		auto entitiesToRender = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
+		auto entitiesToRender = m_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 
 		// Forward Pass
-		g_RHI->BeginRenderPass(g_Data->forwardPass);
-		g_RHI->BindPipeline(g_Data->pipelines["Forward Rendering"]);
+		RHIBeginRenderPass(m_Data->forwardPass);
+		RHIBindPipeline(m_Data->pipelines["Forward Rendering"]);
 		for (auto entity : entitiesToRender)
 		{
-			Entity e = { entity, g_Data->currentScene };
+			Entity e = { entity, m_Data->currentScene };
 			MeshSource* ms = e.GetComponent<MeshComponent>().meshSource.Get();
 			if (!ms->bHasMesh)
 				continue;
 			TransformComponent tc = e.GetComponent<TransformComponent>();
 
-			g_RHI->BindVertexBuffer(ms->meshVb);
-			g_RHI->BindIndexBuffer(ms->meshIb);
+			RHIBindVertexBuffer(ms->meshVb);
+			RHIBindIndexBuffer(ms->meshIb);
 			for (auto& mesh : ms->meshes)
 			{
 				auto transform = tc.GetTransform();
 				transform *= mesh->modelMatrix;
 
-				g_RHI->BindParameter("SceneData", g_Data->sceneDataCB);
-				g_RHI->BindParameter("Transform", &transform, sizeof(glm::mat4));
-				g_RHI->BindParameter("DirectionalLights", g_Data->directionalLightsBuffer);
-				g_RHI->BindParameter("PointLights", g_Data->pointLightsBuffer);
+				RHIBindParameter("SceneData", m_Data->sceneDataCB);
+				RHIBindParameter("Transform", &transform, sizeof(glm::mat4));
+				RHIBindParameter("DirectionalLights", m_Data->directionalLightsBuffer);
+				RHIBindParameter("PointLights", m_Data->pointLightsBuffer);
 
 				for (auto& submesh : mesh->submeshes)
 				{
-					g_RHI->BindParameter("g_AlbedoMap", submesh->material.albedoMap);
-					g_RHI->BindParameter("g_NormalMap", submesh->material.normalMap);
-					g_RHI->BindParameter("g_AOMap", submesh->material.AOMap);
-					g_RHI->BindParameter("g_EmissiveMap", submesh->material.emissiveMap);
-					g_RHI->BindParameter("g_MetallicRoughnessMap", submesh->material.metallicRoughnessMap);
-					g_RHI->DrawIndexed(submesh->indexCount, 1, submesh->indexStart);
+					RHIBindParameter("g_AlbedoMap", submesh->material.albedoMap);
+					RHIBindParameter("g_NormalMap", submesh->material.normalMap);
+					RHIBindParameter("g_AOMap", submesh->material.AOMap);
+					RHIBindParameter("g_EmissiveMap", submesh->material.emissiveMap);
+					RHIBindParameter("g_MetallicRoughnessMap", submesh->material.metallicRoughnessMap);
+					RHIDrawIndexed(submesh->indexCount, 1, submesh->indexStart);
 				}
 			}
 		}
 
 		// Skybox
-		if (g_Data->bIsSkyboxEnabled)
+		if (m_Data->bIsSkyboxEnabled)
 		{
-			g_RHI->BindPipeline(g_Data->pipelines["Skybox"]);
-			g_Data->skybox->Render(g_Data->projectionMatrix * glm::mat4(glm::mat3(g_Data->viewMatrix)));
+			RHIBindPipeline(m_Data->pipelines["Skybox"]);
+			m_Data->skybox->Render(m_Data->projectionMatrix * glm::mat4(glm::mat3(m_Data->viewMatrix)));
 		}
-		g_RHI->EndRenderPass(g_Data->forwardPass);
+		RHIEndRenderPass(m_Data->forwardPass);
 	}
 
 	void Renderer::SceneCompositePass()
 	{
 		// Scene Composite
-		g_RHI->BeginRenderPass(g_Data->sceneComposite);
-		g_RHI->BindPipeline(g_Data->pipelines["Scene Composite"]);
-		g_RHI->BindVertexBuffer(g_Data->quadBuffer);
-		if (g_Data->bIsDeferredEnabled)
+		RHIBeginRenderPass(m_Data->sceneComposite);
+		RHIBindPipeline(m_Data->pipelines["Scene Composite"]);
+		RHIBindVertexBuffer(m_Data->quadBuffer);
+		if (m_Data->bIsDeferredEnabled)
 		{
-			if (g_Data->deferredLightingPass->colorAttachments.size() > 0)
-				g_RHI->BindParameter("g_SceneTexture", g_Data->deferredLightingPass->colorAttachments[0]);
+			if (m_Data->deferredLightingPass->colorAttachments.size() > 0)
+				RHIBindParameter("g_SceneTexture", m_Data->deferredLightingPass->colorAttachments[0]);
 		}
 		else
 		{
-			if (g_Data->forwardPass->colorAttachments.size() > 0)
-				g_RHI->BindParameter("g_SceneTexture", g_Data->forwardPass->colorAttachments[0]);
+			if (m_Data->forwardPass->colorAttachments.size() > 0)
+				RHIBindParameter("g_SceneTexture", m_Data->forwardPass->colorAttachments[0]);
 		}
-		GfxResult error = g_RHI->UpdateBufferData(g_Data->sceneSettingsBuffer, &g_Data->sceneSettings);
-		ensure(error == GfxResult::kNoError);
-		g_RHI->BindParameter("SceneSettings", g_Data->sceneSettingsBuffer);
-		g_RHI->Draw(6);
-		g_RHI->EndRenderPass(g_Data->sceneComposite);
-	}
-
-	API Renderer::GetCurrentAPI()
-	{
-		return g_RHI->GetCurrentAPI();
+		RHIUpdateBufferData(m_Data->sceneSettingsBuffer, &m_Data->sceneSettings);
+		RHIBindParameter("SceneSettings", m_Data->sceneSettingsBuffer);
+		RHIDraw(6);
+		RHIEndRenderPass(m_Data->sceneComposite);
 	}
 
 	void Renderer::PrepareScene()
 	{
-		if (g_Data->currentScene && g_Data->currentScene->IsSceneLoaded())
+		if (m_Data->currentScene && m_Data->currentScene->IsSceneLoaded())
 		{
-			g_Data->skybox->Prepare();
-			g_Data->currentScene->ExecutePreparations();
+			m_Data->skybox->Prepare();
+			m_Data->currentScene->ExecutePreparations();
 			return;
 		}
 
-		auto& sceneToLoad = g_Data->currentScene->GetScenePath();
+		auto& sceneToLoad = m_Data->currentScene->GetScenePath();
 
-		g_Data->currentScene->GetSelectedEntity().Invalidate();
-		edelete g_Data->currentScene;
-		g_Data->currentScene = enew Scene();
+		m_Data->currentScene->GetSelectedEntity().Invalidate();
+		edelete m_Data->currentScene;
+		m_Data->currentScene = enew Scene();
 
 		if (!sceneToLoad.empty())
 		{
-			SceneSerializer serializer(g_Data->currentScene);
+			SceneSerializer serializer(m_Data->currentScene);
 			serializer.Deserialize(sceneToLoad);
 
-			auto entities = g_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
+			auto entities = m_Data->currentScene->GetAllEntitiesWith<MeshComponent>();
 			for (auto& entity : entities)
 			{
-				Entity e = { entity, g_Data->currentScene };
+				Entity e = { entity, m_Data->currentScene };
 				e.GetComponent<MeshComponent>().LoadMeshSource();
 			}
 
-			g_Data->currentScene->SetScenePath(sceneToLoad);
+			m_Data->currentScene->SetScenePath(sceneToLoad);
 		}
 
-		g_Data->currentScene->SetSceneLoaded(true);
-		Application::Get()->ChangeWindowTitle(g_Data->currentScene->GetName());
+		m_Data->currentScene->SetSceneLoaded(true);
+		Application::Get()->ChangeWindowTitle(m_Data->currentScene->GetName());
 	}
 
 	void Renderer::NewScene()
 	{
-		g_Data->currentScene->SetScenePath("");
-		g_Data->currentScene->SetSceneLoaded(false);
+		m_Data->currentScene->SetScenePath("");
+		m_Data->currentScene->SetSceneLoaded(false);
 	}
 
 	void Renderer::OpenScene(const std::filesystem::path& path)
 	{
-		g_Data->currentScene->SetScenePath(path);
-		g_Data->currentScene->SetSceneLoaded(false);
-		g_Data->camera = Camera(g_Data->window->GetWidth(), g_Data->window->GetHeight()); // Reset camera
+		m_Data->currentScene->SetScenePath(path);
+		m_Data->currentScene->SetSceneLoaded(false);
+		m_Data->camera = Camera(m_Data->window->GetWidth(), m_Data->window->GetHeight()); // Reset camera
 	}
 
 	void Renderer::OpenSceneDialog()
@@ -523,47 +499,47 @@ namespace Eden
 			if (!path.has_extension())
 				path += Utils::ExtensionToString(EdenExtension::kScene);
 
-			SceneSerializer serializer(g_Data->currentScene);
+			SceneSerializer serializer(m_Data->currentScene);
 			serializer.Serialize(path);
-			g_Data->currentScene->SetScenePath(path);
-			Application::Get()->ChangeWindowTitle(g_Data->currentScene->GetName());
+			m_Data->currentScene->SetScenePath(path);
+			Application::Get()->ChangeWindowTitle(m_Data->currentScene->GetName());
 		}
 	}
 
 	void Renderer::SaveScene()
 	{
-		if (g_Data->currentScene->GetScenePath().empty())
+		if (m_Data->currentScene->GetScenePath().empty())
 		{
 			SaveSceneAs();
 			return;
 		}
 
-		ED_LOG_INFO("Saved scene: {}", g_Data->currentScene->GetScenePath());
-		SceneSerializer serializer(g_Data->currentScene);
-		serializer.Serialize(g_Data->currentScene->GetScenePath());
+		ED_LOG_INFO("Saved scene: {}", m_Data->currentScene->GetScenePath());
+		SceneSerializer serializer(m_Data->currentScene);
+		serializer.Serialize(m_Data->currentScene->GetScenePath());
 	}
 
 	Scene* Renderer::GetCurrentScene()
 	{
-		return g_Data->currentScene;
+		return m_Data->currentScene;
 	}
 	
 	void Renderer::SetViewportSize(float x, float y)
 	{
 		if (Renderer::GetViewportSize() != glm::vec2(x, y))
 		{
-			g_Data->viewportSize = { x, y };
-			g_Data->forwardPass->desc.width = (uint32_t)x;
-			g_Data->forwardPass->desc.height = (uint32_t)y;
-			g_Data->sceneComposite->desc.width = (uint32_t)x;
-			g_Data->sceneComposite->desc.height = (uint32_t)y;
-			g_Data->objectPickerPass->desc.width = (uint32_t)x;
-			g_Data->objectPickerPass->desc.height = (uint32_t)y;
-			g_Data->deferredBasePass->desc.width = (uint32_t)x;
-			g_Data->deferredBasePass->desc.height = (uint32_t)y;
-			g_Data->deferredLightingPass->desc.width = (uint32_t)x;
-			g_Data->deferredLightingPass->desc.height = (uint32_t)y;
-			g_Data->camera.SetViewportSize(g_Data->viewportSize);
+			m_Data->viewportSize = { x, y };
+			m_Data->forwardPass->desc.width = (uint32_t)x;
+			m_Data->forwardPass->desc.height = (uint32_t)y;
+			m_Data->sceneComposite->desc.width = (uint32_t)x;
+			m_Data->sceneComposite->desc.height = (uint32_t)y;
+			m_Data->objectPickerPass->desc.width = (uint32_t)x;
+			m_Data->objectPickerPass->desc.height = (uint32_t)y;
+			m_Data->deferredBasePass->desc.width = (uint32_t)x;
+			m_Data->deferredBasePass->desc.height = (uint32_t)y;
+			m_Data->deferredLightingPass->desc.width = (uint32_t)x;
+			m_Data->deferredLightingPass->desc.height = (uint32_t)y;
+			m_Data->camera.SetViewportSize(m_Data->viewportSize);
 		}
 	}
 
@@ -574,168 +550,62 @@ namespace Eden
 
 	glm::vec2 Renderer::GetViewportSize()
 	{
-		return g_Data->viewportSize;
+		return m_Data->viewportSize;
 	}
 
 	void Renderer::SetCameraPosition(float x, float y)
 	{
-		g_Data->camera.SetViewportPosition({ x, y });
+		m_Data->camera.SetViewportPosition({ x, y });
 	}
 
 	bool& Renderer::IsSkyboxEnabled()
 	{
-		return g_Data->bIsSkyboxEnabled;
+		return m_Data->bIsSkyboxEnabled;
 	}
 
 	bool& Renderer::IsDeferredRenderingEnabled()
 	{
-		return g_Data->bIsDeferredEnabled;
+		return m_Data->bIsDeferredEnabled;
 	}
 
 	void Renderer::SetNewSkybox(const char* path)
 	{
-		g_Data->skybox->SetNewTexture(path);
+		m_Data->skybox->SetNewTexture(path);
 	}
 
 	RendererData::SceneSettings& Renderer::GetSceneSettings()
 	{
-		return g_Data->sceneSettings;
+		return m_Data->sceneSettings;
 	}
 
 	GPUTimerRef Renderer::GetRenderTimer()
 	{
-		return g_Data->renderTimer;
+		return m_Data->renderTimer;
 	}
 
 	glm::mat4 Renderer::GetViewMatrix()
 	{
-		return g_Data->viewMatrix;
+		return m_Data->viewMatrix;
 	}
 
 	glm::mat4 Renderer::GetProjectionMatrix()
 	{
-		return g_Data->projectionMatrix;
+		return m_Data->projectionMatrix;
 	}
-
-	RenderPassRef Renderer::CreateRenderpass(RenderPassDesc* desc)
-	{
-		return g_RHI->CreateRenderPass(desc);
-	}
-
-	void Renderer::BeginRenderPass(RenderPassRef renderPass)
-	{
-		g_RHI->BeginRenderPass(renderPass);
-	}
-
-	void Renderer::EndRenderPass(RenderPassRef renderPass)
-	{
-		g_RHI->EndRenderPass(renderPass);
-	}
-
-	void Renderer::SetSwapchainTarget(RenderPassRef renderPass)
-	{
-		g_RHI->SetSwapchainTarget(renderPass);
-	}
-
-	void Renderer::EnableImGui()
-	{
-		g_RHI->EnableImGui();
-	}
-
-	void Renderer::ReadPixelFromTexture(uint32_t x, uint32_t y, TextureRef texture, glm::vec4& pixel)
-	{
-		g_RHI->ReadPixelFromTexture(x, y, texture, pixel);
-	}
-
-	uint64_t Renderer::GetTextureID(TextureRef texture)
-	{
-		return g_RHI->GetTextureID(texture);
-	}
-
-	void Renderer::ReloadPipeline(PipelineRef pipeline)
-	{
-		GfxResult error = g_RHI->ReloadPipeline(pipeline); 
-		ensure(error == GfxResult::kNoError);
-	}
-
-	void Renderer::EnsureMsgResourceState(TextureRef resource, ResourceState destResourceState)
-	{
-		g_RHI->EnsureMsgResourceState(resource, destResourceState);
-	}
-
-	TextureRef Renderer::CreateTexture(std::string path, bool bGenerateMips)
-	{
-		return g_RHI->CreateTexture(path, bGenerateMips);
-	}
-
-	TextureRef Renderer::CreateTexture(TextureDesc* desc)
-	{
-		return g_RHI->CreateTexture(desc);
-	}
-
-	BufferRef Renderer::CreateBuffer(BufferDesc* desc, const void* initial_data)
-	{
-		return g_RHI->CreateBuffer(desc, initial_data);
-	}
-
-	void Renderer::BindPipeline(PipelineRef pipeline)
-	{
-		g_RHI->BindPipeline(pipeline);
-	}
-
-	void Renderer::BindVertexBuffer(BufferRef vertexBuffer)
-	{
-		g_RHI->BindVertexBuffer(vertexBuffer);
-	}
-
-	void Renderer::BindIndexBuffer(BufferRef indexBuffer)
-	{
-		g_RHI->BindIndexBuffer(indexBuffer);
-	}
-
-	void Renderer::BindParameter(const std::string& parameterName, BufferRef buffer)
-	{
-		g_RHI->BindParameter(parameterName, buffer);
-	}
-
-	void Renderer::BindParameter(const std::string& parameterName, TextureRef texture, TextureUsage usage /*= kReadOnly*/)
-	{
-		g_RHI->BindParameter(parameterName, texture, usage);
-	}
-
-	void Renderer::BindParameter(const std::string& parameterName, void* data, size_t size)
-	{
-		g_RHI->BindParameter(parameterName, data, size);
-	}
-
-	void Renderer::Draw(uint32_t vertexCount, uint32_t instanceCount /*= 1*/, uint32_t startVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
-	{
-		g_RHI->Draw(vertexCount, instanceCount, startVertexLocation, startInstanceLocation);
-	}
-
-	void Renderer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount /*= 1*/, uint32_t startIndexLocation /*= 0*/, uint32_t baseVertexLocation /*= 0*/, uint32_t startInstanceLocation /*= 0*/)
-	{
-		g_RHI->DrawIndexed(indexCount, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
-	}
-
-	void Renderer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
-	{
-		g_RHI->Dispatch(groupCountX, groupCountY, groupCountZ);
-	}
-
+	
 	void Renderer::GetPixel(uint32_t x, uint32_t y, glm::vec4& pixel)
 	{
-		g_RHI->ReadPixelFromTexture(x, y, g_Data->objectPickerPass->colorAttachments[0], pixel);
+		RHIReadPixelFromTexture(x, y, m_Data->objectPickerPass->colorAttachments[0], pixel);
 	}
 
 	TextureRef Renderer::GetFinalImage()
 	{
-		return g_Data->sceneComposite->colorAttachments[0];
+		return m_Data->sceneComposite->colorAttachments[0];
 	}
 
 	std::unordered_map<const char*, PipelineRef>& Renderer::GetPipelines()
 	{
-		return g_Data->pipelines;
+		return m_Data->pipelines;
 	}
 
 }

@@ -4,23 +4,11 @@
 
 namespace Eden
 {
-#define TO_INTERNAL(type, rhiType) rhiType* ToInternal(const type* t) { return static_cast<rhiType*>(t->internal_state.Get()); }
-
 	constexpr uint32_t GFrameCount = 2;
 	// TODO: Right now just use a huge number here, and refactor when bindless descriptors are added
 	constexpr uint32_t GSRVDescriptorCount = 8129;
 	constexpr uint32_t GRTVDescriptorCount = 256;
 	constexpr uint32_t GDSVDescriptorCount = 256;
-
-	enum class GfxResult
-	{
-		kNoError = 0,
-		kInvalidParameter,
-		kOutOfMemory,
-		kInternalError,
-
-		kCount
-	};
 
 	enum class ShaderStage
 	{
@@ -140,4 +128,33 @@ namespace Eden
 		kReadOnly,
 		kReadWrite // Used for UAV's
 	};
+	
+	namespace Utils
+	{
+		inline const char* ShaderStageToString(const ShaderStage target)
+		{
+			switch (target)
+			{
+				case ShaderStage::kVS:
+					return "Vertex";
+				case ShaderStage::kPS:
+					return "Pixel";
+				default:
+					return "Null";
+			}
+		}
+
+		inline const char* APIToString(const API api)
+		{
+			switch (api)
+			{
+				case API::kApi_D3D12:
+					return "D3D12";
+				case API::kApi_Vulkan:
+					return "Vulkan";
+				default:
+					return "";
+			}
+		}
+	}
 }
