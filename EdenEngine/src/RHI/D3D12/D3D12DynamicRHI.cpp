@@ -103,6 +103,10 @@ namespace Eden
 
 		CloseHandle(m_FenceEvent);
 
+		m_BoundPipeline.Reset();
+		m_SwapchainTarget.Reset();
+		m_MipsPipeline.Reset();
+
 		edelete m_Device;
 	}
 
