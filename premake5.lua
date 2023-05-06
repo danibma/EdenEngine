@@ -1,6 +1,6 @@
-workspace "EdenEngine"
+workspace "Eden"
     targetdir "bin"
-    startproject "EdenEngine"
+    startproject "Eden"
 
     configurations 
     { 
@@ -19,75 +19,6 @@ workspace "EdenEngine"
     filter "language:C++ or language:C"
         architecture "x86_64"
     filter ""
-
-outputdir = "%{cfg.buildcfg}"
-
-group "ThirdParty"
-include "external/imgui"
-include "external/D3D12MemoryAllocator"
-include "external/yaml-cpp"
-group ""
-
-project "EdenEngine"
-    location "EdenEngine"
-    kind "WindowedApp"
-    language "C++"
-    cppdialect "C++17"
-    staticruntime "off"
-
-    targetdir ("bin/" .. outputdir)
-	objdir ("bin/intermediate/")
-
-    flags { "FatalWarnings" }
-
-    files 
-	{ 
-		"%{prj.name}/src/**.h", 
-		"%{prj.name}/src/**.c", 
-		"%{prj.name}/src/**.hpp", 
-		"%{prj.name}/src/**.cpp",
-        "%{prj.name}/shaders/**.hlsl",
-        "%{prj.name}/shaders/**.hlsli",
-        "%{prj.name}/resource.rc"
-	}
-
-    includedirs
-	{
-		"%{prj.name}/src",
-
-		"%{wks.location}/external",
-        "%{wks.location}/external/ImGui",
-        "%{wks.location}/external/yaml-cpp/include",
-	}
-
-    links
-	{ 
-		"ImGui",
-        "D3D12MemoryAllocator",
-        "yaml-cpp",
-
-        "d3d12.lib",
-        "dxgi.lib",
-        "dxguid.lib",
-        "%{wks.location}/external/WinPixEventRuntime/WinPixEventRuntime.lib",
-
-        "%{wks.location}/external/dxc/dxcompiler.lib",
-	}
-
-    defines
-	{
-		"GLM_FORCE_DEPTH_ZERO_TO_ONE"
-	}
-    
-    postbuildcommands 
-    {
-        '{COPY} "%{wks.location}/external/dxc/dxcompiler.dll" "%{cfg.targetdir}"',
-        '{COPY} "%{wks.location}/external/dxc/dxil.dll" "%{cfg.targetdir}"',
-        '{COPY} "%{wks.location}/external/WinPixEventRuntime/WinPixEventRuntime.dll" "%{cfg.targetdir}"',
-    }
-
-    filter { "files:**.hlsl or files:**.hlsli" }
-        flags {"ExcludeFromBuild"}
 
     filter "system:windows"
 		systemversion "latest"
@@ -148,4 +79,71 @@ project "EdenEngine"
 			"ED_RELEASE",
 		}
 
+outputdir = "%{cfg.buildcfg}"
+
+group "ThirdParty"
+include "external/imgui"
+include "external/D3D12MemoryAllocator"
+include "external/yaml-cpp"
 group ""
+
+project "Eden"
+    location "Eden"
+    kind "WindowedApp"
+    language "C++"
+    cppdialect "C++17"
+    staticruntime "off"
+
+    targetdir ("bin/")
+	objdir ("bin/obj/" .. outputdir)
+
+    flags { "FatalWarnings" }
+
+    files 
+	{ 
+		"%{prj.name}/src/**.h", 
+		"%{prj.name}/src/**.c", 
+		"%{prj.name}/src/**.hpp", 
+		"%{prj.name}/src/**.cpp",
+        "%{prj.name}/shaders/**.hlsl",
+        "%{prj.name}/shaders/**.hlsli",
+        "%{prj.name}/resource.rc"
+	}
+
+    includedirs
+	{
+		"%{prj.name}/src",
+
+		"%{wks.location}/external",
+        "%{wks.location}/external/ImGui",
+        "%{wks.location}/external/yaml-cpp/include",
+	}
+
+    links
+	{ 
+		"ImGui",
+        "D3D12MemoryAllocator",
+        "yaml-cpp",
+
+        "d3d12.lib",
+        "dxgi.lib",
+        "dxguid.lib",
+        "%{wks.location}/external/WinPixEventRuntime/WinPixEventRuntime.lib",
+
+        "%{wks.location}/external/dxc/dxcompiler.lib",
+	}
+
+    defines
+	{
+		"GLM_FORCE_DEPTH_ZERO_TO_ONE"
+	}
+    
+    postbuildcommands 
+    {
+        '{COPY} "%{wks.location}/external/dxc/dxcompiler.dll" "%{cfg.targetdir}"',
+        '{COPY} "%{wks.location}/external/dxc/dxil.dll" "%{cfg.targetdir}"',
+        '{COPY} "%{wks.location}/external/WinPixEventRuntime/WinPixEventRuntime.dll" "%{cfg.targetdir}"',
+    }
+
+    filter { "files:**.hlsl or files:**.hlsli" }
+        flags {"ExcludeFromBuild"}

@@ -1,0 +1,42 @@
+[21:16:44] EDEN[info]: Log manager has been initialized!
+[21:16:44] EDEN[info]: No Rendering was set through the command line arguments, choosing D3D12 by default!
+[21:16:44] EDEN[info]: Initialized D3D12 device on NVIDIA GeForce RTX 3060
+[21:16:44] EDEN[info]: Compiled compute program 'GenerateMips' successfully!
+[21:16:44] EDEN[info]: Starting "assets/models/basic/cube.glb" file loading
+[21:16:44] EDEN[info]: 	1 nodes were loaded!
+[21:16:44] EDEN[info]: 	1 meshes were loaded!
+[21:16:44] EDEN[info]: 	0 textures were loaded!
+[21:16:44] EDEN[info]: 	1 materials were loaded!
+[21:16:44] EDEN[info]:    24 vertices were loaded!
+[21:16:45] EDEN[info]: Compiled program 'ObjectPicker' successfully!
+[21:16:45] EDEN[info]: Compiled program 'ForwardPass' successfully!
+[21:16:45] EDEN[info]: Compiled program 'Skybox' successfully!
+[21:16:45] EDEN[info]: Compiled program 'DeferredBasePass' successfully!
+[21:16:45] EDEN[info]: Compiled program 'DeferredLightingPass' successfully!
+[21:16:45] EDEN[info]: Compiled program 'SceneComposite' successfully!
+[21:16:45] EDEN[info]: Renderer has been initialized!
+[21:16:45] EDEN[info]: Deserializing scene 'demo'
+[21:16:45] EDEN[info]: Starting "assets\\models\\donut.glb" file loading
+[21:16:46] EDEN[info]: 	2 nodes were loaded!
+[21:16:46] EDEN[info]: 	2 meshes were loaded!
+[21:16:46] EDEN[info]: 	1 textures were loaded!
+[21:16:46] EDEN[info]: 	2 materials were loaded!
+[21:16:46] EDEN[info]:    13717 vertices were loaded!
+[21:16:46] EDEN[info]: Starting "assets/Models/basic/cube.glb" file loading
+[21:16:46] EDEN[info]: 	1 nodes were loaded!
+[21:16:46] EDEN[info]: 	1 meshes were loaded!
+[21:16:46] EDEN[info]: 	0 textures were loaded!
+[21:16:46] EDEN[info]: 	1 materials were loaded!
+[21:16:46] EDEN[info]:    24 vertices were loaded!
+[21:16:46] EDEN[info]: Starting "assets/Models/basic/sphere.glb" file loading
+[21:16:46] EDEN[info]: 	1 nodes were loaded!
+[21:16:46] EDEN[info]: 	1 meshes were loaded!
+[21:16:46] EDEN[info]: 	0 textures were loaded!
+[21:16:46] EDEN[info]: 	1 materials were loaded!
+[21:16:46] EDEN[info]:    4223 vertices were loaded!
+[21:16:46] EDEN[info]: Starting "E:\\EdenEngine\\Eden\\assets\\models\\DamagedHelmet\\DamagedHelmet.glb" file loading
+[21:16:46] EDEN[info]: 	1 nodes were loaded!
+[21:16:46] EDEN[info]: 	1 meshes were loaded!
+[21:16:46] EDEN[info]: 	5 textures were loaded!
+[21:16:46] EDEN[info]: 	1 materials were loaded!
+[21:16:46] EDEN[info]:    14556 vertices were loaded!

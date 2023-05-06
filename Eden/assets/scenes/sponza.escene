@@ -17,7 +17,7 @@ Entities:
       Rotation: [0, 4.5378561, 0]
       Scale: [1, 1, 1]
     MeshComponent:
-      File Path: E:\EdenEngine\EdenEngine\assets\models\Sponza\Sponza.gltf
+      File Path: E:\EdenEngine\Eden\assets\models\Sponza\Sponza.gltf
   - Entity: 2
     TagComponent:
       Tag: Light
@@ -36,4 +36,4 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     MeshComponent:
-      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cone.glb
+      File Path: E:\EdenEngine\Eden\assets\models\Basic\cone.glb

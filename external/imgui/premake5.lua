@@ -3,8 +3,8 @@ project "ImGui"
 	language "C++"
     staticruntime "off"
 
-	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("bin/intermediate/")
+	targetdir ("bin/%{prj.name}")
+	objdir ("bin/obj/" .. outputdir)
 
 	files
 	{

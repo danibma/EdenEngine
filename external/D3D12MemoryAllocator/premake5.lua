@@ -3,8 +3,8 @@ project "D3D12MemoryAllocator"
 	language "C++"
     staticruntime "off"
 
-	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("bin/intermediate/")
+	targetdir ("bin/%{prj.name}")
+	objdir ("bin/obj/" .. outputdir)
 
 	files
 	{

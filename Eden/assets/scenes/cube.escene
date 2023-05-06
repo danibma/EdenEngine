@@ -17,7 +17,7 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     MeshComponent:
-      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
+      File Path: E:\EdenEngine\Eden\assets\models\Basic\cube.glb
   - Entity: 2
     TagComponent:
       Tag: Floor
@@ -26,7 +26,7 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [30.8820133, 0.601643682, 23.910738]
     MeshComponent:
-      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
+      File Path: E:\EdenEngine\Eden\assets\models\Basic\cube.glb
   - Entity: 3
     TagComponent:
       Tag: Cube
@@ -35,7 +35,7 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     MeshComponent:
-      File Path: E:\EdenEngine\EdenEngine\assets\models\Basic\cube.glb
+      File Path: E:\EdenEngine\Eden\assets\models\Basic\cube.glb
   - Entity: 1048580
     TagComponent:
       Tag: ShadowMapView

@@ -14,14 +14,9 @@ namespace Eden
 
 	void Log::Init()
 	{
-		// Create logs directory if it doesn't exist
-		std::string logsDirectory = "logs";
-		if (!std::filesystem::exists(logsDirectory))
-			std::filesystem::create_directory(logsDirectory);
-
 		std::vector<spdlog::sink_ptr> coreSinks =
 		{
-			std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/core.log", true),
+			std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt", true),
 			std::make_shared<spdlog::sinks::msvc_sink_mt>(),
 			std::make_shared<OutputLogSynk<std::mutex>>()
 		};
