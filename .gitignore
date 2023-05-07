@@ -1,7 +1,7 @@
 .vs/
 .idea/
 bin/
-EdenEngine/logs
+Eden/log.txt
 _ReSharper.Caches
 
 **.sln

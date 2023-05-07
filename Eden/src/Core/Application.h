@@ -2,33 +2,38 @@
 #include <string>
 
 #include "Profiling/Timer.h"
+#include "Core/Delegates.h"
+#include "Window.h"
+
 #include <memory>
-#include "Editor/Editor.h"
 
 namespace Eden
 {
-	class Window;
-	class EdenEd;
+	struct ApplicationDescription
+	{
+		std::string Title;
+		uint32_t	Width, Height;
+	};
 
 	class Application
 	{
-		friend class EdenEd; // temporary until there's no Renderer class
-
-	protected:
-		Window* window;
-		EdenEd* editor;
-
-		float deltaTime = 0.0f;
-		float creationTime = 0.0f; // Time since the application creation
-
 	private:
 		static Application* s_Instance;
+
+		Window* m_Window;
+
+		float m_DeltaTime = 0.0f;
+		float m_CreationTime = 0.0f; // Time since the application creation
 
 		Timer m_DeltaTimer;
 		Timer m_CreationTimer;
 
 	public:
-		Application();
+		DECLARE_MULTICAST_DELEGATE(AppUpdate);
+		AppUpdate updateDelegate;
+
+	public:
+		Application(const ApplicationDescription& description);
 		~Application();
 
 		void Run();
@@ -39,14 +44,16 @@ namespace Eden
 		static Application* Get();
 
 		void ChangeWindowTitle(const std::string& title);
-		const std::string& GetWindowTitle() const { return window->GetTitle(); }
+		const std::string& GetWindowTitle() const { return m_Window->GetTitle(); }
 		void RequestClose();
 		void MaximizeWindow();
 		void MinimizeWindow();
 		bool IsWindowMaximized();
 
-		float GetDeltaTime() { return deltaTime; }
-		float GetTimeSinceCreation() { return creationTime; }
+		float GetDeltaTime() { return m_DeltaTime; }
+		float GetTimeSinceCreation() { return m_CreationTime; }
+
+		Window* GetWindow() { return m_Window; }
 	};
 }
 

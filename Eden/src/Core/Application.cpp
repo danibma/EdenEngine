@@ -9,24 +9,11 @@ namespace Eden
 {
 	Application* Application::s_Instance;
 
-	Application::Application()
+	Application::Application(const ApplicationDescription& description)
 	{
 		Log::Init();
 
-	#ifdef ED_DEBUG
-		window = enew Window("Eden Engine[Debug]", 1600, 900);
-	#elif defined(ED_PROFILING)
-		window = enew Window("Eden Engine[Profiling]", 1600, 900);
-	#else
-		window = enew Window("Eden Engine", 1600, 900);
-	#endif 
-
-		Renderer::Init(window);
-
-#ifdef WITH_EDITOR
-		editor = new EdenEd();
-		editor->Init(window);
-#endif // WITH_EDITOR
+		m_Window = enew Window(description.Title.c_str(), description.Width, description.Height);
 
 		m_CreationTimer.Record();
 		s_Instance = this;
@@ -34,49 +21,37 @@ namespace Eden
 
 	Application::~Application()
 	{
-#ifdef WITH_EDITOR
-		editor->Shutdown();
-		edelete editor;
-#endif // WITH_EDITOR
-
-		Renderer::Shutdown();
-
-		edelete window;
+		edelete m_Window;
 
 		Log::Shutdown();
 	}
 
 	void Application::Run()
 	{
-		while (!window->IsCloseRequested())
+		while (!m_Window->IsCloseRequested())
 		{
-			window->UpdateEvents();
+			m_Window->UpdateEvents();
 
 			// Update timers
-			deltaTime = m_DeltaTimer.ElapsedSeconds();
+			m_DeltaTime = m_DeltaTimer.ElapsedSeconds();
 			m_DeltaTimer.Record();
-			creationTime = m_CreationTimer.ElapsedSeconds();
+			m_CreationTime = m_CreationTimer.ElapsedSeconds();
 
-			if (!window->IsMinimized())
+			if (!m_Window->IsMinimized())
 			{
-				Renderer::BeginRender();
-				Renderer::Render();
-#ifdef WITH_EDITOR
-				editor->Update();
-#endif
-				Renderer::EndRender();
+				updateDelegate.Broadcast();
 			}
 		}
 	}
 
 	std::string Application::OpenFileDialog(const char* filter /*= ""*/)
 	{
-		return Utils::OpenFileDialog(window->GetHandle(), filter);
+		return Utils::OpenFileDialog(m_Window->GetHandle(), filter);
 	}
 
 	std::string Application::SaveFileDialog(const char* filter /*= ""*/)
 	{
-		return Utils::SaveFileDialog(window->GetHandle(), filter);
+		return Utils::SaveFileDialog(m_Window->GetHandle(), filter);
 	}
 
 	Application* Application::Get()
@@ -86,26 +61,26 @@ namespace Eden
 
 	void Application::ChangeWindowTitle(const std::string& title)
 	{
-		window->ChangeTitle(title);
+		m_Window->ChangeTitle(title);
 	}
 
 	void Application::RequestClose()
 	{
-		window->CloseWasRequested();
+		m_Window->CloseWasRequested();
 	}
 
 	void Application::MaximizeWindow()
 	{
-		window->Maximize();
+		m_Window->Maximize();
 	}
 
 	void Application::MinimizeWindow()
 	{
-		window->Minimize();
+		m_Window->Minimize();
 	}
 
 	bool Application::IsWindowMaximized()
 	{
-		return window->IsMaximized();
+		return m_Window->IsMaximized();
 	}
 }

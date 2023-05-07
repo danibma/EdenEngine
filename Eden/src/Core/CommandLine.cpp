@@ -52,4 +52,27 @@ namespace Eden
 		return false;
 	}
 
+	void CommandLine::Parse(const char* arg, std::string& value)
+	{
+		value = "";
+
+		size_t argSize = strlen(arg);
+		for (size_t i = 0; i < s_CommandLineArgs.size(); ++i)
+		{
+			std::string_view currentArg = s_CommandLineArgs[i];
+
+			if (currentArg.size() <= argSize)
+				continue;
+
+			for (size_t stringIndex = 0; stringIndex < currentArg.size(); ++stringIndex)
+			{
+				if (stringIndex == argSize && currentArg[stringIndex] == '=')
+					value = currentArg.substr(stringIndex + 1);
+
+				if (currentArg[stringIndex] != arg[stringIndex])
+					break;
+			}
+		}
+	}
+
 }

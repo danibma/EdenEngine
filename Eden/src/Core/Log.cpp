@@ -16,7 +16,7 @@ namespace Eden
 	{
 		std::vector<spdlog::sink_ptr> coreSinks =
 		{
-			std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt", true),
+			std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt", false),
 			std::make_shared<spdlog::sinks::msvc_sink_mt>(),
 			std::make_shared<OutputLogSynk<std::mutex>>()
 		};
