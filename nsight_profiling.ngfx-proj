@@ -149,13 +149,13 @@
         "platform/win32/arguments": "",
         "platform/win32/autoconnect": true,
         "platform/win32/environment": "",
-        "platform/win32/executable": "E:/EdenEngine/bin/Profiling/EdenEngine.exe",
+        "platform/win32/executable": "E:/EdenEngine/bin/Eden.exe",
         "platform/win32/executable/history": [
-            "E:/EdenEngine/bin/Profiling/EdenEngine.exe"
+            "E:/EdenEngine/bin/Eden.exe"
         ],
-        "platform/win32/workingdir": "E:/EdenEngine/EdenEngine",
+        "platform/win32/workingdir": "E:/EdenEngine/Eden",
         "platform/win32/workingdir/history": [
-            "E:/EdenEngine/EdenEngine"
+            "E:/EdenEngine/Eden"
         ],
         "platform/windows/device": "localhost"
     },

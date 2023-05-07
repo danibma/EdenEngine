@@ -5,7 +5,7 @@
         "commandLine": "",
         "environment": [
         ],
-        "executable": "E:\\EdenEngine\\bin\\Debug\\EdenEngine.exe",
+        "executable": "E:\\EdenEngine\\bin\\Eden.exe",
         "inject": false,
         "numQueuedFrames": 0,
         "options": {
@@ -22,6 +22,6 @@
             "verifyBufferAccess": false
         },
         "queuedFrameCap": 0,
-        "workingDir": "E:/EdenEngine/EdenEngine"
+        "workingDir": "E:/EdenEngine/Eden"
     }
 }
