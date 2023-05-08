@@ -1,5 +1,7 @@
 #pragma once
+
 #include "Core/Window.h"
+#include "RHI/DynamicRHI.h"
 
 namespace Eden::Gfx::Tests
 {

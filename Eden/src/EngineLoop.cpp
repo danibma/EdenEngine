@@ -9,6 +9,7 @@
 
 #include "RHI/Tests/RHIBaseTest.h"
 #include "RHI/Tests/RHITriangleTest.h"
+#include "RHI/Tests/RHIMeshTest.h"
 
 using namespace Eden;
 
@@ -47,6 +48,11 @@ int EdenMain()
 		{
 			gfxTest = enew Gfx::Tests::RHITriangleTest();
 			appDescription.Title += "[gfx::triangle]";
+		}
+		else if (gfxTestType == "mesh")
+		{
+			gfxTest = enew Gfx::Tests::RHIMeshTest();
+			appDescription.Title += "[gfx::mesh]";
 		}
 		else
 		{
