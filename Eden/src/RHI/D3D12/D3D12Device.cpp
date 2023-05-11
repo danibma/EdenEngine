@@ -89,7 +89,9 @@ namespace Eden
 		edelete m_RTVHeap;
 		edelete m_DSVHeap;
 
+#if ED_DEBUG
 		SAFE_RELEASE(m_InfoQueue);
+#endif
 		SAFE_RELEASE(m_Device);
 		SAFE_RELEASE(m_Factory);
 		SAFE_RELEASE(m_Adapter);
