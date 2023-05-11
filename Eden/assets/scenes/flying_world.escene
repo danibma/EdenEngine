@@ -1,0 +1,30 @@
+Scene: flying_world
+Entities:
+  - Entity: 0
+    TagComponent:
+      Tag: Sun
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [-0.271728873, 0.674534917, 1.4877671]
+      Scale: [1, 1.00000107, 0.999999881]
+    DirectionalLightComponent:
+      Intensity: 1.10000002
+  - Entity: 1
+    TagComponent:
+      Tag: Light
+    TransformComponent:
+      Translation: [-1.44003296, 2.27126217, -2.78487968]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    PointLightComponent:
+      Color: [1, 1, 1, 1]
+      Intensity: 1
+  - Entity: 2
+    TagComponent:
+      Tag: FlyingWorld-BattleOfTheTrashGod
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      File Path: assets\Models\flying_world_battle_of_the_trash_god\FlyingWorld-BattleOfTheTrashGod.gltf

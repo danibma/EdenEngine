@@ -34,7 +34,7 @@ namespace Eden
 		m_Data->sceneDataCB = RHICreateBuffer(&sceneDataDesc, &m_Data->sceneData);
 
 		m_Data->currentScene = enew Scene();
-		std::string defaultScene = "assets/scenes/demo.escene";
+		std::string defaultScene = "assets/scenes/flying_world.escene";
 		OpenScene(defaultScene);
 
 		m_Data->skybox = MakeShared<Skybox>("assets/skyboxes/studio_garden.hdr");
