@@ -30,7 +30,7 @@ A showcase of some of these features can be found in the section below
 - Deferred Rendering
 - Blinn-Phong Lighting
 - Cubemaps through HDR file format
-- HDR Pipeline with Gamma Correction and Tonemapping
+- Gamma Correction and HDR Tonemapping
 - Mip chain generation
 - Shader reflection
 - Shader hot-reloading through the editor
@@ -46,7 +46,7 @@ A showcase of some of these features can be found in the section below
 ### Cubemaps through HDR file format
 ![Cubemap](img/cubemap.png)
 
-### HDR Pipeline with Gamma Correction and Tonemapping
+### Gamma Correction and HDR Tonemapping
 | On | Off |
 |----|-----|
 | ![Multiple Lights](img/hdr_on.png) | ![Multiple Lights](img/hdr_off.png) |
